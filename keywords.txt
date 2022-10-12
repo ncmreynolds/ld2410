@@ -1,0 +1,12 @@
+ld2410	KEYWORD1
+
+//Setup
+begin	KEYWORD2
+debug	KEYWORD2
+isConnected	KEYWORD2
+read	KEYWORD2
+presenceDetected	KEYWORD2
+stationaryTargetDistance	KEYWORD2
+stationaryTargetEnergy	KEYWORD2
+movingTargetDistance	KEYWORD2
+movingTargetEnergy	KEYWORD2
