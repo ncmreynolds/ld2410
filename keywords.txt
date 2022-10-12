@@ -1,12 +1,23 @@
 ld2410	KEYWORD1
 
-//Setup
 begin	KEYWORD2
 debug	KEYWORD2
 isConnected	KEYWORD2
 read	KEYWORD2
 presenceDetected	KEYWORD2
+stationaryTargetDetected	KEYWORD2
 stationaryTargetDistance	KEYWORD2
 stationaryTargetEnergy	KEYWORD2
+movingTargetDetected	KEYWORD2
 movingTargetDistance	KEYWORD2
 movingTargetEnergy	KEYWORD2
+requestFirmwareVersion
+requestCurrentConfiguration
+requestRestart	KEYWORD2
+requestFactoryReset	KEYWORD2
+requestStartEngineeringMode	KEYWORD2
+requestEndEngineeringMode	KEYWORD2
+
+firmware_major_version	LITERAL1
+firmware_minor_version	LITERAL1
+firmware_bugfix_version	LITERAL1
