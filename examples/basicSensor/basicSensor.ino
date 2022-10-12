@@ -1,5 +1,5 @@
 /*
- * Example scketh for reporting on readings from the LD2410 using whatever settings are currently configured.
+ * Example sketch for reporting on readings from the LD2410 using whatever settings are currently configured.
  * 
  * The sketch assumes an ESP32 board with the LD2410 connected as Serial1 to pins 8 & 9, the serial configuration for other boards may vary
  * 
@@ -8,6 +8,8 @@
 #include <ld2410.h>
 
 ld2410 radar;
+
+uint32_t lastReading = 0;
 
 void setup(void)
 {
@@ -28,8 +30,10 @@ void setup(void)
 
 void loop()
 {
-  if(radar.read())  //Some data has been received from the radar
+  radar.read();
+  if(radar.isConnected() && millis() - lastReading > 1000)  //Report every 1000ms
   {
+    lastReading = millis();
     if(radar.presenceDetected())
     {
       if(radar.stationaryTargetDistance())
@@ -46,6 +50,10 @@ void loop()
         Serial.print(F("cm energy:"));
         Serial.println(radar.movingTargetEnergy());
       }
+    }
+    else
+    {
+      Serial.println(F("No target"));
     }
   }
 }
