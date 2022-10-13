@@ -17,6 +17,8 @@ requestRestart	KEYWORD2
 requestFactoryReset	KEYWORD2
 requestStartEngineeringMode	KEYWORD2
 requestEndEngineeringMode	KEYWORD2
+setMaxValues	KEYWORD2
+setGateSensitivityThreshold	KEYWORD2
 
 firmware_major_version	LITERAL1
 firmware_minor_version	LITERAL1
