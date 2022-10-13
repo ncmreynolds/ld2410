@@ -389,16 +389,11 @@ bool ld2410::parse_frame_()
 				radar_data_frame_[radar_data_frame_position_ - 2] == 0x02 &&
 				radar_data_frame_[radar_data_frame_position_ - 1] == 0x01)		//This is an ACK/Command frame
 	{
-		#ifdef LD2410_DEBUG_FRAMES
+		uint16_t intra_frame_data_length_ = radar_data_frame_[4] + (radar_data_frame_[5] << 8);
+		#ifdef LD2410_DEBUG_ACKS
 		if(debug_uart_ != nullptr)
 		{
 			print_frame_();
-		}
-		#endif
-		uint16_t intra_frame_data_length_ = radar_data_frame_[4] + (radar_data_frame_[5] << 8);
-		#ifdef LD2410_DEBUG_FRAMES
-		if(debug_uart_ != nullptr)
-		{
 			debug_uart_->print(F("\nACK frame payload: "));
 			debug_uart_->print(intra_frame_data_length_);
 			debug_uart_->print(F(" bytes"));
@@ -462,6 +457,34 @@ bool ld2410::parse_frame_()
 				return false;
 			}
 		}
+		else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x60)
+		{
+			#ifdef LD2410_DEBUG_ACKS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("\nACK for setting max values: "));
+			}
+			#endif
+			if(latest_command_success_)
+			{
+				radar_uart_last_packet_ = millis();
+				#ifdef LD2410_DEBUG_ACKS
+				if(debug_uart_ != nullptr)
+				{
+					debug_uart_->print(F("OK"));
+				}
+				#endif
+				return true;
+			}
+			else
+			{
+				if(debug_uart_ != nullptr)
+				{
+					debug_uart_->print(F("failed"));
+				}
+				return false;
+			}
+		}
 		else if(intra_frame_data_length_ == 28 && latest_ack_ == 0x61)
 		{
 			#ifdef LD2410_DEBUG_ACKS
@@ -479,9 +502,9 @@ bool ld2410::parse_frame_()
 					debug_uart_->print(F("OK"));
 				}
 				#endif
-				max_gate_distance = radar_data_frame_[11];
-				max_moving_gate_distance = radar_data_frame_[12];
-				max_stationary_gate_distance = radar_data_frame_[13];
+				max_gate = radar_data_frame_[11];
+				max_moving_gate = radar_data_frame_[12];
+				max_stationary_gate = radar_data_frame_[13];
 				motion_sensitivity[0] = radar_data_frame_[14];
 				motion_sensitivity[1] = radar_data_frame_[15];
 				motion_sensitivity[2] = radar_data_frame_[16];
@@ -500,17 +523,17 @@ bool ld2410::parse_frame_()
 				stationary_sensitivity[6] = radar_data_frame_[29];
 				stationary_sensitivity[7] = radar_data_frame_[30];
 				stationary_sensitivity[8] = radar_data_frame_[31];
-				sensor_idle_time_ = radar_data_frame_[32];
-				sensor_idle_time_ += (radar_data_frame_[33] << 8);
+				sensor_idle_time = radar_data_frame_[32];
+				sensor_idle_time += (radar_data_frame_[33] << 8);
 				#ifdef LD2410_DEBUG_ACKS
 				if(debug_uart_ != nullptr)
 				{
 					debug_uart_->print(F("\nMax gate distance: "));
-					debug_uart_->print(max_gate_distance);
+					debug_uart_->print(max_gate);
 					debug_uart_->print(F("\nMax motion detecting gate distance: "));
-					debug_uart_->print(max_moving_gate_distance);
+					debug_uart_->print(max_moving_gate);
 					debug_uart_->print(F("\nMax stationary detecting gate distance: "));
-					debug_uart_->print(max_stationary_gate_distance);
+					debug_uart_->print(max_stationary_gate);
 					debug_uart_->print(F("\nSensitivity per gate"));
 					for(uint8_t i = 0; i < 9; i++)
 					{
@@ -527,7 +550,7 @@ bool ld2410::parse_frame_()
 						
 					}
 					debug_uart_->print(F("\nSensor idle timeout: "));
-					debug_uart_->print(sensor_idle_time_);
+					debug_uart_->print(sensor_idle_time);
 					debug_uart_->print('s');
 				}
 				#endif
@@ -542,7 +565,35 @@ bool ld2410::parse_frame_()
 				return false;
 			}
 		}
-		else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xA0)
+		else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x64)
+		{
+			#ifdef LD2410_DEBUG_ACKS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("\nACK for setting sensitivity values: "));
+			}
+			#endif
+			if(latest_command_success_)
+			{
+				radar_uart_last_packet_ = millis();
+				#ifdef LD2410_DEBUG_ACKS
+				if(debug_uart_ != nullptr)
+				{
+					debug_uart_->print(F("OK"));
+				}
+				#endif
+				return true;
+			}
+			else
+			{
+				if(debug_uart_ != nullptr)
+				{
+					debug_uart_->print(F("failed"));
+				}
+				return false;
+			}
+		}
+		else if(intra_frame_data_length_ == 12 && latest_ack_ == 0xA0)
 		{
 			#ifdef LD2410_DEBUG_ACKS
 			if(debug_uart_ != nullptr)
@@ -552,9 +603,12 @@ bool ld2410::parse_frame_()
 			#endif
 			if(latest_command_success_)
 			{
-				firmware_major_version = radar_data_frame_[7];
-				firmware_minor_version = radar_data_frame_[8];
-				firmware_bugfix_version = radar_data_frame_[9];
+				firmware_major_version = radar_data_frame_[13];
+				firmware_minor_version = radar_data_frame_[12];
+				firmware_bugfix_version = radar_data_frame_[14];
+				firmware_bugfix_version += radar_data_frame_[15]<<8;
+				firmware_bugfix_version += radar_data_frame_[16]<<16;
+				firmware_bugfix_version += radar_data_frame_[17]<<24;
 				radar_uart_last_packet_ = millis();
 				#ifdef LD2410_DEBUG_ACKS
 				if(debug_uart_ != nullptr)
@@ -854,4 +908,95 @@ bool ld2410::requestFactoryReset()
 	return false;
 }
 
+bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer)
+{
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		send_command_preamble_();
+		radar_uart_->write(char(0x14));	//Command is 20 bytes long
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x60));	//Request set max values
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x00));	//Moving gate command
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(moving & 0x00FF));	//Moving gate value
+		radar_uart_->write(char((moving & 0xFF00)>>8));
+		radar_uart_->write(char(0x00));	//Spacer
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x01));	//Stationary gate command
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(stationary & 0x00FF));	//Stationary gate value
+		radar_uart_->write(char((stationary & 0xFF00)>>8));
+		radar_uart_->write(char(0x00));	//Spacer
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x02));	//Inactivity timer command
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(inactivityTimer & 0x00FF));	//Inactivity timer
+		radar_uart_->write(char((inactivityTimer & 0xFF00)>>8));
+		radar_uart_->write(char(0x00));	//Spacer
+		radar_uart_->write(char(0x00));
+		send_command_postamble_();
+		radar_uart_last_command_ = millis();
+		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+		{
+			read_frame_();
+			if(latest_ack_ == 0x60 && latest_command_success_)
+			{
+				delay(50);
+				leave_configuration_mode_();
+				return true;
+			}
+		}
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+
+bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary)
+{
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		send_command_preamble_();
+		radar_uart_->write(char(0x14));	//Command is 20 bytes long
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x64));	//Request set sensitivity values
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x00));	//Gate command
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(gate));	//Gate value
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x00));	//Spacer
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x01));	//Motion sensitivity command
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(moving));	//Motion sensitivity value
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x00));	//Spacer
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x02));	//Stationary sensitivity command
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(stationary));	//Stationary sensitivity value
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x00));	//Spacer
+		radar_uart_->write(char(0x00));
+		send_command_postamble_();
+		radar_uart_last_command_ = millis();
+		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+		{
+			read_frame_();
+			if(latest_ack_ == 0x64 && latest_command_success_)
+			{
+				delay(50);
+				leave_configuration_mode_();
+				return true;
+			}
+		}
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
 #endif

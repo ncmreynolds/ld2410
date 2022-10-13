@@ -35,15 +35,23 @@ class ld2410	{
 		bool movingTargetDetected();
 		uint16_t movingTargetDistance();
 		uint8_t movingTargetEnergy();
-		bool requestFirmwareVersion();								//Request the firmware version
-		uint8_t firmware_major_version = 0;
-		uint8_t firmware_minor_version = 0;
-		uint8_t firmware_bugfix_version = 0;
-		bool requestCurrentConfiguration();
+		bool requestFirmwareVersion();									//Request the firmware version
+		uint8_t firmware_major_version = 0;								//Reported major version
+		uint8_t firmware_minor_version = 0;								//Reported minor version
+		uint32_t firmware_bugfix_version = 0;							//Reported bugfix version (coded as hex)
+		bool requestCurrentConfiguration();								//Request current configuration
+		uint8_t max_gate = 0;
+		uint8_t max_moving_gate = 0;
+		uint8_t max_stationary_gate = 0;
+		uint16_t sensor_idle_time = 0;
+		uint8_t motion_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
+		uint8_t stationary_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
 		bool requestRestart();
 		bool requestFactoryReset();
 		bool requestStartEngineeringMode();
 		bool requestEndEngineeringMode();
+		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
+		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
 	protected:
 	private:
 		Stream *radar_uart_ = nullptr;
@@ -51,7 +59,7 @@ class ld2410	{
 		uint32_t radar_uart_timeout = 100;								//How long to give up on receiving some useful data from the LD2410
 		uint32_t radar_uart_last_packet_ = 0;							//Time of the last packet from the radar
 		uint32_t radar_uart_last_command_ = 0;							//Time of the last command sent to the radar
-		uint32_t radar_uart_command_timeout_ = 1000;						//Timeout for sending commands
+		uint32_t radar_uart_command_timeout_ = 100;						//Timeout for sending commands
 		uint8_t latest_ack_ = 0;
 		bool latest_command_success_ = false;
 		uint8_t radar_data_frame_[LD2410_MAX_FRAME_LENGTH];				//Store the incoming data from the radar, to check it's in a valid format
@@ -64,19 +72,13 @@ class ld2410	{
 		uint16_t stationary_target_distance_ = 0;
 		uint8_t stationary_target_energy_ = 0;
 		uint16_t detection_distance_ = 0;
-		uint8_t max_gate_distance = 0;
-		uint8_t max_moving_gate_distance = 0;
-		uint8_t max_stationary_gate_distance = 0;
-		uint8_t motion_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
-		uint8_t stationary_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
-		uint16_t sensor_idle_time_ = 0;
 		
 		bool read_frame_();												//Try to read a frame from the UART
 		bool parse_frame_();											//Is the current frame valid
 		void print_frame_();											//Print the frame for debugging
-		void send_command_preamble_();
-		void send_command_postamble_();
-		bool enter_configuration_mode_();
-		bool leave_configuration_mode_();
+		void send_command_preamble_();									//Commands have the same preamble
+		void send_command_postamble_();									//Commands have the same postamble
+		bool enter_configuration_mode_();								//Necessary before sending any command
+		bool leave_configuration_mode_();								//Will not read values without leaving command mode
 };
 #endif
