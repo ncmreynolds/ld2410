@@ -15,7 +15,7 @@ void setup(void)
 {
   Serial.begin(115200); //Feedback over Serial Monitor
   delay(500); //Give a while for Serial Monitor to wake up
-  radar.debug(Serial); //Uncomment to show debug information from the library on the Serial Monitor
+  //radar.debug(Serial); //Uncomment to show debug information from the library on the Serial Monitor. By default this does not show sensor reads as they are very frequent.
   Serial1.begin (256000, SERIAL_8N1, 9, 8); //UART for monitoring the radar
   delay(500);
   Serial.print(F("\nLD2410 radar sensor initialising: "));
@@ -27,7 +27,7 @@ void setup(void)
   {
     Serial.println(F("not connected"));
   }
-  Serial.println(F("Supported commands\nread: read current values from the sensor\nreadconfig: read the configuration from the sensor\nenableengineeringmode: enable engineering mode\ndisableengineeringmode: disable engineering mode\nrestart: restart the sensor\nversion: read firmware version\nfactoryreset: factory reset the sensor\n"));
+  Serial.println(F("Supported commands\nread: read current values from the sensor\nreadconfig: read the configuration from the sensor\nsetmaxvalues <motion gate> <stationary gate> <inactivitytimer>\nsetsensitivity <gate> <motionsensitivity> <stationarysensitivity>\nenableengineeringmode: enable engineering mode\ndisableengineeringmode: disable engineering mode\nrestart: restart the sensor\nreadversion: read firmware version\nfactoryreset: factory reset the sensor\n"));
 }
 
 void loop()
@@ -80,16 +80,104 @@ void loop()
         if(radar.requestCurrentConfiguration())
         {
           Serial.println(F("OK"));
-          //Serial.print(F("v"));
-          //Serial.print(radar.firmware_major_version);
-          //Serial.print('.');
-          //Serial.print(radar.firmware_minor_version);
-          //Serial.print('.');
-          //Serial.println(radar.firmware_bugfix_version);
+          Serial.print(F("Maximum gate ID: "));
+          Serial.println(radar.max_gate);
+          Serial.print(F("Maximum gate for moving targets: "));
+          Serial.println(radar.max_moving_gate);
+          Serial.print(F("Maximum gate for stationary targets: "));
+          Serial.println(radar.max_stationary_gate);
+          Serial.print(F("Idle time for targets: "));
+          Serial.println(radar.sensor_idle_time);
+          Serial.println(F("Gate sensitivity"));
+          for(uint8_t gate = 0; gate <= radar.max_gate; gate++)
+          {
+            Serial.print(F("Gate "));
+            Serial.print(gate);
+            Serial.print(F(" moving targets: "));
+            Serial.print(radar.motion_sensitivity[gate]);
+            Serial.print(F(" stationary targets: "));
+            Serial.println(radar.stationary_sensitivity[gate]);
+          }
         }
         else
         {
           Serial.println(F("Failed"));
+        }
+      }
+      else if(command.startsWith("setmaxvalues"))
+      {
+        uint8_t firstSpace = command.indexOf(' ');
+        uint8_t secondSpace = command.indexOf(' ',firstSpace + 1);
+        uint8_t thirdSpace = command.indexOf(' ',secondSpace + 1);
+        uint8_t newMovingMaxDistance = (command.substring(firstSpace,secondSpace)).toInt();
+        uint8_t newStationaryMaxDistance = (command.substring(secondSpace,thirdSpace)).toInt();
+        uint16_t inactivityTimer = (command.substring(thirdSpace,command.length())).toInt();
+        if(newMovingMaxDistance > 0 && newStationaryMaxDistance > 0 && newMovingMaxDistance <= 8 && newStationaryMaxDistance <= 8)
+        {
+          Serial.print(F("Setting max values to gate "));
+          Serial.print(newMovingMaxDistance);
+          Serial.print(F(" moving targets, gate "));
+          Serial.print(newStationaryMaxDistance);
+          Serial.print(F(" stationary targets, "));
+          Serial.print(inactivityTimer);
+          Serial.print(F("s inactivity timer: "));
+          command = "";
+          if(radar.setMaxValues(newMovingMaxDistance, newStationaryMaxDistance, inactivityTimer))
+          {
+            Serial.println(F("OK, now restart to apply settings"));
+          }
+          else
+          {
+            Serial.println(F("failed"));
+          }
+        }
+        else
+        {
+          Serial.print(F("Can't set distances to "));
+          Serial.print(newMovingMaxDistance);
+          Serial.print(F(" moving "));
+          Serial.print(newStationaryMaxDistance);
+          Serial.println(F(" stationary, try again"));
+          command = "";
+        }
+      }
+      else if(command.startsWith("setsensitivity"))
+      {
+        uint8_t firstSpace = command.indexOf(' ');
+        uint8_t secondSpace = command.indexOf(' ',firstSpace + 1);
+        uint8_t thirdSpace = command.indexOf(' ',secondSpace + 1);
+        uint8_t gate = (command.substring(firstSpace,secondSpace)).toInt();
+        uint8_t motionSensitivity = (command.substring(secondSpace,thirdSpace)).toInt();
+        uint8_t stationarySensitivity = (command.substring(thirdSpace,command.length())).toInt();
+        if(motionSensitivity >= 0 && stationarySensitivity >= 0 && motionSensitivity <= 100 && stationarySensitivity <= 100)
+        {
+          Serial.print(F("Setting gate "));
+          Serial.print(gate);
+          Serial.print(F(" motion sensitivity to "));
+          Serial.print(motionSensitivity);
+          Serial.print(F(" & stationary sensitivity to "));
+          Serial.print(stationarySensitivity);
+          Serial.println(F(": "));
+          command = "";
+          if(radar.setGateSensitivityThreshold(gate, motionSensitivity, stationarySensitivity))
+          {
+            Serial.println(F("OK, now restart to apply settings"));
+          }
+          else
+          {
+            Serial.println(F("failed"));
+          }
+        }
+        else
+        {
+          Serial.print(F("Can't set gate "));
+          Serial.print(gate);
+          Serial.print(F(" motion sensitivity to "));
+          Serial.print(motionSensitivity);
+          Serial.print(F(" & stationary sensitivity to "));
+          Serial.print(stationarySensitivity);
+          Serial.println(F(", try again"));
+          command = "";
         }
       }
       else if(command.equals("enableengineeringmode"))
@@ -131,18 +219,18 @@ void loop()
           Serial.println(F("failed"));
         }
       }
-      else if(command.equals("version"))
+      else if(command.equals("readversion"))
       {
         command = "";
         Serial.print(F("Requesting firmware version: "));
         if(radar.requestFirmwareVersion())
         {
-          Serial.print(F("v"));
+          Serial.print('v');
           Serial.print(radar.firmware_major_version);
           Serial.print('.');
           Serial.print(radar.firmware_minor_version);
           Serial.print('.');
-          Serial.println(radar.firmware_bugfix_version);
+          Serial.println(radar.firmware_bugfix_version,HEX);
         }
         else
         {
