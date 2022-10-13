@@ -14,7 +14,7 @@ uint32_t lastReading = 0;
 void setup(void)
 {
   Serial.begin(115200); //Feedback over Serial Monitor
-  //radar.debug(Serial); //Uncomment to show debug information from the library on the Serial Monitor
+  radar.debug(Serial); //Uncomment to show debug information from the library on the Serial Monitor. By default this does not show sensor reads as they are very frequent.
   Serial1.begin (256000, SERIAL_8N1, 9, 8); //UART for monitoring the radar
   delay(500);
   Serial.println(F("\nLD2410 radar sensor initialising: "));
