@@ -36,14 +36,14 @@ void loop()
     lastReading = millis();
     if(radar.presenceDetected())
     {
-      if(radar.stationaryTargetDistance())
+      if(radar.stationaryTargetDetected())
       {
         Serial.print(F("Stationary target: "));
         Serial.print(radar.stationaryTargetDistance());
         Serial.print(F("cm energy:"));
         Serial.println(radar.stationaryTargetEnergy());
       }
-      if(radar.movingTargetDistance())
+      if(radar.movingTargetDetected())
       {
         Serial.print(F("Moving target: "));
         Serial.print(radar.movingTargetDistance());
