@@ -15,9 +15,9 @@
 #include <Arduino.h>
 
 #define LD2410_MAX_FRAME_LENGTH 40
-//#define LD2410_DEBUG_FRAMES
-#define LD2410_DEBUG_ACKS
 //#define LD2410_DEBUG_DATA
+#define LD2410_DEBUG_COMMANDS
+//#define LD2410_DEBUG_PARSE
 
 class ld2410	{
 
@@ -65,16 +65,17 @@ class ld2410	{
 		uint8_t radar_data_frame_[LD2410_MAX_FRAME_LENGTH];				//Store the incoming data from the radar, to check it's in a valid format
 		uint8_t radar_data_frame_position_ = 0;							//Where in the frame we are currently writing
 		bool frame_started_ = false;									//Whether a frame is currently being read
+		bool ack_frame_ = false;										//Whether the incoming frame is LIKELY an ACK frame
 		bool waiting_for_ack_ = false;									//Whether a command has just been sent
 		uint8_t target_type_ = 0;
 		uint16_t moving_target_distance_ = 0;
 		uint8_t moving_target_energy_ = 0;
 		uint16_t stationary_target_distance_ = 0;
 		uint8_t stationary_target_energy_ = 0;
-		uint16_t detection_distance_ = 0;
 		
 		bool read_frame_();												//Try to read a frame from the UART
-		bool parse_frame_();											//Is the current frame valid
+		bool parse_data_frame_();										//Is the current data frame valid?
+		bool parse_command_frame_();									//Is the current command frame valid?
 		void print_frame_();											//Print the frame for debugging
 		void send_command_preamble_();									//Commands have the same preamble
 		void send_command_postamble_();									//Commands have the same postamble
