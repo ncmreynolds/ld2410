@@ -290,15 +290,7 @@ bool ld2410::read_frame_()
 				radar_data_frame_[radar_data_frame_position_++] = radar_uart_ -> read();
 				if(radar_data_frame_position_ > 7)	//Can check for start and end
 				{
-					if(	radar_data_frame_[0]                              == 0xF4 &&	//Data frame end state
-						radar_data_frame_[1]                              == 0xF3 &&
-						radar_data_frame_[2]                              == 0xF2 &&
-						radar_data_frame_[3]                              == 0xF1 &&
-						radar_data_frame_[radar_data_frame_position_ - 4] == 0xF8 &&
-						radar_data_frame_[radar_data_frame_position_ - 3] == 0xF7 &&
-						radar_data_frame_[radar_data_frame_position_ - 2] == 0xF6 &&
-						radar_data_frame_[radar_data_frame_position_ - 1] == 0xF5
-					)
+					if(isReportingDataFrame())
 					{
 						if(parse_data_frame_())
 						{
@@ -324,15 +316,7 @@ bool ld2410::read_frame_()
 							radar_data_frame_position_ = 0;
 						}
 					}
-					else if(radar_data_frame_[0]                              == 0xFD &&	//Command frame end state
-							radar_data_frame_[1]                              == 0xFC &&
-							radar_data_frame_[2]                              == 0xFB &&
-							radar_data_frame_[3]                              == 0xFA &&
-							radar_data_frame_[radar_data_frame_position_ - 4] == 0x04 &&
-							radar_data_frame_[radar_data_frame_position_ - 3] == 0x03 &&
-							radar_data_frame_[radar_data_frame_position_ - 2] == 0x02 &&
-							radar_data_frame_[radar_data_frame_position_ - 1] == 0x01
-						)
+					else if(isProtocolDataFrame())
 					{
 						if(parse_command_frame_())
 						{
@@ -587,7 +571,7 @@ bool ld2410::parse_command_frame_()
 	#endif
 	latest_ack_ = radar_data_frame_[6];
 	latest_command_success_ = (radar_data_frame_[8] == 0x00 && radar_data_frame_[9] == 0x00);
-	if(intra_frame_data_length_ == 8 && latest_ack_ == 0xFF)
+	if(intra_frame_data_length_ == 8 && latest_ack_ == CMD_CONFIGURATION_ENABLE)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -618,7 +602,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xFE)
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_CONFIGURATION_END)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -646,7 +630,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x60)
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_MAX_DISTANCE_AND_UNMANNED_DURATION)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -674,7 +658,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
-	else if(intra_frame_data_length_ == 28 && latest_ack_ == 0x61)
+	else if(intra_frame_data_length_ == 28 && latest_ack_ == CMD_READ_PARAMETER)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -754,7 +738,61 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x64)
+	else if(intra_frame_data_length_ == 4 && latest_ack_== CMD_ENGINEERING_ENABLE) {	
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for end engineering mode: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+	else if(intra_frame_data_length_ == 4 && latest_ack_== CMD_ENGINEERING_END) {	
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for end engineering mode: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_RANGE_GATE_SENSITIVITY)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -782,7 +820,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
-	else if(intra_frame_data_length_ == 12 && latest_ack_ == 0xA0)
+	else if(intra_frame_data_length_ == 12 && latest_ack_ == CMD_READ_FIRMWARE_VERSION)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -816,7 +854,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xA2)
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_FACTORY_RESET)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -844,7 +882,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xA3)
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_RESTART)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -872,37 +910,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
-	else if(latest_ack_== 0x62) {	
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
-	}
-	else
-	{
-
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nUnknown ACK"));
-		}
-		#endif
-	}
+	
 	return false;
 }
 
