@@ -14,7 +14,7 @@
 #define ld2410_h
 #include <Arduino.h>
 
-#define LD2410_MAX_FRAME_LENGTH 40
+#define LD2410_MAX_FRAME_LENGTH 64
 //#define LD2410_DEBUG_DATA
 #define LD2410_DEBUG_COMMANDS
 //#define LD2410_DEBUG_PARSE
