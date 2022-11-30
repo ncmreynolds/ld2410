@@ -10,14 +10,39 @@
  *	Released under LGPL-2.1 see https://github.com/ncmreynolds/ld2410/LICENSE for full license
  *
  */
-#ifndef ld2410_h
-#define ld2410_h
+#pragma once
+
 #include <Arduino.h>
 
 #define LD2410_MAX_FRAME_LENGTH 64
-//#define LD2410_DEBUG_DATA
+
+#define LD2410_DEBUG_DATA
 #define LD2410_DEBUG_COMMANDS
-//#define LD2410_DEBUG_PARSE
+#define LD2410_DEBUG_PARSE
+/* 
+ * Protocol Command Words
+*/
+#define LD2410_MAX_FRAME_LENGTH   0x40     // or 64 bytes
+
+#define CMD_CONFIGURATION_ENABLE  0xFF
+#define CMD_CONFIGURATION_END     0xFE
+#define CMD_MAX_DISTANCE_AND_UNMANNED_DURATION  0x60
+#define CMD_READ_PARAMETER        0x61
+#define CMD_ENGINEERING_ENABLE    0x62
+#define CMD_ENGINEERING_END       0x63
+#define CMD_RANGE_GATE_SENSITIVITY 0x64
+#define CMD_READ_FIRMWARE_VERSION 0xA0
+#define CMD_SET_SERIAL_PORT_BAUD  0xA1
+#define CMD_FACTORY_RESET         0xA2
+#define CMD_RESTART               0xA3
+
+/* 
+ * Data Frame Formats
+*/
+#define FRAME_PROTOCOL_TYPE       0x02
+#define FRAME_ENGINEERING_TYPE    0x01
+#define FRAME_PROTOCOL_PREFIX     0xFD
+#define FRAME_ENGINEERING_PREFIX  0xF4
 
 class ld2410	{
 
@@ -52,6 +77,7 @@ class ld2410	{
 		bool requestEndEngineeringMode();
 		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
+		String targetStateToString(uint8_t targetState);                //from report or engineering data
 	protected:
 	private:
 		Stream *radar_uart_ = nullptr;
@@ -72,7 +98,26 @@ class ld2410	{
 		uint8_t moving_target_energy_ = 0;
 		uint16_t stationary_target_distance_ = 0;
 		uint8_t stationary_target_energy_ = 0;
+
+		/*
+		 * Protocol & Engineering Frame Data */
+		uint16_t moving_target_distance_         = 0;                    //protocol mode info 
+		uint8_t  moving_target_energy_           = 0;                    //protocol mode info 
+		uint16_t stationary_target_distance_     = 0;                    //protocol mode info 
+		uint8_t  stationary_target_energy_       = 0;                    //protocol mode info 
+		uint16_t detection_distance_             = 0;                    //protocol & engineering mode info
+		uint8_t  max_moving_distance_gate        = 0;                    //engineering mode info
+		uint8_t  max_static_distance_gate        = 0;                    //engineering mode info
+		uint8_t  movement_distance_gate_energy[9] = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
+		uint8_t  static_distance_gate_engergy[9]  = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
+
+		uint16_t configuration_protocol_version_ = 0;                    //From Enter Configuration Mode Response
+		uint16_t configuration_buffer_size_ = LD2410_MAX_FRAME_LENGTH;   //From Enter Configuration Mode Response
 		
+		bool isProtocolDataFrame();                                     //Command -Determine type of Frame
+		bool isReportingDataFrame();                                    //Data - Determine type of Frame
+
+
 		bool read_frame_();												//Try to read a frame from the UART
 		bool parse_data_frame_();										//Is the current data frame valid?
 		bool parse_command_frame_();									//Is the current command frame valid?
@@ -82,4 +127,3 @@ class ld2410	{
 		bool enter_configuration_mode_();								//Necessary before sending any command
 		bool leave_configuration_mode_();								//Will not read values without leaving command mode
 };
-#endif

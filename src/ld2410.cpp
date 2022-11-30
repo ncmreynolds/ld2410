@@ -155,6 +155,80 @@ uint8_t ld2410::movingTargetEnergy()
 	//return 0;
 }
 
+/* Command / Response Frame
+ *
+ * REQUEST
+ * FD FC FB FA -- Header
+ *       dd dd -- Frame data length
+ *       dd dd -- Command Word
+ *         ... -- Command Value nBytes
+ * 04 03 02 01 -- Footer
+ *
+ * RESPONSE
+ * FD FC FB FA -- Header
+ *       dd dd -- Frame data length
+ *       dd dd -- ACK Word
+ *         ... -- Response Values nBytes
+ * 04 03 02 01 -- Footer
+ */
+bool ld2410::isProtocolDataFrame() {
+	return (	radar_data_frame_[0]                              == FRAME_PROTOCOL_PREFIX &&	
+				radar_data_frame_[1]                              == 0xFC &&
+				radar_data_frame_[2]                              == 0xFB &&
+				radar_data_frame_[3]                              == 0xFA &&
+				radar_data_frame_[radar_data_frame_position_ - 4] == 0x04 &&
+				radar_data_frame_[radar_data_frame_position_ - 3] == 0x03 &&
+				radar_data_frame_[radar_data_frame_position_ - 2] == 0x02 &&
+				radar_data_frame_[radar_data_frame_position_ - 1] == 0x01
+			);
+}
+
+/* Data Frame
+ *
+ * F4 F3 F2 F1 -- header
+ *       dd dd -- frame data length
+ *          dd -- Type of Data (0x01=Engineering data, 0x02=Target data)
+ *        0xAA -- Marker
+ *         ... -- target data and engineering data
+ *        0x55 -- Marker
+ *        0x00 -- Check flag
+ * F8 F7 F6 F5  - Footer
+ * 
+ * F4 F3 FA F1 0D 00 02 AA 02 A7 80 00 00 00 52 00 00 AD 80 F8 F7 F6 F5
+ * F4 F3 F2 F9 8D 00 02 AA 02 5A 00 80 00 00 64 00 00 55 80 F8 F7 F6 F5
+ * F4 F3 F2 F1 0D 00 82 AA 02 5A 00 00 00 80 64 00 00 55 00 F8 F7 F6 F5
+*/
+bool ld2410::isReportingDataFrame() {
+	return (	radar_data_frame_[0]                              == FRAME_ENGINEERING_PREFIX &&
+				radar_data_frame_[1]                              == 0xF3 &&
+				radar_data_frame_[2]                              == 0xF2 &&
+				radar_data_frame_[3]                              == 0xF1 &&
+				radar_data_frame_[radar_data_frame_position_ - 4] == 0xF8 &&
+				radar_data_frame_[radar_data_frame_position_ - 3] == 0xF7 &&
+				radar_data_frame_[radar_data_frame_position_ - 2] == 0xF6 &&
+				radar_data_frame_[radar_data_frame_position_ - 1] == 0xF5
+			);
+}
+
+String ld2410::targetStateToString(uint8_t tartgetState) {
+	switch(tartgetState) {
+		case 0: 
+			return String(F("No Target"));
+			break;
+		case 1: 
+			return String(F("Sports Target"));
+			break;
+		case 2: 
+			return String(F("Stationary Target"));
+			break;
+		case 3: 
+			return String(F("Stationary & stationary Target"));
+			break;
+		default:
+			return String(F("Unknown Target Type"));
+	}
+}
+
 bool ld2410::read_frame_()
 {
 	if(radar_uart_ -> available())
@@ -332,7 +406,7 @@ bool ld2410::parse_data_frame_()
 	if(radar_data_frame_position_ == intra_frame_data_length_ + 10)
 	{
 		#ifdef LD2410_DEBUG_DATA
-		if(debug_uart_ != nullptr && ack_frame_ == false)
+		if(debug_uart_ != nullptr ) // && ack_frame_ == false)
 		{
 			print_frame_();
 		}
@@ -343,9 +417,46 @@ bool ld2410::parse_data_frame_()
 			print_frame_();
 		}
 		#endif
-		if(radar_data_frame_[6] == 0x01 && radar_data_frame_[7] == 0xAA)	//Engineering mode data
-		{
+		if(radar_data_frame_[6] == FRAME_ENGINEERING_TYPE && radar_data_frame_[7] == 0xAA)	//Engineering mode data
+		{	
+			uint8_t b_retcode = false;
+			uint8_t pos = 19;
+			/*   (Protocol) Target Data Reporting 
+			* 02 AA         d6,7     data type (target data)
+			* 02            d8       target type (stationary target)
+			* 51 00         d9,10    stationary target distance 
+			* 00            d11      stationary target energy 
+			* 00 00         d12,13   moving target distance
+			* 3B            d14      moving target energy
+			* 00 00         d15,16   distance detection
+			
+			Engineering
+			* 08        d17       Max moving distance gate
+			* 08        d18       Max static distance gate
+			* 3C 22 05 03 03 04 03 06 05       d19,27 Movement distance gate energy
+			* 00 00 39 10 13 06 06 08 04       d28,36 Static distance gate energy
+			* 03 05     d37,38    ?? v1283
+			* 55 00     d39,40    Frame flag
+			*/
 			target_type_ = radar_data_frame_[8];
+			stationary_target_distance_ = radar_data_frame_[9] + (radar_data_frame_[10] << 8);
+			stationary_target_energy_ = radar_data_frame_[14];
+			moving_target_energy_ = radar_data_frame_[11];
+			moving_target_distance_ = radar_data_frame_[15] + (radar_data_frame_[16] << 8);
+			max_moving_distance_gate = radar_data_frame_[17];
+			max_static_distance_gate = radar_data_frame_[18];
+			
+			// motion_energy
+			for(uint8_t gate = 0; gate < sizeof(movement_distance_gate_energy); gate++) {
+				movement_distance_gate_energy[gate] = radar_data_frame_[pos++];
+			}
+			// stationary_engergy
+			for(uint8_t gate = 0; gate < sizeof(static_distance_gate_engergy); gate++) {
+				static_distance_gate_engergy[gate] = radar_data_frame_[pos++];
+			}
+			sensor_idle_time = radar_data_frame_[pos++] + (radar_data_frame_[pos] << 8); // maybe
+			b_retcode = true;
+
 			#ifdef LD2410_DEBUG_PARSE
 			if(debug_uart_ != nullptr)
 			{
@@ -368,13 +479,12 @@ bool ld2410::parse_data_frame_()
 				}
 			}
 			#endif
-			/*
-			 *
-			 *	To-do support engineering mode
-			 *
-			 */
+
+			radar_uart_last_packet_ = millis();
+
+			return b_retcode;
 		}
-		else if(intra_frame_data_length_ == 13 && radar_data_frame_[6] == 0x02 && radar_data_frame_[7] == 0xAA && radar_data_frame_[17] == 0x55 && radar_data_frame_[18] == 0x00)	//Normal target data
+		else if(intra_frame_data_length_ == 13 && radar_data_frame_[6] == FRAME_PROTOCOL_TYPE && radar_data_frame_[7] == 0xAA && radar_data_frame_[17] == 0x55 && radar_data_frame_[18] == 0x00)	//Normal target data
 		{
 			target_type_ = radar_data_frame_[8];
 			//moving_target_distance_ = radar_data_frame_[9] + (radar_data_frame_[10] << 8);
@@ -389,19 +499,19 @@ bool ld2410::parse_data_frame_()
 				debug_uart_->print(F("\nNormal data - "));
 				if(target_type_ == 0x00)
 				{
-					debug_uart_->print(F(" no target"));
+					debug_uart_->print(F("no target"));
 				}
 				else if(target_type_ == 0x01)
 				{
-					debug_uart_->print(F(" moving target:"));
+					debug_uart_->print(F("moving target:"));
 				}
 				else if(target_type_ == 0x02)
 				{
-					debug_uart_->print(F(" stationary target:"));
+					debug_uart_->print(F("stationary target:"));
 				}
 				else if(target_type_ == 0x03)
 				{
-					debug_uart_->print(F(" moving & stationary targets:"));
+					debug_uart_->print(F("moving & stationary targets:"));
 				}
 				if(radar_data_frame_[8] & 0x01)
 				{
@@ -432,6 +542,7 @@ bool ld2410::parse_data_frame_()
 			#endif
 			print_frame_();
 		}
+		return true;
 	}
 	else
 	{
@@ -445,6 +556,7 @@ bool ld2410::parse_data_frame_()
 		}
 		#endif
 	}
+	return false;
 }
 
 bool ld2410::parse_command_frame_()
@@ -625,60 +737,6 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_== 0x62) {	
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for starting engineering mode: "));
-		}
-		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
-	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_== 0x63) {	
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for closing engineering mode: "));
-		}
-		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
-	}
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x64)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
@@ -797,8 +855,30 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
+	else if(latest_ack_== 0x62) {	
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
 	else
 	{
+
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
 		{
@@ -806,6 +886,7 @@ bool ld2410::parse_command_frame_()
 		}
 		#endif
 	}
+	return false;
 }
 
 void ld2410::send_command_preamble_()
@@ -876,63 +957,51 @@ bool ld2410::leave_configuration_mode_()
 
 bool ld2410::requestStartEngineeringMode()
 {
-	if(enter_configuration_mode_())
+	enter_configuration_mode_();
+	send_command_preamble_();
+	//Request firmware
+	radar_uart_->write(char(0x02));	//Command is four bytes long
+	radar_uart_->write(char(0x00));
+	radar_uart_->write(char(0x62));	//Request enter command mode
+	radar_uart_->write(char(0x00));
+	send_command_postamble_();
+	radar_uart_last_command_ = millis();
+	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
-		delay(50);
-		send_command_preamble_();
-		//Request firmware
-		radar_uart_->write(char(0x02));	//Command is four bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(0x62));	//Request enter command mode
-		radar_uart_->write(char(0x00));
-		send_command_postamble_();
-		radar_uart_last_command_ = millis();
-		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+		if(read_frame_())
 		{
-			if(read_frame_())
+			if(latest_ack_ == 0x62 && latest_command_success_)
 			{
-				if(latest_ack_ == 0x62 && latest_command_success_)
-				{
-					delay(50);
-					leave_configuration_mode_();
-					return true;
-				}
+				leave_configuration_mode_();
+				return true;
 			}
 		}
 	}
-	delay(50);
-	leave_configuration_mode_();
 	return false;
 }
 
 bool ld2410::requestEndEngineeringMode()
 {
-	if(enter_configuration_mode_())
+	enter_configuration_mode_();
+	send_command_preamble_();
+	//Request firmware
+	radar_uart_->write(char(0x02));	//Command is four bytes long
+	radar_uart_->write(char(0x00));
+	radar_uart_->write(char(0x63));	//Request leave command mode
+	radar_uart_->write(char(0x00));
+	send_command_postamble_();
+	radar_uart_last_command_ = millis();
+	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
-		delay(50);
-		send_command_preamble_();
-		//Request firmware
-		radar_uart_->write(char(0x02));	//Command is four bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(0x63));	//Request leave command mode
-		radar_uart_->write(char(0x00));
-		send_command_postamble_();
-		radar_uart_last_command_ = millis();
-		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+		if(read_frame_())
 		{
-			if(read_frame_())
+			if(latest_ack_ == 0x63 && latest_command_success_)
 			{
-				if(latest_ack_ == 0x63 && latest_command_success_)
-				{
-					delay(50);
-					leave_configuration_mode_();
-					return true;
-				}
+				leave_configuration_mode_();
+				return true;
 			}
 		}
 	}
-	delay(50);
-	leave_configuration_mode_();
 	return false;
 }
 
