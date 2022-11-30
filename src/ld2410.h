@@ -94,10 +94,6 @@ class ld2410	{
 		bool ack_frame_ = false;										//Whether the incoming frame is LIKELY an ACK frame
 		bool waiting_for_ack_ = false;									//Whether a command has just been sent
 		uint8_t target_type_ = 0;
-		uint16_t moving_target_distance_ = 0;
-		uint8_t moving_target_energy_ = 0;
-		uint16_t stationary_target_distance_ = 0;
-		uint8_t stationary_target_energy_ = 0;
 
 		/*
 		 * Protocol & Engineering Frame Data */
