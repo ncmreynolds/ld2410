@@ -957,51 +957,63 @@ bool ld2410::leave_configuration_mode_()
 
 bool ld2410::requestStartEngineeringMode()
 {
-	enter_configuration_mode_();
-	send_command_preamble_();
-	//Request firmware
-	radar_uart_->write(char(0x02));	//Command is four bytes long
-	radar_uart_->write(char(0x00));
-	radar_uart_->write(char(0x62));	//Request enter command mode
-	radar_uart_->write(char(0x00));
-	send_command_postamble_();
-	radar_uart_last_command_ = millis();
-	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+	if(enter_configuration_mode_())
 	{
-		if(read_frame_())
+		delay(50);
+		send_command_preamble_();
+		//Request firmware
+		radar_uart_->write(char(0x02));	//Command is four bytes long
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x62));	//Request enter command mode
+		radar_uart_->write(char(0x00));
+		send_command_postamble_();
+		radar_uart_last_command_ = millis();
+		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			if(latest_ack_ == 0x62 && latest_command_success_)
+			if(read_frame_())
 			{
-				leave_configuration_mode_();
-				return true;
+				if(latest_ack_ == 0x62 && latest_command_success_)
+				{
+					delay(50;)
+					leave_configuration_mode_();
+					return true;
+				}
 			}
 		}
 	}
+	delay(50);
+	leave_configuration_mode_();
 	return false;
 }
 
 bool ld2410::requestEndEngineeringMode()
 {
-	enter_configuration_mode_();
-	send_command_preamble_();
-	//Request firmware
-	radar_uart_->write(char(0x02));	//Command is four bytes long
-	radar_uart_->write(char(0x00));
-	radar_uart_->write(char(0x63));	//Request leave command mode
-	radar_uart_->write(char(0x00));
-	send_command_postamble_();
-	radar_uart_last_command_ = millis();
-	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+	if(enter_configuration_mode_())
 	{
-		if(read_frame_())
+		delay(50);
+		enter_configuration_mode_();
+		send_command_preamble_();
+		//Request firmware
+		radar_uart_->write(char(0x02));	//Command is four bytes long
+		radar_uart_->write(char(0x00));
+		radar_uart_->write(char(0x63));	//Request leave command mode
+		radar_uart_->write(char(0x00));
+		send_command_postamble_();
+		radar_uart_last_command_ = millis();
+		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			if(latest_ack_ == 0x63 && latest_command_success_)
+			if(read_frame_())
 			{
-				leave_configuration_mode_();
-				return true;
+				if(latest_ack_ == 0x63 && latest_command_success_)
+				{
+					leave_configuration_mode_();
+					return true;
+				}
 			}
 		}
 	}
+	delay(50);
+	leave_configuration_mode_();
 	return false;
 }
 
