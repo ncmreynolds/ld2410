@@ -213,19 +213,19 @@ bool ld2410::isReportingDataFrame() {
 String ld2410::targetStateToString(uint8_t tartgetState) {
 	switch(tartgetState) {
 		case 0: 
-			return String(F("No Target"));
+			return String(F(" No Target"));
 			break;
 		case 1: 
-			return String(F("Sports Target"));
+			return String(F(" Sports Target"));
 			break;
 		case 2: 
-			return String(F("Stationary Target"));
+			return String(F(" Stationary Target"));
 			break;
 		case 3: 
-			return String(F("Stationary & stationary Target"));
+			return String(F(" Stationary & stationary Target"));
 			break;
 		default:
-			return String(F("Unknown Target Type"));
+			return String(F( "Unknown Target Type"));
 	}
 }
 
@@ -513,19 +513,19 @@ bool ld2410::parse_data_frame_()
 				debug_uart_->print(F("\nNormal data - "));
 				if(target_type_ == 0x00)
 				{
-					debug_uart_->print(F("no target"));
+					debug_uart_->print(F(" no target"));
 				}
 				else if(target_type_ == 0x01)
 				{
-					debug_uart_->print(F("moving target:"));
+					debug_uart_->print(F(" moving target:"));
 				}
 				else if(target_type_ == 0x02)
 				{
-					debug_uart_->print(F("stationary target:"));
+					debug_uart_->print(F(" stationary target:"));
 				}
 				else if(target_type_ == 0x03)
 				{
-					debug_uart_->print(F("moving & stationary targets:"));
+					debug_uart_->print(F(" moving & stationary targets:"));
 				}
 				if(radar_data_frame_[8] & 0x01)
 				{
@@ -597,11 +597,14 @@ bool ld2410::parse_command_frame_()
 		#endif
 		if(latest_command_success_)
 		{
+			configuration_protocol_version_ = radar_data_frame_[10] + (radar_data_frame_[11] << 8);
+			configuration_buffer_size_ = radar_data_frame_[12] + (radar_data_frame_[12] << 8);
 			radar_uart_last_packet_ = millis();
 			#ifdef LD2410_DEBUG_COMMANDS
 			if(debug_uart_ != nullptr)
 			{
 				debug_uart_->print(F("OK"));
+				debug_uart_->printf(" protocol version:%d buffer_size:%d ",configuration_protocol_version_ ,configuration_buffer_size_);
 			}
 			#endif
 			return true;

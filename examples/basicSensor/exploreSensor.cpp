@@ -7,43 +7,60 @@
 
 #include <ld2410.h>
 
+#define RXD2 16
+#define TXD2 17
+
 ld2410 radar;
 
 uint32_t lastReading = 0;
 
+uint32_t doConfig = 0;
+uint32_t doEngineering = 0;
+
 void setup(void)
 {
+  delay(1000);
   Serial.begin(115200); //Feedback over Serial Monitor
-  //radar.debug(Serial); //Uncomment to show debug information from the library on the Serial Monitor. By default this does not show sensor reads as they are very frequent.
-  Serial1.begin (256000, SERIAL_8N1, 9, 8); //UART for monitoring the radar
-  delay(500);
-  Serial.print(F("\nLD2410 radar sensor initialising: "));
-  if(radar.begin(Serial1))
+  delay(1000);
+  radar.debug(Serial); //Uncomment to show debug information from the library on the Serial Monitor. By default this does not show sensor reads as they are very frequent.
+  Serial2.begin (256000, SERIAL_8N1, RXD2, TXD2); //UART for monitoring the radar rx, tx
+  delay(1000);
+  Serial.println(F("\nLD2410 radar sensor initialising: "));
+  if(radar.begin(Serial2))
   {
-    Serial.println(F("OK"));
+    Serial.println(F("OK "));
+    doConfig=millis() + 1000;
+    doEngineering=millis() + 3000;
   }
   else
   {
-    Serial.println(F("not connected"));
+    Serial.println(F(" not connected"));
   }
+  
 }
 
 void loop()
 {
   radar.read();
-  if(radar.isConnected() && millis() - lastReading > 1000)  //Report every 1000ms
+  if(millis()==doConfig) {
+    radar.requestCurrentConfiguration();
+  }
+  if(millis() == doEngineering) {
+    radar.requestStartEngineeringMode();
+  }
+  if(radar.isConnected() && millis() - lastReading > 2000)  //Report every 1000ms
   {
     lastReading = millis();
     if(radar.presenceDetected())
     {
-      if(radar.stationaryTargetDetected())
+      if(radar.stationaryTargetDistance())
       {
         Serial.print(F("Stationary target: "));
         Serial.print(radar.stationaryTargetDistance());
         Serial.print(F("cm energy:"));
         Serial.println(radar.stationaryTargetEnergy());
       }
-      if(radar.movingTargetDetected())
+      if(radar.movingTargetDistance())
       {
         Serial.print(F("Moving target: "));
         Serial.print(radar.movingTargetDistance());
