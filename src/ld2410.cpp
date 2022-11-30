@@ -477,6 +477,20 @@ bool ld2410::parse_data_frame_()
 				{
 					debug_uart_->print(F("moving & stationary targets:"));
 				}
+				debug_uart_->print(F(" moving at "));
+				debug_uart_->print(moving_target_distance_);
+				debug_uart_->print(F("cm power "));
+				debug_uart_->print(moving_target_energy_);
+
+				debug_uart_->print(F(" max moving distance gate:"));
+				debug_uart_->print(max_moving_distance_gate);
+				debug_uart_->print(F(" max static distance gate:"));
+				debug_uart_->print(max_static_distance_gate);
+				debug_uart_->print(F(" moving/static distance gate energy: "));
+				for(uint8_t gate = 0; gate < sizeof(movement_distance_gate_energy); gate++) {
+					debug_uart_->printf("%d:[%d,%d] ", gate,movement_distance_gate_energy[gate],static_distance_gate_engergy[gate]);
+				}
+				debug_uart_->print(F("\n"));				
 			}
 			#endif
 
@@ -974,7 +988,7 @@ bool ld2410::requestStartEngineeringMode()
 			{
 				if(latest_ack_ == 0x62 && latest_command_success_)
 				{
-					delay(50;)
+					delay(50);
 					leave_configuration_mode_();
 					return true;
 				}
