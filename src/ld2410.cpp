@@ -598,7 +598,7 @@ bool ld2410::parse_command_frame_()
 		if(latest_command_success_)
 		{
 			configuration_protocol_version_ = radar_data_frame_[10] + (radar_data_frame_[11] << 8);
-			configuration_buffer_size_ = radar_data_frame_[12] + (radar_data_frame_[12] << 8);
+			configuration_buffer_size_ = radar_data_frame_[12] + (radar_data_frame_[13] << 8);
 			radar_uart_last_packet_ = millis();
 			#ifdef LD2410_DEBUG_COMMANDS
 			if(debug_uart_ != nullptr)
