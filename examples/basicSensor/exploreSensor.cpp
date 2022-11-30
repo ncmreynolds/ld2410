@@ -21,10 +21,10 @@ void setup(void)
 {
   delay(1000);
   Serial.begin(115200); //Feedback over Serial Monitor
-  delay(1000);
+  delay(100);
   radar.debug(Serial); //Uncomment to show debug information from the library on the Serial Monitor. By default this does not show sensor reads as they are very frequent.
   Serial2.begin (256000, SERIAL_8N1, RXD2, TXD2); //UART for monitoring the radar rx, tx
-  delay(1000);
+  delay(100);
   Serial.println(F("\nLD2410 radar sensor initialising: "));
   if(radar.begin(Serial2))
   {
@@ -35,8 +35,7 @@ void setup(void)
   else
   {
     Serial.println(F(" not connected"));
-  }
-  
+  }  
 }
 
 void loop()
