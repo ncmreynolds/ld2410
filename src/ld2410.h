@@ -31,17 +31,26 @@
 #define CMD_ENGINEERING_END       0x63
 #define CMD_RANGE_GATE_SENSITIVITY 0x64
 #define CMD_READ_FIRMWARE_VERSION 0xA0
-#define CMD_SET_SERIAL_PORT_BAUD  0xA1
+#define CMD_SET_SERIAL_PORT_BAUD  0xA1 // missing
 #define CMD_FACTORY_RESET         0xA2
 #define CMD_RESTART               0xA3
 
 /* 
  * Data Frame Formats
 */
-#define FRAME_PROTOCOL_TYPE       0x02
-#define FRAME_ENGINEERING_TYPE    0x01
-#define FRAME_PROTOCOL_PREFIX     0xFD
-#define FRAME_ENGINEERING_PREFIX  0xF4
+#define FRAME_TYPE_REPORTING      0x01
+#define FRAME_TYPE_TARGET         0x02
+#define FRAME_PREFIX_PROTOCOL     0xFD
+#define FRAME_PREFIX_REPORTING    0xF4
+
+/*
+ * Target State Constants
+*/
+#define TARGET_NONE                  0x00
+#define TARGET_SPORTS                0x01
+#define TARGET_STATIONARY            0x02
+#define TARGET_MOVING_AND_STATIONARY 0x03 
+
 
 class ld2410	{
 
@@ -76,23 +85,25 @@ class ld2410	{
 		bool requestEndEngineeringMode();
 		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
-		String targetStateToString(uint8_t targetState);                //from report or engineering data
 	protected:
 	private:
 		Stream *radar_uart_ = nullptr;
 		Stream *debug_uart_ = nullptr;									//The stream used for the debugging
+
 		uint32_t radar_uart_timeout = 100;								//How long to give up on receiving some useful data from the LD2410
 		uint32_t radar_uart_last_packet_ = 0;							//Time of the last packet from the radar
 		uint32_t radar_uart_last_command_ = 0;							//Time of the last command sent to the radar
 		uint32_t radar_uart_command_timeout_ = 100;						//Timeout for sending commands
+
 		uint8_t latest_ack_ = 0;
-		bool latest_command_success_ = false;
 		uint8_t radar_data_frame_[LD2410_MAX_FRAME_LENGTH];				//Store the incoming data from the radar, to check it's in a valid format
 		uint8_t radar_data_frame_position_ = 0;							//Where in the frame we are currently writing
+		uint8_t target_type_ = 0;
+
+		bool latest_command_success_ = false;
 		bool frame_started_ = false;									//Whether a frame is currently being read
 		bool ack_frame_ = false;										//Whether the incoming frame is LIKELY an ACK frame
 		bool waiting_for_ack_ = false;									//Whether a command has just been sent
-		uint8_t target_type_ = 0;
 
 		/*
 		 * Protocol & Engineering Frame Data */
@@ -111,7 +122,6 @@ class ld2410	{
 		
 		bool isProtocolDataFrame();                                     //Command -Determine type of Frame
 		bool isReportingDataFrame();                                    //Data - Determine type of Frame
-
 
 		bool read_frame_();												//Try to read a frame from the UART
 		bool parse_data_frame_();										//Is the current data frame valid?

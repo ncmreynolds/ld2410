@@ -103,7 +103,7 @@ bool ld2410::presenceDetected()
 
 bool ld2410::stationaryTargetDetected()
 {
-	if((target_type_ & 0x02) && stationary_target_distance_ > 0 && stationary_target_energy_ > 0)
+	if((target_type_ & TARGET_STATIONARY) && stationary_target_distance_ > 0 && stationary_target_energy_ > 0)
 	{
 		return true;
 	}
@@ -130,7 +130,7 @@ uint8_t ld2410::stationaryTargetEnergy()
 
 bool ld2410::movingTargetDetected()
 {
-	if((target_type_ & 0x01) && moving_target_distance_ > 0 && moving_target_energy_ > 0)
+	if((target_type_ & TARGET_SPORTS) && moving_target_distance_ > 0 && moving_target_energy_ > 0)
 	{
 		return true;
 	}
@@ -155,7 +155,7 @@ uint8_t ld2410::movingTargetEnergy()
 	//return 0;
 }
 
-/* Command / Response Frame
+/* Command / Response / Protocol Frame
  *
  * REQUEST
  * FD FC FB FA -- Header
@@ -172,7 +172,7 @@ uint8_t ld2410::movingTargetEnergy()
  * 04 03 02 01 -- Footer
  */
 bool ld2410::isProtocolDataFrame() {
-	return (	radar_data_frame_[0]                              == FRAME_PROTOCOL_PREFIX &&	
+	return (	radar_data_frame_[0]                              == FRAME_PREFIX_PROTOCOL &&	
 				radar_data_frame_[1]                              == 0xFC &&
 				radar_data_frame_[2]                              == 0xFB &&
 				radar_data_frame_[3]                              == 0xFA &&
@@ -189,17 +189,14 @@ bool ld2410::isProtocolDataFrame() {
  *       dd dd -- frame data length
  *          dd -- Type of Data (0x01=Engineering data, 0x02=Target data)
  *        0xAA -- Marker
- *         ... -- target data and engineering data
+ *         ... -- target state
+ *         ... -- reporting data
  *        0x55 -- Marker
  *        0x00 -- Check flag
  * F8 F7 F6 F5  - Footer
- * 
- * F4 F3 FA F1 0D 00 02 AA 02 A7 80 00 00 00 52 00 00 AD 80 F8 F7 F6 F5
- * F4 F3 F2 F9 8D 00 02 AA 02 5A 00 80 00 00 64 00 00 55 80 F8 F7 F6 F5
- * F4 F3 F2 F1 0D 00 82 AA 02 5A 00 00 00 80 64 00 00 55 00 F8 F7 F6 F5
 */
 bool ld2410::isReportingDataFrame() {
-	return (	radar_data_frame_[0]                              == FRAME_ENGINEERING_PREFIX &&
+	return (	radar_data_frame_[0]                              == FRAME_PREFIX_REPORTING &&
 				radar_data_frame_[1]                              == 0xF3 &&
 				radar_data_frame_[2]                              == 0xF2 &&
 				radar_data_frame_[3]                              == 0xF1 &&
@@ -210,151 +207,122 @@ bool ld2410::isReportingDataFrame() {
 			);
 }
 
-String ld2410::targetStateToString(uint8_t tartgetState) {
-	switch(tartgetState) {
-		case 0: 
-			return String(F(" No Target"));
-			break;
-		case 1: 
-			return String(F(" Sports Target"));
-			break;
-		case 2: 
-			return String(F(" Stationary Target"));
-			break;
-		case 3: 
-			return String(F(" Stationary & stationary Target"));
-			break;
-		default:
-			return String(F( "Unknown Target Type"));
-	}
-}
-
 bool ld2410::read_frame_()
 {
-	if(radar_uart_ -> available())
+	if(!(radar_uart_ -> available()))
 	{
-		if(frame_started_ == false)
+		return false;
+	}
+	if(frame_started_ == false)
+	{
+		uint8_t byte_read_ = radar_uart_ -> read();
+		if(byte_read_ == FRAME_PREFIX_REPORTING)
 		{
-			uint8_t byte_read_ = radar_uart_ -> read();
-			if(byte_read_ == 0xF4)
+			#ifdef LD2410_DEBUG_DATA
+			if(debug_uart_ != nullptr)
 			{
-				#ifdef LD2410_DEBUG_DATA
-				if(debug_uart_ != nullptr)
-				{
-					debug_uart_->print(F("\nRcvd : 00 "));
-				}
-				#endif
-				radar_data_frame_[radar_data_frame_position_++] = byte_read_;
-				frame_started_ = true;
-				ack_frame_ = false;
+				debug_uart_->print(F("\nRcvd : 00 "));
 			}
-			else if(byte_read_ == 0xFD)
+			#endif
+			radar_data_frame_[radar_data_frame_position_++] = byte_read_;
+			frame_started_ = true;
+			ack_frame_ = false;
+		}
+		else if(byte_read_ == FRAME_PREFIX_PROTOCOL)
+		{
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
 			{
-				#ifdef LD2410_DEBUG_COMMANDS
-				if(debug_uart_ != nullptr)
+				debug_uart_->print(F("\nRcvd : 00 "));
+			}
+			#endif
+			radar_data_frame_[radar_data_frame_position_++] = byte_read_;
+			frame_started_ = true;
+			ack_frame_ = true;
+		}
+	}
+	else
+	{
+		if(radar_data_frame_position_ < configuration_buffer_size_)
+		{
+			#if defined(LD2410_DEBUG_DATA) | defined(LD2410_DEBUG_COMMANDS)
+			if(debug_uart_ != nullptr)
+			{
+				if(radar_data_frame_position_ < 0x10)
 				{
-					debug_uart_->print(F("\nRcvd : 00 "));
+					debug_uart_->print('0');
 				}
-				#endif
-				radar_data_frame_[radar_data_frame_position_++] = byte_read_;
-				frame_started_ = true;
-				ack_frame_ = true;
+				debug_uart_->print(radar_data_frame_position_, HEX);
+				debug_uart_->print(' ');
+			}
+			#endif
+			radar_data_frame_[radar_data_frame_position_++] = radar_uart_ -> read();
+			if(radar_data_frame_position_ > 7)	//Can check for start and end
+			{
+				if(isReportingDataFrame())
+				{
+					if(parse_data_frame_())
+					{
+						#ifdef LD2410_DEBUG_DATA
+						if(debug_uart_ != nullptr)
+						{
+							debug_uart_->print(F(" parsed data OK"));
+						}
+						#endif
+						frame_started_ = false;
+						radar_data_frame_position_ = 0;
+						return true;
+					}
+					else
+					{
+						#ifdef LD2410_DEBUG_DATA
+						if(debug_uart_ != nullptr)
+						{
+							debug_uart_->print(F(" failed to parse data"));
+						}
+						#endif
+						frame_started_ = false;
+						radar_data_frame_position_ = 0;
+					}
+				}
+				else if(isProtocolDataFrame())
+				{
+					if(parse_command_frame_())
+					{
+						#ifdef LD2410_DEBUG_COMMANDS
+						if(debug_uart_ != nullptr)
+						{
+							debug_uart_->print(F(" parsed command OK"));
+						}
+						#endif
+						frame_started_ = false;
+						radar_data_frame_position_ = 0;
+						return true;
+					}
+					else
+					{
+						#ifdef LD2410_DEBUG_COMMANDS
+						if(debug_uart_ != nullptr)
+						{
+							debug_uart_->print(F(" failed to parse command"));
+						}
+						#endif
+						frame_started_ = false;
+						radar_data_frame_position_ = 0;
+					}
+				}
 			}
 		}
 		else
 		{
-			if(radar_data_frame_position_ < LD2410_MAX_FRAME_LENGTH)
+			#if defined(LD2410_DEBUG_DATA) || defined(LD2410_DEBUG_COMMANDS)
+			if(debug_uart_ != nullptr)
 			{
-				#ifdef LD2410_DEBUG_DATA
-				if(debug_uart_ != nullptr && ack_frame_ == false)
-				{
-					if(radar_data_frame_position_ < 0x10)
-					{
-						debug_uart_->print('0');
-					}
-					debug_uart_->print(radar_data_frame_position_, HEX);
-					debug_uart_->print(' ');
-				}
-				#endif
-				#ifdef LD2410_DEBUG_COMMANDS
-				if(debug_uart_ != nullptr && ack_frame_ == true)
-				{
-					if(radar_data_frame_position_ < 0x10)
-					{
-						debug_uart_->print('0');
-					}
-					debug_uart_->print(radar_data_frame_position_, HEX);
-					debug_uart_->print(' ');
-				}
-				#endif
-				radar_data_frame_[radar_data_frame_position_++] = radar_uart_ -> read();
-				if(radar_data_frame_position_ > 7)	//Can check for start and end
-				{
-					if(isReportingDataFrame())
-					{
-						if(parse_data_frame_())
-						{
-							#ifdef LD2410_DEBUG_DATA
-							if(debug_uart_ != nullptr)
-							{
-								debug_uart_->print(F(" parsed data OK"));
-							}
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-							return true;
-						}
-						else
-						{
-							#ifdef LD2410_DEBUG_DATA
-							if(debug_uart_ != nullptr)
-							{
-								debug_uart_->print(F(" failed to parse data"));
-							}
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-						}
-					}
-					else if(isProtocolDataFrame())
-					{
-						if(parse_command_frame_())
-						{
-							#ifdef LD2410_DEBUG_COMMANDS
-							if(debug_uart_ != nullptr)
-							{
-								debug_uart_->print(F("parsed command OK"));
-							}
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-							return true;
-						}
-						else
-						{
-							#ifdef LD2410_DEBUG_COMMANDS
-							if(debug_uart_ != nullptr)
-							{
-								debug_uart_->print(F("failed to parse command"));
-							}
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-						}
-					}
-				}
+				debug_uart_->print(F("\nLD2410 frame overran"));
 			}
-			else
-			{
-				#if defined(LD2410_DEBUG_DATA) || defined(LD2410_DEBUG_COMMANDS)
-				if(debug_uart_ != nullptr)
-				{
-					debug_uart_->print(F("\nLD2410 frame overran"));
-				}
-				#endif
-				frame_started_ = false;
-				radar_data_frame_position_ = 0;
-			}
+			#endif
+			frame_started_ = false;
+			radar_data_frame_position_ = 0;
 		}
 	}
 	return false;
@@ -389,22 +357,14 @@ bool ld2410::parse_data_frame_()
 	uint16_t intra_frame_data_length_ = radar_data_frame_[4] + (radar_data_frame_[5] << 8);
 	if(radar_data_frame_position_ == intra_frame_data_length_ + 10)
 	{
-		#ifdef LD2410_DEBUG_DATA
-		if(debug_uart_ != nullptr ) // && ack_frame_ == false)
+		#if defined(LD2410_DEBUG_DATA) | defined(LD2410_DEBUG_COMMANDS)
+		if(debug_uart_ != nullptr )
 		{
 			print_frame_();
 		}
 		#endif
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr && ack_frame_ == true)
-		{
-			print_frame_();
-		}
-		#endif
-		if(radar_data_frame_[6] == FRAME_ENGINEERING_TYPE && radar_data_frame_[7] == 0xAA)	//Engineering mode data
+		if(radar_data_frame_[6] == FRAME_TYPE_REPORTING && radar_data_frame_[7] == 0xAA)	//Engineering mode data
 		{	
-			uint8_t b_retcode = false;
-			uint8_t pos = 19;
 			/*   (Protocol) Target Data Reporting 
 			* 02 AA         d6,7     data type (target data)
 			* 02            d8       target type (stationary target)
@@ -427,9 +387,12 @@ bool ld2410::parse_data_frame_()
 			stationary_target_energy_ = radar_data_frame_[14];
 			moving_target_energy_ = radar_data_frame_[11];
 			moving_target_distance_ = radar_data_frame_[15] + (radar_data_frame_[16] << 8);
+			
 			max_moving_distance_gate = radar_data_frame_[17];
 			max_static_distance_gate = radar_data_frame_[18];
 			
+			uint8_t pos = 19;
+
 			// motion_energy
 			for(uint8_t gate = 0; gate < sizeof(movement_distance_gate_energy); gate++) {
 				movement_distance_gate_energy[gate] = radar_data_frame_[pos++];
@@ -439,27 +402,26 @@ bool ld2410::parse_data_frame_()
 				static_distance_gate_engergy[gate] = radar_data_frame_[pos++];
 			}
 			sensor_idle_time = radar_data_frame_[pos++] + (radar_data_frame_[pos] << 8); // maybe
-			b_retcode = true;
 
 			#ifdef LD2410_DEBUG_PARSE
 			if(debug_uart_ != nullptr)
 			{
 				debug_uart_->print(F("\nEngineering data - "));
-				if(target_type_ == 0x00)
+				if(target_type_ == TARGET_NONE)
 				{
-					debug_uart_->print(F("no target"));
+					debug_uart_->print(F(" no target"));
 				}
-				else if(target_type_ == 0x01)
+				else if(target_type_ == TARGET_SPORTS)
 				{
-					debug_uart_->print(F("moving target:"));
+					debug_uart_->print(F(" moving target:"));
 				}
-				else if(target_type_ == 0x02)
+				else if(target_type_ == TARGET_STATIONARY)
 				{
-					debug_uart_->print(F("stationary target:"));
+					debug_uart_->print(F(" stationary target:"));
 				}
-				else if(target_type_ == 0x03)
+				else if(target_type_ == TARGET_MOVING_AND_STATIONARY)
 				{
-					debug_uart_->print(F("moving & stationary targets:"));
+					debug_uart_->print(F(" moving & stationary targets:"));
 				}
 				debug_uart_->print(F(" moving at "));
 				debug_uart_->print(moving_target_distance_);
@@ -480,9 +442,9 @@ bool ld2410::parse_data_frame_()
 
 			radar_uart_last_packet_ = millis();
 
-			return b_retcode;
+			return true;
 		}
-		else if(intra_frame_data_length_ == 13 && radar_data_frame_[6] == FRAME_PROTOCOL_TYPE && radar_data_frame_[7] == 0xAA && radar_data_frame_[17] == 0x55 && radar_data_frame_[18] == 0x00)	//Normal target data
+		else if(radar_data_frame_[6] == FRAME_TYPE_TARGET && radar_data_frame_[7] == 0xAA )	//Normal target data
 		{
 			target_type_ = radar_data_frame_[8];
 			//moving_target_distance_ = radar_data_frame_[9] + (radar_data_frame_[10] << 8);
@@ -495,19 +457,19 @@ bool ld2410::parse_data_frame_()
 			if(debug_uart_ != nullptr)
 			{
 				debug_uart_->print(F("\nNormal data - "));
-				if(target_type_ == 0x00)
+				if(target_type_ == TARGET_NONE)
 				{
 					debug_uart_->print(F(" no target"));
 				}
-				else if(target_type_ == 0x01)
+				else if(target_type_ == TARGET_SPORTS)
 				{
 					debug_uart_->print(F(" moving target:"));
 				}
-				else if(target_type_ == 0x02)
+				else if(target_type_ == TARGET_STATIONARY)
 				{
 					debug_uart_->print(F(" stationary target:"));
 				}
-				else if(target_type_ == 0x03)
+				else if(target_type_ == TARGET_MOVING_AND_STATIONARY)
 				{
 					debug_uart_->print(F(" moving & stationary targets:"));
 				}
@@ -540,7 +502,7 @@ bool ld2410::parse_data_frame_()
 			#endif
 			print_frame_();
 		}
-		return true;
+		return false;
 	}
 	else
 	{

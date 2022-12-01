@@ -7,8 +7,8 @@
 
 #include <ld2410.h>
 
-#define RXD2 16
-#define TXD2 17
+#define RXD2 16 // 8
+#define TXD2 17 // 9
 
 ld2410 radar;
 
@@ -29,8 +29,8 @@ void setup(void)
   if(radar.begin(Serial2))
   {
     Serial.println(F("OK "));
-    doConfig=millis() + 1000;
-    doEngineering=millis() + 3000;
+    doConfig=millis() + 5000;
+    doEngineering=millis() + 10000;
   }
   else
   {
