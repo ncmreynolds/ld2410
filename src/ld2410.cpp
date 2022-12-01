@@ -130,7 +130,7 @@ uint8_t ld2410::stationaryTargetEnergy()
 
 bool ld2410::movingTargetDetected()
 {
-	if((target_type_ & TARGET_SPORTS) && moving_target_distance_ > 0 && moving_target_energy_ > 0)
+	if((target_type_ & TARGET_MOVING) && moving_target_distance_ > 0 && moving_target_energy_ > 0)
 	{
 		return true;
 	}
@@ -411,7 +411,7 @@ bool ld2410::parse_data_frame_()
 				{
 					debug_uart_->print(F(" no target"));
 				}
-				else if(target_type_ == TARGET_SPORTS)
+				else if(target_type_ == TARGET_MOVING)
 				{
 					debug_uart_->print(F(" moving target:"));
 				}
@@ -436,7 +436,7 @@ bool ld2410::parse_data_frame_()
 				for(uint8_t gate = 0; gate < sizeof(movement_distance_gate_energy); gate++) {
 					debug_uart_->printf("%d:[%d,%d] ", gate,movement_distance_gate_energy[gate],static_distance_gate_engergy[gate]);
 				}
-				debug_uart_->print(F("\n"));				
+				debug_uart_->print("\n");				
 			}
 			#endif
 
@@ -461,7 +461,7 @@ bool ld2410::parse_data_frame_()
 				{
 					debug_uart_->print(F(" no target"));
 				}
-				else if(target_type_ == TARGET_SPORTS)
+				else if(target_type_ == TARGET_MOVING)
 				{
 					debug_uart_->print(F(" moving target:"));
 				}
@@ -473,18 +473,18 @@ bool ld2410::parse_data_frame_()
 				{
 					debug_uart_->print(F(" moving & stationary targets:"));
 				}
-				if(radar_data_frame_[8] & 0x01)
+				if(radar_data_frame_[8] & TARGET_MOVING)
 				{
 					debug_uart_->print(F(" moving at "));
 					debug_uart_->print(moving_target_distance_);
-					debug_uart_->print(F("cm power "));
+					debug_uart_->print(F("cm power \n"));
 					debug_uart_->print(moving_target_energy_);
 				}
-				if(radar_data_frame_[8] & 0x02)
+				if(radar_data_frame_[8] & TARGET_STATIONARY)
 				{
 					debug_uart_->print(F(" stationary at "));
 					debug_uart_->print(stationary_target_distance_);
-					debug_uart_->print(F("cm power "));
+					debug_uart_->print(F("cm power \n"));
 					debug_uart_->print(stationary_target_energy_);
 				}
 			}

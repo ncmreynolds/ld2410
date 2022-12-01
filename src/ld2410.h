@@ -22,6 +22,7 @@
  * Protocol Command Words
 */
 #define LD2410_MAX_FRAME_LENGTH   0x40     // or 64 bytes
+#define LD2410_MAX_GATES             9     // 0 - 8 gates
 
 #define CMD_CONFIGURATION_ENABLE  0xFF
 #define CMD_CONFIGURATION_END     0xFE
@@ -47,7 +48,7 @@
  * Target State Constants
 */
 #define TARGET_NONE                  0x00
-#define TARGET_SPORTS                0x01
+#define TARGET_MOVING                0x01
 #define TARGET_STATIONARY            0x02
 #define TARGET_MOVING_AND_STATIONARY 0x03 
 
@@ -77,8 +78,8 @@ class ld2410	{
 		uint8_t max_moving_gate = 0;
 		uint8_t max_stationary_gate = 0;
 		uint16_t sensor_idle_time = 0;
-		uint8_t motion_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
-		uint8_t stationary_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
+		uint8_t motion_sensitivity[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0};
+		uint8_t stationary_sensitivity[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0};
 		bool requestRestart();
 		bool requestFactoryReset();
 		bool requestStartEngineeringMode();
@@ -114,8 +115,8 @@ class ld2410	{
 		uint16_t detection_distance_             = 0;                    //protocol & engineering mode info
 		uint8_t  max_moving_distance_gate        = 0;                    //engineering mode info
 		uint8_t  max_static_distance_gate        = 0;                    //engineering mode info
-		uint8_t  movement_distance_gate_energy[9] = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
-		uint8_t  static_distance_gate_engergy[9]  = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
+		uint8_t  movement_distance_gate_energy[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
+		uint8_t  static_distance_gate_engergy[LD2410_MAX_GATES]  = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
 
 		uint16_t configuration_protocol_version_ = 0;                    //From Enter Configuration Mode Response
 		uint16_t configuration_buffer_size_ = LD2410_MAX_FRAME_LENGTH;   //From Enter Configuration Mode Response
