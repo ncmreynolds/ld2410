@@ -14,7 +14,7 @@
 
 #include <Arduino.h>
 
-#define LD2410_DEBUG_DATA
+// #define LD2410_DEBUG_DATA
 #define LD2410_DEBUG_COMMANDS
 #define LD2410_DEBUG_PARSE
 
@@ -32,7 +32,7 @@
 #define CMD_ENGINEERING_END       0x63
 #define CMD_RANGE_GATE_SENSITIVITY 0x64
 #define CMD_READ_FIRMWARE_VERSION 0xA0
-#define CMD_SET_SERIAL_PORT_BAUD  0xA1 // missing
+#define CMD_SET_SERIAL_PORT_BAUD  0xA1 
 #define CMD_FACTORY_RESET         0xA2
 #define CMD_RESTART               0xA3
 
@@ -84,6 +84,7 @@ class ld2410	{
 		bool requestFactoryReset();
 		bool requestStartEngineeringMode();
 		bool requestEndEngineeringMode();
+		bool setSerialBaudRate(uint8_t cSpeed);
 		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
 	protected:

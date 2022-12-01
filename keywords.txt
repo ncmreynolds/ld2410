@@ -17,6 +17,7 @@ requestRestart	KEYWORD2
 requestFactoryReset	KEYWORD2
 requestStartEngineeringMode	KEYWORD2
 requestEndEngineeringMode	KEYWORD2
+setSerialBaudRate KEYWORD2
 setMaxValues	KEYWORD2
 setGateSensitivityThreshold	KEYWORD2
 
