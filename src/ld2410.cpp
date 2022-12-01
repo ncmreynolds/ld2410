@@ -111,7 +111,7 @@ bool ld2410::movingTargetDetected()
 
 char *   ld2410::cmdFirmwareVersion() {
 	int len = 0;
-	len = snprintf(firmwareBuffer,sizeof(firmwareBuffer), "v%d.%d.%d",firmware_major_version,firmware_minor_version,firmware_bugfix_version);
+	len = snprintf(firmwareBuffer,sizeof(firmwareBuffer), "v%d.%d.%x",firmware_major_version,firmware_minor_version,firmware_bugfix_version);
 	return firmwareBuffer;
 }
 

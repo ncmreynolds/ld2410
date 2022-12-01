@@ -113,17 +113,36 @@ class ld2410	{
 		uint8_t  cfgStationaryGateSensitivity(uint8_t gate){return ((gate <LD2410_MAX_GATES) ? stationary_sensitivity[gate] : -1);}; //Read Parameters command response
 
 	protected:
+		/*
+		 * Request Firmware Version command response */
 		char     firmwareBuffer[LD2410_MAX_FRAME_LENGTH];               // 64 byte buffer 
 		uint8_t  firmware_major_version = 0;							//Reported major version
 		uint8_t  firmware_minor_version = 0;							//Reported minor version
 		uint32_t firmware_bugfix_version = 0;							//Reported bugfix version (coded as hex)
 
+		/*
+		 * Read Parameter command response data */
 		uint8_t max_gate = 0;                                           //Read parameter data
 		uint8_t max_moving_gate = 0;                                    //Read parameter data 
 		uint8_t max_stationary_gate = 0;                                //Read parameter data
 		uint16_t sensor_idle_time = 0;                                  //Read parameter data
 		uint8_t motion_sensitivity[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0};     //Read parameter data
 		uint8_t stationary_sensitivity[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0}; //Read parameter data
+
+		/*
+		 * Protocol & Engineering Frame Data */
+		uint16_t moving_target_distance_         = 0;                    //protocol mode info 
+		uint8_t  moving_target_energy_           = 0;                    //protocol mode info 
+		uint16_t stationary_target_distance_     = 0;                    //protocol mode info 
+		uint8_t  stationary_target_energy_       = 0;                    //protocol mode info 
+		uint16_t detection_distance_             = 0;                    //protocol & engineering mode info
+		uint8_t  max_moving_distance_gate        = 0;                    //engineering mode info
+		uint8_t  max_static_distance_gate        = 0;                    //engineering mode info
+		uint8_t  movement_distance_gate_energy[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
+		uint8_t  static_distance_gate_engergy[LD2410_MAX_GATES]  = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
+
+		uint16_t configuration_protocol_version_ = 0;                    //From Enter Configuration Mode Response
+		uint16_t configuration_buffer_size_ = LD2410_MAX_FRAME_LENGTH;   //From Enter Configuration Mode Response
 
 	private:
 		Stream *radar_uart_ = nullptr;
@@ -144,21 +163,6 @@ class ld2410	{
 		bool ack_frame_ = false;										//Whether the incoming frame is LIKELY an ACK frame
 		bool waiting_for_ack_ = false;									//Whether a command has just been sent
 		bool engineering_mode_ = false;                                   //Wheter engineering mode is active
-
-		/*
-		 * Protocol & Engineering Frame Data */
-		uint16_t moving_target_distance_         = 0;                    //protocol mode info 
-		uint8_t  moving_target_energy_           = 0;                    //protocol mode info 
-		uint16_t stationary_target_distance_     = 0;                    //protocol mode info 
-		uint8_t  stationary_target_energy_       = 0;                    //protocol mode info 
-		uint16_t detection_distance_             = 0;                    //protocol & engineering mode info
-		uint8_t  max_moving_distance_gate        = 0;                    //engineering mode info
-		uint8_t  max_static_distance_gate        = 0;                    //engineering mode info
-		uint8_t  movement_distance_gate_energy[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
-		uint8_t  static_distance_gate_engergy[LD2410_MAX_GATES]  = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
-
-		uint16_t configuration_protocol_version_ = 0;                    //From Enter Configuration Mode Response
-		uint16_t configuration_buffer_size_ = LD2410_MAX_FRAME_LENGTH;   //From Enter Configuration Mode Response
 		
 		bool isProtocolDataFrame();                                     //Command -Determine type of Frame
 		bool isReportingDataFrame();                                    //Data - Determine type of Frame

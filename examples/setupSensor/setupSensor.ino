@@ -225,12 +225,7 @@ void loop()
         Serial.print(F("Requesting firmware version: "));
         if(radar.requestFirmwareVersion())
         {
-          Serial.print('v');
-          Serial.print(radar.firmware_major_version);
-          Serial.print('.');
-          Serial.print(radar.firmware_minor_version);
-          Serial.print('.');
-          Serial.println(radar.firmware_bugfix_version,HEX);
+          Serial.print(radar.cmdFirmwareVersion());
         }
         else
         {
