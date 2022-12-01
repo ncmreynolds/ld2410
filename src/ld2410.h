@@ -61,7 +61,7 @@ class ld2410	{
 		bool begin(Stream &, bool waitForRadar = true);					//Start the ld2410
 		void debug(Stream &);											//Start debugging on a stream
 		bool read() {return read_frame_();};
-		bool ld2410_loop(){read_frame_();};                             //Sensor loop service
+		bool ld2410_loop(){return read_frame_();};                      //Sensor loop service
 		bool presenceDetected(){return target_type_ != 0;};             //last report data had a type
 		bool stationaryTargetDetected();
 		bool movingTargetDetected();
