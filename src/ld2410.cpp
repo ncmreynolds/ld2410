@@ -91,16 +91,6 @@ bool ld2410::isConnected()
 	return false;
 }
 
-bool ld2410::read()
-{
-	return read_frame_();
-}
-
-bool ld2410::presenceDetected()
-{
-	return target_type_ != 0;
-}
-
 bool ld2410::stationaryTargetDetected()
 {
 	if((target_type_ & TARGET_STATIONARY) && stationary_target_distance_ > 0 && stationary_target_energy_ > 0)
@@ -108,24 +98,6 @@ bool ld2410::stationaryTargetDetected()
 		return true;
 	}
 	return false;
-}
-
-uint16_t ld2410::stationaryTargetDistance()
-{
-	//if(stationary_target_energy_ > 0)
-	{
-		return stationary_target_distance_;
-	}
-	//return 0;
-}
-
-uint8_t ld2410::stationaryTargetEnergy()
-{
-	//if(stationary_target_distance_ > 0)
-	{
-		return stationary_target_energy_;
-	}
-	//return 0;
 }
 
 bool ld2410::movingTargetDetected()
@@ -137,22 +109,10 @@ bool ld2410::movingTargetDetected()
 	return false;
 }
 
-uint16_t ld2410::movingTargetDistance()
-{
-	//if(moving_target_energy_ > 0)
-	{
-		return moving_target_distance_;
-	}
-	//return 0;
-}
-
-uint8_t ld2410::movingTargetEnergy()
-{
-	//if(moving_target_distance_ > 0)
-	{
-		return moving_target_energy_;
-	}
-	//return 0;
+char *   ld2410::cmdFirmwareVersion() {
+	int len = 0;
+	len = snprintf(firmwareBuffer,sizeof(firmwareBuffer), "v%d.%d.%d",firmware_major_version,firmware_minor_version,firmware_bugfix_version);
+	return firmwareBuffer;
 }
 
 /* Command / Response / Protocol Frame
@@ -376,6 +336,7 @@ bool ld2410::parse_data_frame_()
 			* 03 05     d37,38    ?? v1283
 			* 55 00     d39,40    Frame flag
 			*/
+			engineering_mode_ = true;
 			target_type_ = radar_data_frame_[8];
 			stationary_target_distance_ = radar_data_frame_[9] + (radar_data_frame_[10] << 8);
 			stationary_target_energy_ = radar_data_frame_[14];
@@ -440,6 +401,7 @@ bool ld2410::parse_data_frame_()
 		}
 		else if(radar_data_frame_[6] == FRAME_TYPE_TARGET && radar_data_frame_[7] == 0xAA )	//Normal target data
 		{
+			engineering_mode_ = false;
 			target_type_ = radar_data_frame_[8];
 			//moving_target_distance_ = radar_data_frame_[9] + (radar_data_frame_[10] << 8);
 			stationary_target_distance_ = radar_data_frame_[9] + (radar_data_frame_[10] << 8);
@@ -1072,12 +1034,14 @@ bool ld2410::requestFirmwareVersion()
 		radar_uart_last_command_ = millis();
 		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			read_frame_();
-			if(latest_ack_ == CMD_READ_FIRMWARE_VERSION && latest_command_success_)
+			if(read_frame_())
 			{
-				delay(50);
-				leave_configuration_mode_();
-				return true;
+				if(latest_ack_ == CMD_READ_FIRMWARE_VERSION && latest_command_success_)
+				{
+					delay(50);
+					leave_configuration_mode_();
+					return true;
+				}
 			}
 		}
 	}
@@ -1169,12 +1133,14 @@ bool ld2410::setSerialBaudRate(uint8_t cSpeed)
 		radar_uart_last_command_ = millis();
 		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			read_frame_();
-			if(latest_ack_ == CMD_SET_SERIAL_PORT_BAUD && latest_command_success_)
+			if(read_frame_())
 			{
-				delay(50);
-				leave_configuration_mode_();
-				return true;
+				if(latest_ack_ == CMD_SET_SERIAL_PORT_BAUD && latest_command_success_)
+				{
+					delay(50);
+					leave_configuration_mode_();
+					return true;
+				}
 			}
 		}
 	}

@@ -60,34 +60,71 @@ class ld2410	{
 		~ld2410();														//Destructor function
 		bool begin(Stream &, bool waitForRadar = true);					//Start the ld2410
 		void debug(Stream &);											//Start debugging on a stream
-		bool isConnected();
-		bool read();
-		bool presenceDetected();
+		bool read() {return read_frame_();};
+		bool ld2410_loop(){read_frame_();};                             //Sensor loop service
+		bool presenceDetected(){return target_type_ != 0;};             //last report data had a type
 		bool stationaryTargetDetected();
-		uint16_t stationaryTargetDistance();
-		uint8_t stationaryTargetEnergy();
 		bool movingTargetDetected();
-		uint16_t movingTargetDistance();
-		uint8_t movingTargetEnergy();
-		bool requestFirmwareVersion();									//Request the firmware version
-		uint8_t firmware_major_version = 0;								//Reported major version
-		uint8_t firmware_minor_version = 0;								//Reported minor version
-		uint32_t firmware_bugfix_version = 0;							//Reported bugfix version (coded as hex)
-		bool requestCurrentConfiguration();								//Request current configuration
-		uint8_t max_gate = 0;
-		uint8_t max_moving_gate = 0;
-		uint8_t max_stationary_gate = 0;
-		uint16_t sensor_idle_time = 0;
-		uint8_t motion_sensitivity[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0};
-		uint8_t stationary_sensitivity[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0};
+
+		bool isConnected();
+		bool isStationary(){return stationaryTargetDetected();};
+		bool isMoving(){return movingTargetDetected();};
+		bool isEngineeringMode(){return engineering_mode_;};                         //Reporting Data
+
+		uint8_t  reportingDataComposition(){return target_type_;};                 //Target data state 0-3
+
+		/*
+		 * primary sensor responses */
+		uint16_t detectionDistance(){return detection_distance_;};                 //Target Reporting Data
+		uint16_t stationaryTargetDistance(){return stationary_target_distance_;};  //Target Reporting Data
+		uint8_t  stationaryTargetEnergy(){return stationary_target_energy_;};      //Target Reporting Data
+		uint16_t movingTargetDistance(){return moving_target_distance_;};          //Target Reporting Data
+		uint8_t  movingTargetEnergy(){return moving_target_energy_;};              //Target Reporting Data
+		
+		/*
+		 * available if engineering mode is active */
+		uint8_t  engMovingDistanceGateEnergy(uint8_t gate){return ((gate <LD2410_MAX_GATES) ? movement_distance_gate_energy[gate] : -1) ;}; //Engineering Reporting Data
+		uint8_t  engStaticDistanceGateEnergy(uint8_t gate){return ((gate <LD2410_MAX_GATES) ? static_distance_gate_engergy[gate] : -1) ;};     //Engineering Reporting Data
+		uint16_t engMaxMovingDistanceGate() {return max_moving_distance_gate;};     //Engineering Reporting Data
+		uint16_t engMaxStaticDistanceGate() {return max_static_distance_gate;};     //Engineering Reporting Data
+
 		bool requestRestart();
 		bool requestFactoryReset();
+		bool requestFirmwareVersion();									
+		bool requestCurrentConfiguration();								
 		bool requestStartEngineeringMode();
 		bool requestEndEngineeringMode();
 		bool setSerialBaudRate(uint8_t cSpeed);
 		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
+
+		/*
+		 * available after related command has been executed */
+		uint16_t cmdProtocolVersion() {return configuration_protocol_version_;};    //Configuration mode response
+		char *   cmdFirmwareVersion();                                   //Returns value from command
+
+		/*
+		 * available after Read Parameter command has been executed */
+		uint8_t  cfgMaxGate(){return max_gate;};                        //Read Parameters command response
+		uint8_t  cfgMaxMovingGate(){return max_moving_gate;};           //Read Parameters command response
+		uint8_t  cfgMaxStationaryGate(){return max_stationary_gate;};   //Read Parameters command response
+		uint16_t cfgSensorIdleTimeInSeconds(){return sensor_idle_time;}; //Read Parameters command response
+		uint8_t  cfgMovingGateSensitivity(uint8_t gate){return ((gate <LD2410_MAX_GATES) ? motion_sensitivity[gate] : -1) ;};         //Read Parameters command response
+		uint8_t  cfgStationaryGateSensitivity(uint8_t gate){return ((gate <LD2410_MAX_GATES) ? stationary_sensitivity[gate] : -1);}; //Read Parameters command response
+
 	protected:
+		char     firmwareBuffer[LD2410_MAX_FRAME_LENGTH];               // 64 byte buffer 
+		uint8_t  firmware_major_version = 0;							//Reported major version
+		uint8_t  firmware_minor_version = 0;							//Reported minor version
+		uint32_t firmware_bugfix_version = 0;							//Reported bugfix version (coded as hex)
+
+		uint8_t max_gate = 0;                                           //Read parameter data
+		uint8_t max_moving_gate = 0;                                    //Read parameter data 
+		uint8_t max_stationary_gate = 0;                                //Read parameter data
+		uint16_t sensor_idle_time = 0;                                  //Read parameter data
+		uint8_t motion_sensitivity[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0};     //Read parameter data
+		uint8_t stationary_sensitivity[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0}; //Read parameter data
+
 	private:
 		Stream *radar_uart_ = nullptr;
 		Stream *debug_uart_ = nullptr;									//The stream used for the debugging
@@ -106,6 +143,7 @@ class ld2410	{
 		bool frame_started_ = false;									//Whether a frame is currently being read
 		bool ack_frame_ = false;										//Whether the incoming frame is LIKELY an ACK frame
 		bool waiting_for_ack_ = false;									//Whether a command has just been sent
+		bool engineering_mode_ = false;                                   //Wheter engineering mode is active
 
 		/*
 		 * Protocol & Engineering Frame Data */
