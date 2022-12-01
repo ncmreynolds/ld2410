@@ -218,28 +218,22 @@ bool ld2410::read_frame_()
 		uint8_t byte_read_ = radar_uart_ -> read();
 		if(byte_read_ == FRAME_PREFIX_REPORTING)
 		{
-			#ifdef LD2410_DEBUG_DATA
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("\nRcvd : 00 "));
-			}
-			#endif
 			radar_data_frame_[radar_data_frame_position_++] = byte_read_;
 			frame_started_ = true;
 			ack_frame_ = false;
 		}
 		else if(byte_read_ == FRAME_PREFIX_PROTOCOL)
 		{
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("\nRcvd : 00 "));
-			}
-			#endif
 			radar_data_frame_[radar_data_frame_position_++] = byte_read_;
 			frame_started_ = true;
 			ack_frame_ = true;
 		}
+		#if defined(LD2410_DEBUG_DATA) | defined(LD2410_DEBUG_COMMANDS)
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nRcvd : 00 "));
+		}
+		#endif
 	}
 	else
 	{
