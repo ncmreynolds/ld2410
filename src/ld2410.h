@@ -150,27 +150,27 @@ class ld2410	{
 		Stream *radar_uart_ = nullptr;
 		Stream *debug_uart_ = nullptr;									//The stream used for the debugging
 
-		uint32_t radar_uart_timeout = 100;								//How long to give up on receiving some useful data from the LD2410
-		uint32_t radar_uart_last_packet_ = 0;							//Time of the last packet from the radar
-		uint32_t radar_uart_last_command_ = 0;							//Time of the last command sent to the radar
-		uint32_t radar_uart_command_timeout_ = 100;						//Timeout for sending commands
+		uint32_t radar_uart_timeout          = 150;						//How long to give up on receiving some useful data from the LD2410
+		uint32_t radar_uart_last_packet_     = 0;						//Time of the last packet from the radar
+		uint32_t radar_uart_last_command_    = 0;						//Time of the last command sent to the radar
+		uint32_t radar_uart_command_timeout_ = 150;						//Timeout for sending commands
 
 		uint8_t latest_ack_ = 0;
-		uint8_t radar_data_frame_[LD2410_MAX_FRAME_LENGTH];				//Store the incoming data from the radar, to check it's in a valid format
-		uint8_t radar_data_frame_position_ = 0;							//Where in the frame we are currently writing
 		uint8_t target_type_ = 0;
+		uint8_t radar_data_frame_position_ = 0;							//Where in the frame we are currently writing
+		uint8_t radar_data_frame_[LD2410_MAX_FRAME_LENGTH];				//Store the incoming data from the radar, to check it's in a valid format
 
+		bool frame_started_          = false;							//Whether a frame is currently being read
+		bool ack_frame_              = false;							//Whether the incoming frame is LIKELY an ACK frame
+		bool waiting_for_ack_        = false;							//Whether a command has just been sent
+		bool engineering_mode_       = false;                           //Wheter engineering mode is active
 		bool latest_command_success_ = false;
-		bool frame_started_ = false;									//Whether a frame is currently being read
-		bool ack_frame_ = false;										//Whether the incoming frame is LIKELY an ACK frame
-		bool waiting_for_ack_ = false;									//Whether a command has just been sent
-		bool engineering_mode_ = false;                                 //Wheter engineering mode is active
 		
-		uint16_t serial_to_int_(uint8_t index);                         //Little to Big endian
-		bool debug_command_results_();
-		bool wait_for_command_ack(uint8_t command);
-		bool isProtocolDataFrame();                                     //Command -Determine type of Frame
-		bool isReportingDataFrame();                                    //Data - Determine type of Frame
+		uint16_t serial_to_int_(uint8_t index);                         //Unpack bytes
+		bool debug_command_results_(const char * title);
+		bool wait_for_command_ack_(uint8_t command);
+		bool isProtocolDataFrame_();                                     //Command -Determine type of Frame
+		bool isReportingDataFrame_();                                    //Data - Determine type of Frame
 
 		bool read_frame_();												//Try to read a frame from the UART
 		bool parse_data_frame_();										//Is the current data frame valid?

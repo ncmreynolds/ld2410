@@ -28,14 +28,14 @@ uint16_t ld2410::serial_to_int_(uint8_t index)
     return (int16_t) radar_data_frame_[index++] + (radar_data_frame_[index] << 8);
 }
 
-bool ld2410::debug_command_results_() {
+bool ld2410::debug_command_results_(const char * title) {
 	if(latest_command_success_)
 	{
 		radar_uart_last_packet_ = millis();
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
 		{
-			debug_uart_->print(F("OK"));
+			debug_uart_->printf("\n%s: OK\n", title);
 		}
 		#endif
 		return true;
@@ -44,27 +44,26 @@ bool ld2410::debug_command_results_() {
 	{
 		if(debug_uart_ != nullptr)
 		{
-			debug_uart_->print(F("failed"));
+			debug_uart_->printf("\n%s: failed\n", title);
 		}
 		return false;
 	}
 }
 
-bool ld2410::wait_for_command_ack(uint8_t command) {
+bool ld2410::wait_for_command_ack_(uint8_t command) {
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
 		if(read_frame_())
 		{
 			if(latest_ack_ == command)
 			{
-				delay(50);
 				bool rcode = latest_command_success_;
+				delay(50);
 				leave_configuration_mode_();
 				return rcode;
 			}
 		}
 	}
-	leave_configuration_mode_();
 	return false;
 }
 
@@ -83,7 +82,7 @@ bool ld2410::begin(Stream &radarStream, bool waitForRadar)	{
 		} else {
 				debug_uart_->print(F("\nLD2410 Reset: No reponse"));
 		}
-		delay(1200);
+		delay(1200); // allow time for sensor to restart
 		if(debug_uart_ != nullptr)
 		{
 			debug_uart_->print(F("\nLD2410 Requesting Configuration: "));
@@ -190,7 +189,7 @@ char *  ld2410::cmdFirmwareVersion() {
  *         ... -- Response Values nBytes
  * 04 03 02 01 -- Footer
  */
-bool ld2410::isProtocolDataFrame() {
+bool ld2410::isProtocolDataFrame_() {
 	return (	radar_data_frame_[0]                              == FRAME_PREFIX_PROTOCOL &&	
 				radar_data_frame_[1]                              == 0xFC &&
 				radar_data_frame_[2]                              == 0xFB &&
@@ -214,7 +213,7 @@ bool ld2410::isProtocolDataFrame() {
  *        0x00 -- Check flag
  * F8 F7 F6 F5  - Footer
 */
-bool ld2410::isReportingDataFrame() {
+bool ld2410::isReportingDataFrame_() {
 	return (	radar_data_frame_[0]                              == FRAME_PREFIX_REPORTING &&
 				radar_data_frame_[1]                              == 0xF3 &&
 				radar_data_frame_[2]                              == 0xF2 &&
@@ -272,7 +271,7 @@ bool ld2410::read_frame_()
 			radar_data_frame_[radar_data_frame_position_++] = radar_uart_ -> read();
 			if(radar_data_frame_position_ > 7)	//Can check for start and end
 			{
-				if(isReportingDataFrame())
+				if(isReportingDataFrame_())
 				{
 					if(parse_data_frame_())
 					{
@@ -298,7 +297,7 @@ bool ld2410::read_frame_()
 						radar_data_frame_position_ = 0;
 					}
 				}
-				else if(isProtocolDataFrame())
+				else if(isProtocolDataFrame_())
 				{
 					if(parse_command_frame_())
 					{
@@ -549,195 +548,117 @@ bool ld2410::parse_command_frame_()
 	latest_ack_                  = radar_data_frame_[6];
 	latest_command_success_      = (radar_data_frame_[8] == 0x00 && radar_data_frame_[9] == 0x00);
 
-	if(intra_frame_data_length_ == 8 && latest_ack_ == CMD_CONFIGURATION_ENABLE)
+	switch(latest_ack_) 
 	{
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for entering configuration mode: "));
-		}
-		#endif
-		if(latest_command_success_)
-		{
-			configuration_protocol_version_ = serial_to_int_(10); //radar_data_frame_[10] + (radar_data_frame_[11] << 8);
-			configuration_buffer_size_      = serial_to_int_(12); //radar_data_frame_[12] + (radar_data_frame_[13] << 8);
-		}
-		return debug_command_results_();
-	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_CONFIGURATION_END)
-	{
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for leaving configuration mode: "));
-		}
-		#endif
-		return debug_command_results_();
-	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_MAX_DISTANCE_AND_UNMANNED_DURATION)
-	{
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for setting max values: "));
-		}
-		#endif
-		return debug_command_results_();
-	}
-	else if(intra_frame_data_length_ == 28 && latest_ack_ == CMD_READ_PARAMETER)
-	{
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for current configuration: "));
-		}
-		#endif
-		if(latest_command_success_)
-		{
-			max_gate = radar_data_frame_[11];
-			max_moving_gate = radar_data_frame_[12];
-			max_stationary_gate = radar_data_frame_[13];
-			motion_sensitivity[0] = radar_data_frame_[14];
-			motion_sensitivity[1] = radar_data_frame_[15];
-			motion_sensitivity[2] = radar_data_frame_[16];
-			motion_sensitivity[3] = radar_data_frame_[17];
-			motion_sensitivity[4] = radar_data_frame_[18];
-			motion_sensitivity[5] = radar_data_frame_[19];
-			motion_sensitivity[6] = radar_data_frame_[20];
-			motion_sensitivity[7] = radar_data_frame_[21];
-			motion_sensitivity[8] = radar_data_frame_[22];
-			stationary_sensitivity[0] = radar_data_frame_[23];
-			stationary_sensitivity[1] = radar_data_frame_[24];
-			stationary_sensitivity[2] = radar_data_frame_[25];
-			stationary_sensitivity[3] = radar_data_frame_[26];
-			stationary_sensitivity[4] = radar_data_frame_[27];
-			stationary_sensitivity[5] = radar_data_frame_[28];
-			stationary_sensitivity[6] = radar_data_frame_[29];
-			stationary_sensitivity[7] = radar_data_frame_[30];
-			stationary_sensitivity[8] = radar_data_frame_[31];
-			sensor_idle_time = serial_to_int_(32); //radar_data_frame_[32];
-			#ifdef LD2410_DEBUG_COMMANDS
+		case CMD_CONFIGURATION_ENABLE:
+			if(latest_command_success_)
+			{
+				configuration_protocol_version_ = serial_to_int_(10); //radar_data_frame_[10] + (radar_data_frame_[11] << 8);
+				configuration_buffer_size_      = serial_to_int_(12); //radar_data_frame_[12] + (radar_data_frame_[13] << 8);
+			}
+			return debug_command_results_("ACK for entering configuration mode");
+		case CMD_CONFIGURATION_END:
+			return debug_command_results_("ACK for leaving configuration mode");
+		case CMD_MAX_DISTANCE_AND_UNMANNED_DURATION:
+			return debug_command_results_("ACK for setting max values");
+		case CMD_READ_PARAMETER:
+			if(latest_command_success_)
+			{
+				max_gate = radar_data_frame_[11];
+				max_moving_gate = radar_data_frame_[12];
+				max_stationary_gate = radar_data_frame_[13];
+				motion_sensitivity[0] = radar_data_frame_[14];
+				motion_sensitivity[1] = radar_data_frame_[15];
+				motion_sensitivity[2] = radar_data_frame_[16];
+				motion_sensitivity[3] = radar_data_frame_[17];
+				motion_sensitivity[4] = radar_data_frame_[18];
+				motion_sensitivity[5] = radar_data_frame_[19];
+				motion_sensitivity[6] = radar_data_frame_[20];
+				motion_sensitivity[7] = radar_data_frame_[21];
+				motion_sensitivity[8] = radar_data_frame_[22];
+				stationary_sensitivity[0] = radar_data_frame_[23];
+				stationary_sensitivity[1] = radar_data_frame_[24];
+				stationary_sensitivity[2] = radar_data_frame_[25];
+				stationary_sensitivity[3] = radar_data_frame_[26];
+				stationary_sensitivity[4] = radar_data_frame_[27];
+				stationary_sensitivity[5] = radar_data_frame_[28];
+				stationary_sensitivity[6] = radar_data_frame_[29];
+				stationary_sensitivity[7] = radar_data_frame_[30];
+				stationary_sensitivity[8] = radar_data_frame_[31];
+				sensor_idle_time = serial_to_int_(32); //radar_data_frame_[32];
+				#ifdef LD2410_DEBUG_COMMANDS
+				if(debug_uart_ != nullptr)
+				{
+					debug_uart_->print(F("\nMax gate distance: "));
+					debug_uart_->print(max_gate);
+					debug_uart_->print(F("\nMax motion detecting gate distance: "));
+					debug_uart_->print(max_moving_gate);
+					debug_uart_->print(F("\nMax stationary detecting gate distance: "));
+					debug_uart_->print(max_stationary_gate);
+					debug_uart_->print(F("\nSensitivity per gate"));
+					for(uint8_t i = 0; i < sizeof(stationary_sensitivity); ++i)
+					{
+						debug_uart_->print(F("\nGate "));
+						debug_uart_->print(i);
+						debug_uart_->print(F(" ("));
+						debug_uart_->print(i * 0.75);
+						debug_uart_->print('-');
+						debug_uart_->print((i+1) * 0.75);
+						debug_uart_->print(F(" metres) Motion: "));
+						debug_uart_->print(motion_sensitivity[i]);
+						debug_uart_->print(F(" Stationary: "));
+						debug_uart_->print(stationary_sensitivity[i]);
+						
+					}
+					debug_uart_->print(F("\nSensor idle timeout: "));
+					debug_uart_->print(sensor_idle_time);
+					debug_uart_->print('s');
+				}
+				#endif
+			}
+			return debug_command_results_("ACK for current configuration");
+		case CMD_ENGINEERING_ENABLE:
+			return debug_command_results_("ACK for enable engineering mode");
+		case CMD_ENGINEERING_END:
+			return debug_command_results_("ACK for end engineering mode");
+		case CMD_RANGE_GATE_SENSITIVITY:
+			return debug_command_results_("ACK for setting sensitivity values");
+		case CMD_READ_FIRMWARE_VERSION:
+			if(latest_command_success_)
+			{
+				firmware_major_version = radar_data_frame_[13];
+				firmware_minor_version = radar_data_frame_[12];
+				firmware_bugfix_version = radar_data_frame_[14];
+				firmware_bugfix_version += radar_data_frame_[15]<<8;
+				firmware_bugfix_version += radar_data_frame_[16]<<16;
+				firmware_bugfix_version += radar_data_frame_[17]<<24;
+			}
+			return debug_command_results_("ACK for firmware version");
+		case CMD_SET_SERIAL_PORT_BAUD:
+			return debug_command_results_("ACK for setting serial baud rate");
+		case CMD_FACTORY_RESET:
+			return debug_command_results_("ACK for factory reset");
+		case CMD_RESTART:
+			return debug_command_results_("ACK for restart");
+		default:
+			#if defined(LD2410_DEBUG_DATA) | defined(LD2410_DEBUG_COMMANDS) | defined(LD2410_DEBUG_PARSE)
 			if(debug_uart_ != nullptr)
 			{
-				debug_uart_->print(F("\nMax gate distance: "));
-				debug_uart_->print(max_gate);
-				debug_uart_->print(F("\nMax motion detecting gate distance: "));
-				debug_uart_->print(max_moving_gate);
-				debug_uart_->print(F("\nMax stationary detecting gate distance: "));
-				debug_uart_->print(max_stationary_gate);
-				debug_uart_->print(F("\nSensitivity per gate"));
-				for(uint8_t i = 0; i < sizeof(stationary_sensitivity); ++i)
-				{
-					debug_uart_->print(F("\nGate "));
-					debug_uart_->print(i);
-					debug_uart_->print(F(" ("));
-					debug_uart_->print(i * 0.75);
-					debug_uart_->print('-');
-					debug_uart_->print((i+1) * 0.75);
-					debug_uart_->print(F(" metres) Motion: "));
-					debug_uart_->print(motion_sensitivity[i]);
-					debug_uart_->print(F(" Stationary: "));
-					debug_uart_->print(stationary_sensitivity[i]);
-					
-				}
-				debug_uart_->print(F("\nSensor idle timeout: "));
-				debug_uart_->print(sensor_idle_time);
-				debug_uart_->print('s');
+				debug_uart_->print(F("\nUnknown command response"));
+				print_frame_();
 			}
 			#endif
-		}
-		return debug_command_results_();
+			return false;
 	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_== CMD_ENGINEERING_ENABLE) {	
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for enable engineering mode: "));
-		}
-		#endif
-		return debug_command_results_();
-	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_== CMD_ENGINEERING_END) {	
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for end engineering mode: "));
-		}
-		#endif
-		return debug_command_results_();
-	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_RANGE_GATE_SENSITIVITY)
-	{
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for setting sensitivity values: "));
-		}
-		#endif
-		return debug_command_results_();
-	}
-	else if(intra_frame_data_length_ == 12 && latest_ack_ == CMD_READ_FIRMWARE_VERSION)
-	{
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for firmware version: "));
-		}
-		#endif
-		if(latest_command_success_)
-		{
-			firmware_major_version = radar_data_frame_[13];
-			firmware_minor_version = radar_data_frame_[12];
-			firmware_bugfix_version = radar_data_frame_[14];
-			firmware_bugfix_version += radar_data_frame_[15]<<8;
-			firmware_bugfix_version += radar_data_frame_[16]<<16;
-			firmware_bugfix_version += radar_data_frame_[17]<<24;
-		}
-		return debug_command_results_();
-	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_SET_SERIAL_PORT_BAUD)
-	{
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for setting serial baud rate: "));
-		}
-		#endif
-		return debug_command_results_();
-	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_FACTORY_RESET)
-	{
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for factory reset: "));
-		}
-		#endif
-		return debug_command_results_();
-	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == CMD_RESTART)
-	{
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nACK for restart: "));
-		}
-		#endif
-		return debug_command_results_();
-	}
-	else
-	{
-		#if defined(LD2410_DEBUG_DATA) | defined(LD2410_DEBUG_COMMANDS) | defined(LD2410_DEBUG_PARSE)
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nUnknown command response"));
-			print_frame_();
-		}
-		#endif
-	}
-	
+
 	return false;
 }
+
+/*
+ * Specification request command be executed 
+ * inside configuraiton mode wrapper.  If command fails
+ * exit-configuration mode is not required.
+ */
 
 void ld2410::send_command_preamble_()
 {
@@ -818,7 +739,7 @@ bool ld2410::requestStartEngineeringMode()
 		radar_uart_->write(char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
-		return wait_for_command_ack(CMD_ENGINEERING_ENABLE);
+		return wait_for_command_ack_(CMD_ENGINEERING_ENABLE);
 	}
 	return false;
 }
@@ -837,7 +758,7 @@ bool ld2410::requestEndEngineeringMode()
 		radar_uart_->write(char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
-		return wait_for_command_ack(CMD_ENGINEERING_END);
+		return wait_for_command_ack_(CMD_ENGINEERING_END);
 	}
 	return false;
 }
@@ -855,7 +776,7 @@ bool ld2410::requestCurrentConfiguration()
 		radar_uart_->write(char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
-		return wait_for_command_ack(CMD_READ_PARAMETER);
+		return wait_for_command_ack_(CMD_READ_PARAMETER);
 	}
 	return false;
 }
@@ -873,7 +794,7 @@ bool ld2410::requestFirmwareVersion()
 		radar_uart_->write(char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
-		return wait_for_command_ack(CMD_READ_FIRMWARE_VERSION);
+		return wait_for_command_ack_(CMD_READ_FIRMWARE_VERSION);
 	}
 	return false;
 }
@@ -891,7 +812,7 @@ bool ld2410::requestRestart()
 		radar_uart_->write(char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
-		return wait_for_command_ack(CMD_RESTART);
+		return wait_for_command_ack_(CMD_RESTART);
 	}
 	return false;
 }
@@ -909,7 +830,7 @@ bool ld2410::requestFactoryReset()
 		radar_uart_->write(char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
-		return wait_for_command_ack(CMD_FACTORY_RESET);
+		return wait_for_command_ack_(CMD_FACTORY_RESET);
 	}
 	return false;
 }
@@ -933,7 +854,7 @@ bool ld2410::setSerialBaudRate(uint8_t cSpeed)
 		radar_uart_->write(char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
-		return wait_for_command_ack(CMD_SET_SERIAL_PORT_BAUD);
+		return wait_for_command_ack_(CMD_SET_SERIAL_PORT_BAUD);
 	}
 	return false;
 }
@@ -969,7 +890,7 @@ bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactiv
 		radar_uart_->write(char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
-		return wait_for_command_ack(CMD_MAX_DISTANCE_AND_UNMANNED_DURATION);
+		return wait_for_command_ack_(CMD_MAX_DISTANCE_AND_UNMANNED_DURATION);
 	}
 	return false;
 }
@@ -1004,7 +925,7 @@ bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t s
 		radar_uart_->write(char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
-		return wait_for_command_ack(CMD_RANGE_GATE_SENSITIVITY);
+		return wait_for_command_ack_(CMD_RANGE_GATE_SENSITIVITY);
 	}
 	return false;
 }
