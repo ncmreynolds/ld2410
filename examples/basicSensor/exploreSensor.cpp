@@ -14,7 +14,6 @@ ld2410 radar;
 
 uint32_t lastReading = 0;
 
-uint32_t doConfig = 0;
 uint32_t doEngineering = 0;
 
 void setup(void)
@@ -29,7 +28,35 @@ void setup(void)
   if(radar.begin(Serial2))
   {
     Serial.println(F("OK "));
-    doConfig=millis() + 5000;
+    delay(10);
+    radar.requestCurrentConfiguration();
+    delay(10);
+
+    Serial.print(F("\nMax gate distance: "));
+    Serial.print(radar.cfgMaxGate());
+    Serial.print(F("\nMax motion detecting gate distance: "));
+    Serial.print(radar.cfgMaxMovingGate());
+    Serial.print(F("\nMax stationary detecting gate distance: "));
+    Serial.print(radar.cfgMaxStationaryGate());
+    Serial.print(F("\nSensitivity per gate"));
+    for(uint8_t i = 0; i < sizeof(LD2410_MAX_GATES); ++i)
+    {
+      Serial.print(F("\nGate "));
+      Serial.print(i);
+      Serial.print(F(" ("));
+      Serial.print(i * 0.75);
+      Serial.print('-');
+      Serial.print((i+1) * 0.75);
+      Serial.print(F(" metres) Motion: "));
+      Serial.print(radar.cfgMovingGateSensitivity(i));
+      Serial.print(F(" Stationary: "));
+      Serial.print(radar.cfgStationaryGateSensitivity(i));
+      
+    }
+    Serial.print(F("\nSensor idle timeout: "));
+    Serial.print(radar.cfgSensorIdleTimeInSeconds());
+    Serial.println('s');
+
     doEngineering=millis() + 10000;
   }
   else
@@ -41,9 +68,6 @@ void setup(void)
 void loop()
 {
   radar.read();
-  if(millis()==doConfig) {
-    radar.requestCurrentConfiguration();
-  }
   if(millis() == doEngineering) {
     radar.requestStartEngineeringMode();
   }
@@ -52,19 +76,25 @@ void loop()
     lastReading = millis();
     if(radar.presenceDetected())
     {
-      if(radar.stationaryTargetDistance())
+      if(radar.isStationary())
       {
         Serial.print(F("Stationary target: "));
         Serial.print(radar.stationaryTargetDistance());
         Serial.print(F("cm energy:"));
         Serial.println(radar.stationaryTargetEnergy());
       }
-      if(radar.movingTargetDistance())
+      if(radar.isMoving())
       {
         Serial.print(F("Moving target: "));
         Serial.print(radar.movingTargetDistance());
         Serial.print(F("cm energy:"));
         Serial.println(radar.movingTargetEnergy());
+      }
+      if(radar.isEngineeringMode()){
+        Serial.printf("\n\nMoving Gate:%d, Static Gate:%d, Detection Distance:%dcm\n",radar.engMaxMovingDistanceGate(), radar.engMaxStaticDistanceGate(), radar.detectionDistance());
+        for(int x = 0; x < LD2410_MAX_GATES; ++x) {
+          Serial.printf("Gate:%d, Movement Energy: %d, Static Energy:%d\n", x, radar.engMovingDistanceGateEnergy(x), radar.engStaticDistanceGateEnergy(x));
+        }
       }
     }
     else

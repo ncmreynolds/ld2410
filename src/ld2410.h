@@ -43,6 +43,8 @@
 #define FRAME_TYPE_TARGET         0x02
 #define FRAME_PREFIX_PROTOCOL     0xFD
 #define FRAME_PREFIX_REPORTING    0xF4
+#define FRAME_TYPE_FLAG           0xAA
+#define FRAME_TYPE_MARKER         0x55
 
 /*
  * Target State Constants
@@ -162,8 +164,11 @@ class ld2410	{
 		bool frame_started_ = false;									//Whether a frame is currently being read
 		bool ack_frame_ = false;										//Whether the incoming frame is LIKELY an ACK frame
 		bool waiting_for_ack_ = false;									//Whether a command has just been sent
-		bool engineering_mode_ = false;                                   //Wheter engineering mode is active
+		bool engineering_mode_ = false;                                 //Wheter engineering mode is active
 		
+		uint16_t serial_to_int_(uint8_t index);                         //Little to Big endian
+		bool debug_command_results_();
+		bool wait_for_command_ack(uint8_t command);
 		bool isProtocolDataFrame();                                     //Command -Determine type of Frame
 		bool isReportingDataFrame();                                    //Data - Determine type of Frame
 
