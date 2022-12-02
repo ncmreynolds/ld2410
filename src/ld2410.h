@@ -15,8 +15,8 @@
 #include <Arduino.h>
 
 // #define LD2410_DEBUG_DATA
-#define LD2410_DEBUG_COMMANDS
-#define LD2410_DEBUG_PARSE
+// #define LD2410_DEBUG_COMMANDS
+// #define LD2410_DEBUG_PARSE
 
 /* 
  * Protocol Command Words
