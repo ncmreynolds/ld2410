@@ -328,7 +328,7 @@ bool ld2410::read_frame_()
 		}
 		else
 		{
-			#if defined(LD2410_DEBUG_DATA) || defined(LD2410_DEBUG_COMMANDS)
+			#if defined(LD2410_DEBUG_DATA) | defined(LD2410_DEBUG_COMMANDS) | defined(LD2410_DEBUG_PARSE)
 			if(debug_uart_ != nullptr)
 			{
 				debug_uart_->print(F("\nLD2410 frame overran"));
@@ -368,160 +368,7 @@ void ld2410::print_frame_()
 bool ld2410::parse_data_frame_()
 {
 	uint16_t intra_frame_data_length_ = serial_to_int_(4); // radar_data_frame_[4] + (radar_data_frame_[5] << 8);
-	if(radar_data_frame_position_ == intra_frame_data_length_ + 10)
-	{
-		#if defined(LD2410_DEBUG_DATA) | defined(LD2410_DEBUG_COMMANDS)
-		if(debug_uart_ != nullptr )
-		{
-			print_frame_();
-		}
-		#endif
-		if(radar_data_frame_[6] == FRAME_TYPE_REPORTING && radar_data_frame_[7] == FRAME_TYPE_FLAG)	//Engineering mode data
-		{	
-			/*   (Protocol) Target Data Reporting 
-			* 02 AA         d6,7     data type (target data)
-			* 02            d8       target type (stationary target)
-			* 51 00         d9,10    stationary target distance 
-			* 00            d11      stationary target energy 
-			* 00 00         d12,13   moving target distance
-			* 3B            d14      moving target energy
-			* 00 00         d15,16   distance detection
-			
-			Engineering
-			* 08        d17       Max moving distance gate
-			* 08        d18       Max static distance gate
-			* 3C 22 05 03 03 04 03 06 05       d19,27 Movement distance gate energy
-			* 00 00 39 10 13 06 06 08 04       d28,36 Static distance gate energy
-			* 03 05     d37,38    ?? v1283
-			* 55 00     d39,40    Frame flag
-			*/
-			engineering_mode_           = true;
-			target_type_                = radar_data_frame_[8];
-			stationary_target_distance_ = serial_to_int_(9); //radar_data_frame_[9] + (radar_data_frame_[10] << 8);
-			stationary_target_energy_   = radar_data_frame_[11];
-			moving_target_distance_     = serial_to_int_(12); //radar_data_frame_[15] + (radar_data_frame_[16] << 8);
-			moving_target_energy_       = radar_data_frame_[14];
-			detection_distance_         = serial_to_int_(15);
-			
-			max_moving_distance_gate    = radar_data_frame_[17];
-			max_static_distance_gate    = radar_data_frame_[18];
-			
-			uint8_t pos = 19;
-
-			// motion_energy
-			for(uint8_t gate = 0; gate < sizeof(movement_distance_gate_energy); ++gate) {
-				movement_distance_gate_energy[gate] = radar_data_frame_[pos++];
-			}
-			// stationary_engergy
-			for(uint8_t gate = 0; gate < sizeof(static_distance_gate_engergy); ++gate) {
-				static_distance_gate_engergy[gate] = radar_data_frame_[pos++];
-			}
-			sensor_idle_time = serial_to_int_(pos); //radar_data_frame_[pos++] + (radar_data_frame_[pos] << 8); // maybe
-
-			#ifdef LD2410_DEBUG_PARSE
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("\nEngineering data - "));
-				if(target_type_ == TARGET_NONE)
-				{
-					debug_uart_->print(F(" no target"));
-				}
-				else if(target_type_ == TARGET_MOVING)
-				{
-					debug_uart_->print(F(" moving target:"));
-				}
-				else if(target_type_ == TARGET_STATIONARY)
-				{
-					debug_uart_->print(F(" stationary target:"));
-				}
-				else if(target_type_ == TARGET_MOVING_AND_STATIONARY)
-				{
-					debug_uart_->print(F(" moving & stationary targets:"));
-				}
-				debug_uart_->print(F(" moving at "));
-				debug_uart_->print(moving_target_distance_);
-				debug_uart_->print(F("cm power "));
-				debug_uart_->print(moving_target_energy_);
-
-				debug_uart_->print(F(" max moving distance gate:"));
-				debug_uart_->print(max_moving_distance_gate);
-				debug_uart_->print(F(" max static distance gate:"));
-				debug_uart_->print(max_static_distance_gate);
-				debug_uart_->print(F(" moving/static distance gate energy: "));
-				for(uint8_t gate = 0; gate < sizeof(movement_distance_gate_energy); ++gate) {
-					debug_uart_->printf("%d:[%d,%d] ", gate,movement_distance_gate_energy[gate],static_distance_gate_engergy[gate]);
-				}
-				debug_uart_->print("\n");				
-			}
-			#endif
-
-			radar_uart_last_packet_ = millis();
-
-			return true;
-		}
-		else if(radar_data_frame_[6] == FRAME_TYPE_TARGET && radar_data_frame_[7] == FRAME_TYPE_FLAG )	//Normal target data
-		{
-			//moving_target_distance_ = radar_data_frame_[9] + (radar_data_frame_[10] << 8);
-			//stationary_target_distance_ = radar_data_frame_[12] + (radar_data_frame_[13] << 8);
-			engineering_mode_           = false;
-			target_type_                = radar_data_frame_[8];
-			stationary_target_distance_ = serial_to_int_(9); //radar_data_frame_[9] + (radar_data_frame_[10] << 8);
-			stationary_target_energy_   = radar_data_frame_[11];
-			moving_target_distance_     = serial_to_int_(12); //radar_data_frame_[15] + (radar_data_frame_[16] << 8);
-			moving_target_energy_       = radar_data_frame_[14];
-			detection_distance_         = serial_to_int_(15);
-			#ifdef LD2410_DEBUG_PARSE
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("\nNormal data - "));
-				if(target_type_ == TARGET_NONE)
-				{
-					debug_uart_->print(F(" no target"));
-				}
-				else if(target_type_ == TARGET_MOVING)
-				{
-					debug_uart_->print(F(" moving target:"));
-				}
-				else if(target_type_ == TARGET_STATIONARY)
-				{
-					debug_uart_->print(F(" stationary target:"));
-				}
-				else if(target_type_ == TARGET_MOVING_AND_STATIONARY)
-				{
-					debug_uart_->print(F(" moving & stationary targets:"));
-				}
-				if(radar_data_frame_[8] & TARGET_MOVING)
-				{
-					debug_uart_->print(F(" moving at "));
-					debug_uart_->print(moving_target_distance_);
-					debug_uart_->print(F("cm power "));
-					debug_uart_->print(moving_target_energy_);
-				}
-				if(radar_data_frame_[8] & TARGET_STATIONARY)
-				{
-					debug_uart_->print(F(" stationary at "));
-					debug_uart_->print(stationary_target_distance_);
-					debug_uart_->print(F("cm power "));
-					debug_uart_->print(stationary_target_energy_);
-				}
-			}
-			#endif
-			radar_uart_last_packet_ = millis();
-			return true;
-		}
-		else
-		{
-			#ifdef LD2410_DEBUG_DATA
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("\nUnknown frame type"));
-			}
-			#endif
-			print_frame_();
-		}
-		return false;
-	}
-	else
+	if(radar_data_frame_position_ != intra_frame_data_length_ + 10)
 	{
 		#ifdef LD2410_DEBUG_DATA
 		if(debug_uart_ != nullptr)
@@ -532,7 +379,158 @@ bool ld2410::parse_data_frame_()
 			debug_uart_->print(intra_frame_data_length_ + 10);
 		}
 		#endif
+		return false;
 	}
+
+	#if defined(LD2410_DEBUG_DATA) | defined(LD2410_DEBUG_COMMANDS)
+	if(debug_uart_ != nullptr )
+	{
+		print_frame_();
+	}
+	#endif
+	if(radar_data_frame_[6] == FRAME_TYPE_REPORTING && radar_data_frame_[7] == FRAME_TYPE_FLAG)	//Engineering mode data
+	{	
+		/*   (Protocol) Target Data Reporting 
+		* 02 AA         d6,7     data type (target data)
+		* 02            d8       target type (stationary target)
+		* 51 00         d9,10    stationary target distance 
+		* 00            d11      stationary target energy 
+		* 00 00         d12,13   moving target distance
+		* 3B            d14      moving target energy
+		* 00 00         d15,16   distance detection
+		
+		Engineering
+		* 08        d17       Max moving distance gate
+		* 08        d18       Max static distance gate
+		* 3C 22 05 03 03 04 03 06 05       d19,27 Movement distance gate energy
+		* 00 00 39 10 13 06 06 08 04       d28,36 Static distance gate energy
+		* 03 05     d37,38    ?? v1283
+		* 55 00     d39,40    Frame flag
+		*/
+		engineering_mode_           = true;
+		target_type_                = radar_data_frame_[8];
+		stationary_target_distance_ = serial_to_int_(9); //radar_data_frame_[9] + (radar_data_frame_[10] << 8);
+		stationary_target_energy_   = radar_data_frame_[11];
+		moving_target_distance_     = serial_to_int_(12); //radar_data_frame_[15] + (radar_data_frame_[16] << 8);
+		moving_target_energy_       = radar_data_frame_[14];
+		detection_distance_         = serial_to_int_(15);
+		
+		max_moving_distance_gate    = radar_data_frame_[17];
+		max_static_distance_gate    = radar_data_frame_[18];
+		
+		uint8_t pos = 19;
+
+		// motion_energy
+		for(uint8_t gate = 0; gate < sizeof(movement_distance_gate_energy); ++gate) {
+			movement_distance_gate_energy[gate] = radar_data_frame_[pos++];
+		}
+		// stationary_engergy
+		for(uint8_t gate = 0; gate < sizeof(static_distance_gate_engergy); ++gate) {
+			static_distance_gate_engergy[gate] = radar_data_frame_[pos++];
+		}
+		sensor_idle_time = serial_to_int_(pos); //radar_data_frame_[pos++] + (radar_data_frame_[pos] << 8); // maybe
+
+		#ifdef LD2410_DEBUG_PARSE
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nEngineering data - "));
+			if(target_type_ == TARGET_NONE)
+			{
+				debug_uart_->print(F(" no target"));
+			}
+			else if(target_type_ == TARGET_MOVING)
+			{
+				debug_uart_->print(F(" moving target:"));
+			}
+			else if(target_type_ == TARGET_STATIONARY)
+			{
+				debug_uart_->print(F(" stationary target:"));
+			}
+			else if(target_type_ == TARGET_MOVING_AND_STATIONARY)
+			{
+				debug_uart_->print(F(" moving & stationary targets:"));
+			}
+			debug_uart_->print(F(" moving at "));
+			debug_uart_->print(moving_target_distance_);
+			debug_uart_->print(F("cm power "));
+			debug_uart_->print(moving_target_energy_);
+
+			debug_uart_->print(F(" max moving distance gate:"));
+			debug_uart_->print(max_moving_distance_gate);
+			debug_uart_->print(F(" max static distance gate:"));
+			debug_uart_->print(max_static_distance_gate);
+			debug_uart_->print(F(" moving/static distance gate energy: "));
+			for(uint8_t gate = 0; gate < sizeof(movement_distance_gate_energy); ++gate) {
+				debug_uart_->printf("%d:[%d,%d] ", gate,movement_distance_gate_energy[gate],static_distance_gate_engergy[gate]);
+			}
+			debug_uart_->print("\n");				
+		}
+		#endif
+
+		radar_uart_last_packet_ = millis();
+		return true;
+	}
+	else if(radar_data_frame_[6] == FRAME_TYPE_TARGET && radar_data_frame_[7] == FRAME_TYPE_FLAG )	//Normal target data
+	{
+		//moving_target_distance_ = radar_data_frame_[9] + (radar_data_frame_[10] << 8);
+		//stationary_target_distance_ = radar_data_frame_[12] + (radar_data_frame_[13] << 8);
+		engineering_mode_           = false;
+		target_type_                = radar_data_frame_[8];
+		stationary_target_distance_ = serial_to_int_(9); //radar_data_frame_[9] + (radar_data_frame_[10] << 8);
+		stationary_target_energy_   = radar_data_frame_[11];
+		moving_target_distance_     = serial_to_int_(12); //radar_data_frame_[15] + (radar_data_frame_[16] << 8);
+		moving_target_energy_       = radar_data_frame_[14];
+		detection_distance_         = serial_to_int_(15);
+		#ifdef LD2410_DEBUG_PARSE
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nNormal data - "));
+			if(target_type_ == TARGET_NONE)
+			{
+				debug_uart_->print(F(" no target"));
+			}
+			else if(target_type_ == TARGET_MOVING)
+			{
+				debug_uart_->print(F(" moving target:"));
+			}
+			else if(target_type_ == TARGET_STATIONARY)
+			{
+				debug_uart_->print(F(" stationary target:"));
+			}
+			else if(target_type_ == TARGET_MOVING_AND_STATIONARY)
+			{
+				debug_uart_->print(F(" moving & stationary targets:"));
+			}
+			if(radar_data_frame_[8] & TARGET_MOVING)
+			{
+				debug_uart_->print(F(" moving at "));
+				debug_uart_->print(moving_target_distance_);
+				debug_uart_->print(F("cm power "));
+				debug_uart_->print(moving_target_energy_);
+			}
+			if(radar_data_frame_[8] & TARGET_STATIONARY)
+			{
+				debug_uart_->print(F(" stationary at "));
+				debug_uart_->print(stationary_target_distance_);
+				debug_uart_->print(F("cm power "));
+				debug_uart_->print(stationary_target_energy_);
+			}
+		}
+		#endif
+		radar_uart_last_packet_ = millis();
+		return true;
+	}
+	else
+	{
+		#if defined(LD2410_DEBUG_DATA) | defined(LD2410_DEBUG_COMMANDS) | defined(LD2410_DEBUG_PARSE)
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nUnknown frame type"));
+		}
+		#endif
+		print_frame_();
+	}
+
 	return false;
 }
 
@@ -726,6 +724,16 @@ bool ld2410::parse_command_frame_()
 		}
 		#endif
 		return debug_command_results_();
+	}
+	else
+	{
+		#if defined(LD2410_DEBUG_DATA) | defined(LD2410_DEBUG_COMMANDS) | defined(LD2410_DEBUG_PARSE)
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nUnknown command response"));
+			print_frame_();
+		}
+		#endif
 	}
 	
 	return false;

@@ -14,9 +14,9 @@
 
 #include <Arduino.h>
 
-// #define LD2410_DEBUG_DATA
-// #define LD2410_DEBUG_COMMANDS
-// #define LD2410_DEBUG_PARSE
+// #define LD2410_DEBUG_DATA                //Debug all Data Frames
+// #define LD2410_DEBUG_COMMANDS            //Debug Command Acks
+// #define LD2410_DEBUG_PARSE               //Debug Reporting Frames
 
 /* 
  * Protocol Command Words

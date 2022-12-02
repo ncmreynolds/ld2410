@@ -50,35 +50,25 @@ void loop()
     {
       if(radar.isStationary())
       {
-        Serial.print(F("Stationary target:"));
-        Serial.print(radar.stationaryTargetDistance());
-        Serial.print(F("cm energy:"));
-        Serial.print(radar.stationaryTargetEnergy());
-        Serial.print(F(" Detection distance:"));
-        Serial.print(radar.detectionDistance());
-        Serial.println(F("cm"));
+        Serial.printf("Stationary target: %03dcm  energy: %03d  Detection distance: %03dcm\n", radar.stationaryTargetDistance(), radar.stationaryTargetEnergy(), radar.detectionDistance());
         if(radar.isEngineeringMode()){
           Serial.printf("Moving Gate:%d, Static Gate:%d\n",radar.engMaxMovingDistanceGate(), radar.engMaxStaticDistanceGate());
           for(int x = 0; x < LD2410_MAX_GATES; ++x) {
-            Serial.printf("Gate:%d, Movement Energy: %d, Static Energy:%d\n", x, radar.engMovingDistanceGateEnergy(x), radar.engStaticDistanceGateEnergy(x));
+            Serial.printf("Gate:%d, Movement Energy: %03d, Static Energy:%03d\n", x, radar.engMovingDistanceGateEnergy(x), radar.engStaticDistanceGateEnergy(x));
           }
+          Serial.println("");
         }
       }
       if(radar.isMoving())
       {
-        Serial.print(F("Moving target:"));
-        Serial.print(radar.movingTargetDistance());
-        Serial.print(F("cm energy:"));
-        Serial.print(radar.movingTargetEnergy());
-        Serial.print(F(" Detection distance:"));
-        Serial.print(radar.detectionDistance());
-        Serial.println(F("cm"));
+        Serial.printf("Moving target: %03dcm  energy: %03d  Detection distance: %03dcm\n", radar.movingTargetDistance(), radar.movingTargetEnergy(), radar.detectionDistance());
         if(radar.isEngineeringMode()){
           Serial.printf("Moving Gate:%d, Static Gate:%d\n",radar.engMaxMovingDistanceGate(), radar.engMaxStaticDistanceGate());
           for(int x = 0; x < LD2410_MAX_GATES; ++x) {
-            Serial.printf("Gate:%d, Movement Energy: %d, Static Energy:%d\n", x, radar.engMovingDistanceGateEnergy(x), radar.engStaticDistanceGateEnergy(x));
+            Serial.printf("Gate:%d, Movement Energy: %03d, Static Energy:%03d\n", x, radar.engMovingDistanceGateEnergy(x), radar.engStaticDistanceGateEnergy(x));
           }
         }
+        Serial.println("");
       }
     }
     else
