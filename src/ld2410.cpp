@@ -398,9 +398,10 @@ bool ld2410::parse_data_frame_()
 			engineering_mode_           = true;
 			target_type_                = radar_data_frame_[8];
 			stationary_target_distance_ = serial_to_int_(9); //radar_data_frame_[9] + (radar_data_frame_[10] << 8);
-			stationary_target_energy_   = radar_data_frame_[14];
-			moving_target_energy_       = radar_data_frame_[11];
-			moving_target_distance_     = serial_to_int_(15); //radar_data_frame_[15] + (radar_data_frame_[16] << 8);
+			stationary_target_energy_   = radar_data_frame_[11];
+			moving_target_distance_     = serial_to_int_(12); //radar_data_frame_[15] + (radar_data_frame_[16] << 8);
+			moving_target_energy_       = radar_data_frame_[14];
+			detection_distance_         = serial_to_int_(15);
 			
 			max_moving_distance_gate    = radar_data_frame_[17];
 			max_static_distance_gate    = radar_data_frame_[18];
@@ -465,9 +466,10 @@ bool ld2410::parse_data_frame_()
 			engineering_mode_           = false;
 			target_type_                = radar_data_frame_[8];
 			stationary_target_distance_ = serial_to_int_(9); //radar_data_frame_[9] + (radar_data_frame_[10] << 8);
-			stationary_target_energy_   = radar_data_frame_[14];
-			moving_target_distance_     = serial_to_int_(15); //radar_data_frame_[15] + (radar_data_frame_[16] << 8);
-			moving_target_energy_       = radar_data_frame_[11];
+			stationary_target_energy_   = radar_data_frame_[11];
+			moving_target_distance_     = serial_to_int_(12); //radar_data_frame_[15] + (radar_data_frame_[16] << 8);
+			moving_target_energy_       = radar_data_frame_[14];
+			detection_distance_         = serial_to_int_(15);
 			#ifdef LD2410_DEBUG_PARSE
 			if(debug_uart_ != nullptr)
 			{
