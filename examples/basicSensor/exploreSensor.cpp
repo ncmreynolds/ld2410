@@ -28,6 +28,7 @@ void setup(void)
   if(radar.begin(Serial2))
   {
     Serial.println(F("OK "));
+    delay(0);
     doEngineering=millis() + 60000;
   }
   else

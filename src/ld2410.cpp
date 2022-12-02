@@ -83,7 +83,7 @@ bool ld2410::begin(Stream &radarStream, bool waitForRadar)	{
 		} else {
 				debug_uart_->print(F("\nLD2410 Reset: No reponse"));
 		}
-		delay(0);
+		delay(1200);
 		if(debug_uart_ != nullptr)
 		{
 			debug_uart_->print(F("\nLD2410 Requesting Configuration: "));
