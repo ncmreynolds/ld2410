@@ -76,16 +76,47 @@ bool ld2410::begin(Stream &radarStream, bool waitForRadar)	{
 	}
 	if(waitForRadar)
 	{
+		if(requestRestart()) {
+			if(debug_uart_ != nullptr) {
+				debug_uart_->print(F("\nLD2410 Reset: Ok"));
+			}
+		} else {
+				debug_uart_->print(F("\nLD2410 Reset: No reponse"));
+		}
+		delay(0);
 		if(debug_uart_ != nullptr)
 		{
-			debug_uart_->print(F("\nLD2410 firmware: "));
+			debug_uart_->print(F("\nLD2410 Requesting Configuration: "));
 		}
-		if(requestFirmwareVersion())
+		if(requestCurrentConfiguration())
 		{
 			if(debug_uart_ != nullptr)
 			{
-				debug_uart_->println(cmdFirmwareVersion());
-			}
+				debug_uart_->print(F("\nMax gate distance: "));
+				debug_uart_->print(max_gate);
+				debug_uart_->print(F("\nMax motion detecting gate distance: "));
+				debug_uart_->print(max_moving_gate);
+				debug_uart_->print(F("\nMax stationary detecting gate distance: "));
+				debug_uart_->print(max_stationary_gate);
+				debug_uart_->print(F("\nSensitivity per gate"));
+				for(uint8_t i = 0; i < sizeof(stationary_sensitivity); ++i)
+				{
+					debug_uart_->print(F("\nGate "));
+					debug_uart_->print(i);
+					debug_uart_->print(F(" ("));
+					debug_uart_->print(i * 0.75);
+					debug_uart_->print('-');
+					debug_uart_->print((i+1) * 0.75);
+					debug_uart_->print(F(" metres) Motion: "));
+					debug_uart_->print(motion_sensitivity[i]);
+					debug_uart_->print(F(" Stationary: "));
+					debug_uart_->print(stationary_sensitivity[i]);
+					
+				}
+				debug_uart_->print(F("\nSensor idle timeout: "));
+				debug_uart_->print(sensor_idle_time);
+				debug_uart_->println('s');
+			}		
 			return true;
 		}
 		else

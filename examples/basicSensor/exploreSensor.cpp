@@ -28,36 +28,7 @@ void setup(void)
   if(radar.begin(Serial2))
   {
     Serial.println(F("OK "));
-    delay(10);
-    radar.requestCurrentConfiguration();
-    delay(10);
-
-    Serial.print(F("\nMax gate distance: "));
-    Serial.print(radar.cfgMaxGate());
-    Serial.print(F("\nMax motion detecting gate distance: "));
-    Serial.print(radar.cfgMaxMovingGate());
-    Serial.print(F("\nMax stationary detecting gate distance: "));
-    Serial.print(radar.cfgMaxStationaryGate());
-    Serial.print(F("\nSensitivity per gate"));
-    for(uint8_t i = 0; i < sizeof(LD2410_MAX_GATES); ++i)
-    {
-      Serial.print(F("\nGate "));
-      Serial.print(i);
-      Serial.print(F(" ("));
-      Serial.print(i * 0.75);
-      Serial.print('-');
-      Serial.print((i+1) * 0.75);
-      Serial.print(F(" metres) Motion: "));
-      Serial.print(radar.cfgMovingGateSensitivity(i));
-      Serial.print(F(" Stationary: "));
-      Serial.print(radar.cfgStationaryGateSensitivity(i));
-      
-    }
-    Serial.print(F("\nSensor idle timeout: "));
-    Serial.print(radar.cfgSensorIdleTimeInSeconds());
-    Serial.println('s');
-
-    doEngineering=millis() + 10000;
+    doEngineering=millis() + 60000;
   }
   else
   {
