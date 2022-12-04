@@ -80,7 +80,9 @@ bool ld2410::begin(Stream &radarStream, bool waitForRadar)	{
 				debug_uart_->print(F("\nLD2410 Reset: Ok"));
 			}
 		} else {
+			if(debug_uart_ != nullptr) {
 				debug_uart_->print(F("\nLD2410 Reset: No reponse"));
+			}
 		}
 		delay(1200); // allow time for sensor to restart
 		if(debug_uart_ != nullptr)
@@ -142,8 +144,10 @@ void ld2410::debug(Stream &terminalStream)
 	debug_uart_ = &terminalStream;		//Set the stream used for the terminal
 	#if defined(ESP8266)
 	if(&terminalStream == &Serial)
-	{
+	{	
+		if(debug_uart_ != nullptr) {
 		  debug_uart_->write(17);			//Send an XON to stop the hung terminal after reset on ESP8266
+		}
 	}
 	#endif
 }
