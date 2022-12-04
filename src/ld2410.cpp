@@ -445,6 +445,7 @@ bool ld2410::parse_data_frame_()
 		}
 		#endif
 	}
+	return false;
 }
 
 bool ld2410::parse_command_frame_()
@@ -752,6 +753,7 @@ bool ld2410::parse_command_frame_()
 		}
 		#endif
 	}
+	return false;
 }
 
 void ld2410::send_command_preamble_()
