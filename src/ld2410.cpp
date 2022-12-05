@@ -654,7 +654,6 @@ bool ld2410::parse_command_frame_()
 			#endif
 			return false;
 	}
-
 	return false;
 }
 
