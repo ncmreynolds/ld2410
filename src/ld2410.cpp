@@ -175,14 +175,16 @@ bool ld2410::movingTargetDetected()
 	return((target_type_ & TARGET_MOVING) && moving_target_distance_ > 0 && moving_target_energy_ > 0);
 }
 
-const char *  ld2410::cmdFirmwareVersion() {
+String ld2410::cmdFirmwareVersion() {
 	String sVersion = "";
 	sVersion  = "v"; 
 	sVersion += firmware_major_version;
-	sVersion  = "."; 
+	sVersion += "."; 
 	sVersion += firmware_minor_version;
-	sVersion  = "."; 
+	sVersion += "."; 
 	sVersion += String(firmware_bugfix_version, HEX);
+	sVersion += "\n"; 
+
 	return sVersion.c_str();
 }
 
