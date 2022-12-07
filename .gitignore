@@ -33,3 +33,5 @@
 
 # Arduino
 .development
+.pio/build
+.vscode

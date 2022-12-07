@@ -35,6 +35,8 @@ requestEndEngineeringMode	KEYWORD2
 setSerialBaudRate KEYWORD2
 setMaxValues	KEYWORD2
 setGateSensitivityThreshold	KEYWORD2
+requestConfigurationModeOpen	KEYWORD2
+requestConfigurationModeClose	KEYWORD2
 
 cmdProtocolVersion	KEYWORD2
 cmdFirmwareVersion	KEYWORD2

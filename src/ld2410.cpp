@@ -35,7 +35,9 @@ bool ld2410::debug_command_results_(const char * title) {
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
 		{
-			debug_uart_->printf("\n%s: OK\n", title);
+			debug_uart_->print("\n");
+			debug_uart_->print(title);
+			debug_uart_->print(" OK\n");
 		}
 		#endif
 		return true;
@@ -44,7 +46,9 @@ bool ld2410::debug_command_results_(const char * title) {
 	{
 		if(debug_uart_ != nullptr)
 		{
-			debug_uart_->printf("\n%s: failed\n", title);
+			debug_uart_->print("\n");
+			debug_uart_->print(title);
+			debug_uart_->print(" Failed\n");
 		}
 		return false;
 	}
@@ -81,10 +85,10 @@ bool ld2410::begin(Stream &radarStream, bool waitForRadar)	{
 			}
 		} else {
 			if(debug_uart_ != nullptr) {
-				debug_uart_->print(F("\nLD2410 Reset: No reponse"));
+				debug_uart_->print(F("\nLD2410 Reset: No response"));
 			}
 		}
-		delay(1200); // allow time for sensor to restart
+		delay(1500); // allow time for sensor to restart
 		if(debug_uart_ != nullptr)
 		{
 			debug_uart_->print(F("\nLD2410 Requesting Configuration: "));
@@ -171,10 +175,15 @@ bool ld2410::movingTargetDetected()
 	return((target_type_ & TARGET_MOVING) && moving_target_distance_ > 0 && moving_target_energy_ > 0);
 }
 
-char *  ld2410::cmdFirmwareVersion() {
-	int len = 0;
-	len = snprintf(firmwareBuffer,sizeof(firmwareBuffer), "v%d.%d.%x",firmware_major_version,firmware_minor_version,firmware_bugfix_version);
-	return firmwareBuffer;
+const char *  ld2410::cmdFirmwareVersion() {
+	String sVersion = "";
+	sVersion  = "v"; 
+	sVersion += firmware_major_version;
+	sVersion  = "."; 
+	sVersion += firmware_minor_version;
+	sVersion  = "."; 
+	sVersion += String(firmware_bugfix_version, HEX);
+	return sVersion.c_str();
 }
 
 /* Command / Response / Protocol Frame
@@ -412,10 +421,10 @@ bool ld2410::parse_data_frame_()
 		*/
 		engineering_mode_           = true;
 		target_type_                = radar_data_frame_[8];
-		stationary_target_distance_ = serial_to_int_(9); //radar_data_frame_[9] + (radar_data_frame_[10] << 8);
-		stationary_target_energy_   = radar_data_frame_[11];
-		moving_target_distance_     = serial_to_int_(12); //radar_data_frame_[15] + (radar_data_frame_[16] << 8);
-		moving_target_energy_       = radar_data_frame_[14];
+		moving_target_distance_     = serial_to_int_(9); 
+		moving_target_energy_       = radar_data_frame_[11];
+		stationary_target_distance_ = serial_to_int_(12);
+		stationary_target_energy_   = radar_data_frame_[14];
 		detection_distance_         = serial_to_int_(15);
 		
 		max_moving_distance_gate    = radar_data_frame_[17];
@@ -464,7 +473,12 @@ bool ld2410::parse_data_frame_()
 			debug_uart_->print(max_static_distance_gate);
 			debug_uart_->print(F(" moving/static distance gate energy: "));
 			for(uint8_t gate = 0; gate < sizeof(movement_distance_gate_energy); ++gate) {
-				debug_uart_->printf("%d:[%d,%d] ", gate,movement_distance_gate_energy[gate],static_distance_gate_engergy[gate]);
+				debug_uart_->print(gate);
+				debug_uart_->print(": [");
+				debug_uart_->print(movement_distance_gate_energy[gate]);
+				debug_uart_->print(",");
+				debug_uart_->print(static_distance_gate_engergy[gate]);
+				debug_uart_->print("] ");
 			}
 			debug_uart_->print("\n");				
 		}
@@ -479,10 +493,10 @@ bool ld2410::parse_data_frame_()
 		//stationary_target_distance_ = radar_data_frame_[12] + (radar_data_frame_[13] << 8);
 		engineering_mode_           = false;
 		target_type_                = radar_data_frame_[8];
-		stationary_target_distance_ = serial_to_int_(9); //radar_data_frame_[9] + (radar_data_frame_[10] << 8);
-		stationary_target_energy_   = radar_data_frame_[11];
-		moving_target_distance_     = serial_to_int_(12); //radar_data_frame_[15] + (radar_data_frame_[16] << 8);
-		moving_target_energy_       = radar_data_frame_[14];
+		moving_target_distance_     = serial_to_int_(9); 
+		moving_target_energy_       = radar_data_frame_[11];
+		stationary_target_distance_ = serial_to_int_(12);
+		stationary_target_energy_   = radar_data_frame_[14];
 		detection_distance_         = serial_to_int_(15);
 		#ifdef LD2410_DEBUG_PARSE
 		if(debug_uart_ != nullptr)
@@ -681,8 +695,45 @@ void ld2410::send_command_postamble_()
 	radar_uart_->write(char(0x01));
 }
 
+/*
+ * Wrapper to enable configuration mode for
+ * multiple command execution 
+*/
+bool ld2410::requestConfigurationModeBegin() {
+	if(configuration_mode_active) { // guard
+		return true;
+	}
+	configuration_mode_active = enter_configuration_mode_();
+	return configuration_mode_active;
+}
+
+/*
+ * Wrapper to disable configuration mode for
+ * multiple command execution 
+*/
+bool ld2410::requestConfigurationModeEnd() {
+	if(!configuration_mode_active) { // guard
+		return true;
+	}
+	configuration_mode_active = false;
+	configuration_mode_active = !leave_configuration_mode_();
+	return configuration_mode_active;
+}
+
+/*
+ * Configuration mode is required to be issued before
+ * any command execution.  Multiple commands can be issued
+ * once configuraiton mode is enabled.  When complete close with
+ * leave_configuration_mode(); 
+ * 
+ * Configuration mode is cancelled on any error by any 
+ * given command, and leave is NOT required.
+*/
 bool ld2410::enter_configuration_mode_()
 {
+	if(configuration_mode_active) {
+		return true;
+	}
 	send_command_preamble_();
 	//Request
 	radar_uart_->write(char(0x04));	//Command is four bytes long
@@ -708,6 +759,9 @@ bool ld2410::enter_configuration_mode_()
 
 bool ld2410::leave_configuration_mode_()
 {
+	if(configuration_mode_active) {
+		return true;
+	}
 	send_command_preamble_();
 	//Request firmware
 	radar_uart_->write(char(0x02));	//Command is two bytes long
@@ -838,6 +892,17 @@ bool ld2410::requestFactoryReset()
 	return false;
 }
 
+/*
+ * Serial Speed Choices: default is 7
+ * 1 =   9600 
+ * 2 =  19200
+ * 3 =  38400
+ * 4 =  57600
+ * 5 = 115200
+ * 6 = 230400
+ * 7 = 256000
+ * 8 = 460800
+*/
 bool ld2410::setSerialBaudRate(uint8_t cSpeed)
 {
 	if((cSpeed < 0) || (cSpeed > LD2410_MAX_GATES)) {
@@ -862,7 +927,12 @@ bool ld2410::setSerialBaudRate(uint8_t cSpeed)
 	return false;
 }
 
-
+/*
+ * Set maximum gates and idle time
+ *
+ * maximum detection range gate: 2-8
+ * unmanned duration: 0-65535 seconds
+*/
 bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer)
 {
 	if(enter_configuration_mode_())
@@ -898,6 +968,23 @@ bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactiv
 	return false;
 }
 
+/*
+ * configures the sensitivity of the distance gate
+ *
+ * Command word:0x0064
+ * Command value:
+ * individual:
+ *     2 bytes distance gate word      0x0000 + 4 bytes distance gate value (2-8), 
+ *     2 bytes motion sensitivity word 0x0001 + 4 bytes motion sensitivity value. (0-100)
+ *     2 bytes static sensitivity word 0x0002 + 4 bytes static sensitivity value. (0-100)
+ *  or
+ * Grouped: (if input gate equals 255)
+ *     2 bytes distance gate:          0x0000 + 4 bytes distance gate value 0xFFFF
+ *     2 bytes motion sensitivity word 0x0001 + 4 bytes motion sensitivity value. (0-100)
+ *     2 bytes static sensitivity word 0x0002 + 4 bytes static sensitivity value. (0-100)
+ * 
+ * Return value:2 bytes ACK status(0 success, 1 failure)
+*/
 bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary)
 {
 	if(enter_configuration_mode_())
@@ -910,10 +997,17 @@ bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t s
 		radar_uart_->write(char(0x00));
 		radar_uart_->write(char(0x00));	//Gate command
 		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(gate));	//Gate value
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(0x00));	//Spacer
-		radar_uart_->write(char(0x00));
+		if(gate == 255 ) {
+			radar_uart_->write(char(0xFF));	//Gate value
+			radar_uart_->write(char(0xFF));
+			radar_uart_->write(char(0xFF));	
+			radar_uart_->write(char(0xFF));
+		} else {
+			radar_uart_->write(char(gate));	//Gate value
+			radar_uart_->write(char(0x00));
+			radar_uart_->write(char(0x00));	//Spacer
+			radar_uart_->write(char(0x00));
+		}
 		radar_uart_->write(char(0x01));	//Motion sensitivity command
 		radar_uart_->write(char(0x00));
 		radar_uart_->write(char(moving));	//Motion sensitivity value

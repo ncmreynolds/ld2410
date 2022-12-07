@@ -60,24 +60,29 @@ class ld2410	{
 	public:
 		ld2410();														//Constructor function
 		~ld2410();														//Destructor function
+
+		/*
+		 * Primary APIs */
 		bool begin(Stream &, bool waitForRadar = true);					//Start the ld2410
 		void debug(Stream &);											//Start debugging on a stream
-		bool read() {return read_frame_();};
+
 		bool ld2410_loop(){return read_frame_();};                      //Sensor loop service
 		bool presenceDetected(){return target_type_ != 0;};             //last report data had a type
-		bool stationaryTargetDetected();
-		bool movingTargetDetected();
-
 		bool isConnected();
 		bool isStationary(){return stationaryTargetDetected();};
 		bool isMoving(){return movingTargetDetected();};
-		bool isEngineeringMode(){return engineering_mode_;};                         //Reporting Data
+		uint16_t detectionDistance(){return detection_distance_;};      //Target Reporting Data
 
-		uint8_t  reportingDataComposition(){return target_type_;};                 //Target data state 0-3
+		/*
+		 * Utilities -- depreciation candidates */
+		uint8_t reportingDataComposition(){return target_type_;};       //Target data state 0-3
+		bool    isEngineeringMode(){return engineering_mode_;};         //Reporting Data
+		bool    movingTargetDetected();
+		bool    stationaryTargetDetected();
+		bool    read() {return read_frame_();};
 
 		/*
 		 * primary sensor responses */
-		uint16_t detectionDistance(){return detection_distance_;};                 //Target Reporting Data
 		uint16_t stationaryTargetDistance(){return stationary_target_distance_;};  //Target Reporting Data
 		uint8_t  stationaryTargetEnergy(){return stationary_target_energy_;};      //Target Reporting Data
 		uint16_t movingTargetDistance(){return moving_target_distance_;};          //Target Reporting Data
@@ -90,6 +95,8 @@ class ld2410	{
 		uint16_t engMaxMovingDistanceGate() {return max_moving_distance_gate;};     //Engineering Reporting Data
 		uint16_t engMaxStaticDistanceGate() {return max_static_distance_gate;};     //Engineering Reporting Data
 
+		/*
+		 * Commands */
 		bool requestRestart();
 		bool requestFactoryReset();
 		bool requestFirmwareVersion();									
@@ -99,11 +106,13 @@ class ld2410	{
 		bool setSerialBaudRate(uint8_t cSpeed);
 		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
+		bool requestConfigurationModeBegin();   // support multi command executions BEGIN
+		bool requestConfigurationModeEnd();     // support multi command executions END
 
 		/*
 		 * available after related command has been executed */
 		uint16_t cmdProtocolVersion() {return configuration_protocol_version_;};    //Configuration mode response
-		char *   cmdFirmwareVersion();                                   //Returns value from command
+		const char * cmdFirmwareVersion();                                          //Returns value from command
 
 		/*
 		 * available after Read Parameter command has been executed */
@@ -116,7 +125,7 @@ class ld2410	{
 
 	protected:
 		/*
-		 * Request Firmware Version command response */
+		 * Request Firmware Version command responses */
 		char     firmwareBuffer[LD2410_MAX_FRAME_LENGTH];               // 64 byte buffer 
 		uint8_t  firmware_major_version = 0;							//Reported major version
 		uint8_t  firmware_minor_version = 0;							//Reported minor version
@@ -143,17 +152,21 @@ class ld2410	{
 		uint8_t  movement_distance_gate_energy[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
 		uint8_t  static_distance_gate_engergy[LD2410_MAX_GATES]  = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
 
+		/*
+		 * Configuration mode response info */
 		uint16_t configuration_protocol_version_ = 0;                    //From Enter Configuration Mode Response
 		uint16_t configuration_buffer_size_ = LD2410_MAX_FRAME_LENGTH;   //From Enter Configuration Mode Response
 
 	private:
+		/*
+		 * feature control variables */
 		Stream *radar_uart_ = nullptr;
 		Stream *debug_uart_ = nullptr;									//The stream used for the debugging
 
-		uint32_t radar_uart_timeout          = 150;						//How long to give up on receiving some useful data from the LD2410
+		uint32_t radar_uart_timeout          = 250;						//How long to give up on receiving some useful data from the LD2410
 		uint32_t radar_uart_last_packet_     = 0;						//Time of the last packet from the radar
 		uint32_t radar_uart_last_command_    = 0;						//Time of the last command sent to the radar
-		uint32_t radar_uart_command_timeout_ = 150;						//Timeout for sending commands
+		uint32_t radar_uart_command_timeout_ = 250;						//Timeout for sending commands
 
 		uint8_t latest_ack_ = 0;
 		uint8_t target_type_ = 0;
@@ -165,7 +178,10 @@ class ld2410	{
 		bool waiting_for_ack_        = false;							//Whether a command has just been sent
 		bool engineering_mode_       = false;                           //Wheter engineering mode is active
 		bool latest_command_success_ = false;
-		
+		bool configuration_mode_active = false;                         //Configuration state (multi-mode)
+
+		/*
+		 * feature management functions */
 		uint16_t serial_to_int_(uint8_t index);                         //Unpack bytes
 		bool debug_command_results_(const char * title);
 		bool wait_for_command_ack_(uint8_t command);
