@@ -112,7 +112,8 @@ class ld2410	{
 		/*
 		 * available after related command has been executed */
 		uint16_t cmdProtocolVersion() {return configuration_protocol_version_;};    //Configuration mode response
-		String cmdFirmwareVersion();                                          //Returns value from command
+		uint16_t cmdCommunicationBufferSize() {return configuration_buffer_size_;};  //Configuration mode response
+		String   cmdFirmwareVersion();                                              //Returns value from command
 
 		/*
 		 * available after Read Parameter command has been executed */
