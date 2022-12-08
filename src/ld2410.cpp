@@ -442,7 +442,7 @@ bool ld2410::parse_data_frame_()
 		for(uint8_t gate = 0; gate < sizeof(static_distance_gate_engergy); ++gate) {
 			static_distance_gate_engergy[gate] = radar_data_frame_[pos++];
 		}
-		sensor_idle_time = serial_to_int_(pos); //radar_data_frame_[pos++] + (radar_data_frame_[pos] << 8); // maybe
+		engineering_retain_data_ = serial_to_int_(pos); //radar_data_frame_[pos++] + (radar_data_frame_[pos] << 8); // maybe
 
 		#ifdef LD2410_DEBUG_PARSE
 		if(debug_uart_ != nullptr)

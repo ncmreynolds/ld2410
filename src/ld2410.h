@@ -94,6 +94,7 @@ class ld2410	{
 		uint8_t  engStaticDistanceGateEnergy(uint8_t gate){return ((gate <LD2410_MAX_GATES) ? static_distance_gate_engergy[gate] : -1) ;};     //Engineering Reporting Data
 		uint16_t engMaxMovingDistanceGate() {return max_moving_distance_gate;};     //Engineering Reporting Data
 		uint16_t engMaxStaticDistanceGate() {return max_static_distance_gate;};     //Engineering Reporting Data
+		uint16_t engRetainDataValue() {return engineering_retain_data_;};           //Engineering Reporting Data, last value
 
 		/*
 		 * Commands */
@@ -152,6 +153,7 @@ class ld2410	{
 		uint8_t  max_static_distance_gate        = 0;                    //engineering mode info
 		uint8_t  movement_distance_gate_energy[LD2410_MAX_GATES] = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
 		uint8_t  static_distance_gate_engergy[LD2410_MAX_GATES]  = {0,0,0,0,0,0,0,0,0}; //Engineering mode info
+		uint16_t engineering_retain_data_ = 0;                           //last value in engineering data frame, extra retain ??
 
 		/*
 		 * Configuration mode response info */

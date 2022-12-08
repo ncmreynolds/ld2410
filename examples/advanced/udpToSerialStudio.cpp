@@ -310,8 +310,10 @@ String commandProcessor(String &cmdStr) {
       sBuf += radar.cmdProtocolVersion();
       sBuf += ".0\nCommunications Buffer Size: ";
       sBuf += radar.cmdCommunicationBufferSize();
-      sBuf += " bytes\nDevce firmare version: ";
+      sBuf += " bytes\nDevice firmare version: ";
       sBuf += radar.cmdFirmwareVersion();
+      sBuf += "\nEngineering retain data value: ";
+      sBuf += radar.engRetainDataValue();
       sBuf += "\n";
   }
   else if(cmdStr.equals("reboot") || iCmd == 12) 
