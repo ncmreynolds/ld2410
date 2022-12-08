@@ -306,11 +306,11 @@ String commandProcessor(String &cmdStr) {
       sBuf += "\nLD2410 Device Information: \n";
       sBuf += "Data reporting mode: ";
       sBuf += (radar.isEngineeringMode() ? "Engineering Mode" : "Target Mode");
-      sBuf += "\nCommunication protocol version: ";
+      sBuf += "\nCommunication protocol version: v";
       sBuf += radar.cmdProtocolVersion();
-      sBuf += "\nCommunications Buffer Size: ";
+      sBuf += ".0\nCommunications Buffer Size: ";
       sBuf += radar.cmdCommunicationBufferSize();
-      sBuf += "\nDevce firmare version: ";
+      sBuf += " bytes\nDevce firmare version: ";
       sBuf += radar.cmdFirmwareVersion();
       sBuf += "\n";
   }
