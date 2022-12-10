@@ -682,19 +682,19 @@ bool ld2410::parse_command_frame_()
 void ld2410::send_command_preamble_()
 {
 	//Command preamble
-	radar_uart_->write(char(0xFD));
-	radar_uart_->write(char(0xFC));
-	radar_uart_->write(char(0xFB));
-	radar_uart_->write(char(0xFA));
+	radar_uart_->write((uint8_t)char(0xFD));
+	radar_uart_->write((uint8_t)char(0xFC));
+	radar_uart_->write((uint8_t)char(0xFB));
+	radar_uart_->write((uint8_t)char(0xFA));
 }
 
 void ld2410::send_command_postamble_()
 {
 	//Command end
-	radar_uart_->write(char(0x04));
-	radar_uart_->write(char(0x03));
-	radar_uart_->write(char(0x02));
-	radar_uart_->write(char(0x01));
+	radar_uart_->write((uint8_t)char(0x04));
+	radar_uart_->write((uint8_t)char(0x03));
+	radar_uart_->write((uint8_t)char(0x02));
+	radar_uart_->write((uint8_t)char(0x01));
 }
 
 /*
@@ -738,12 +738,12 @@ bool ld2410::enter_configuration_mode_()
 	}
 	send_command_preamble_();
 	//Request
-	radar_uart_->write(char(0x04));	//Command is four bytes long
-	radar_uart_->write(char(0x00));
-	radar_uart_->write(char(CMD_CONFIGURATION_ENABLE));	//Request enter command mode
-	radar_uart_->write(char(0x00));
-	radar_uart_->write(char(0x01));
-	radar_uart_->write(char(0x00));
+	radar_uart_->write((uint8_t)char(0x04));	//Command is four bytes long
+	radar_uart_->write((uint8_t)char(0x00));
+	radar_uart_->write((uint8_t)char(CMD_CONFIGURATION_ENABLE));	//Request enter command mode
+	radar_uart_->write((uint8_t)char(0x00));
+	radar_uart_->write((uint8_t)char(0x01));
+	radar_uart_->write((uint8_t)char(0x00));
 	send_command_postamble_();
 	radar_uart_last_command_ = millis();
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
@@ -766,10 +766,10 @@ bool ld2410::leave_configuration_mode_()
 	}
 	send_command_preamble_();
 	//Request firmware
-	radar_uart_->write(char(0x02));	//Command is two bytes long
-	radar_uart_->write(char(0x00));
-	radar_uart_->write(char(CMD_CONFIGURATION_END));	//Request leave command mode
-	radar_uart_->write(char(0x00));
+	radar_uart_->write((uint8_t)char(0x02));	//Command is two bytes long
+	radar_uart_->write((uint8_t)char(0x00));
+	radar_uart_->write((uint8_t)char(CMD_CONFIGURATION_END));	//Request leave command mode
+	radar_uart_->write((uint8_t)char(0x00));
 	send_command_postamble_();
 	radar_uart_last_command_ = millis();
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
@@ -792,10 +792,10 @@ bool ld2410::requestStartEngineeringMode()
 		delay(50);
 		send_command_preamble_();
 		//Request firmware
-		radar_uart_->write(char(0x02));	//Command is two bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(CMD_ENGINEERING_ENABLE));	//Request enter engineering mode
-		radar_uart_->write(char(0x00));
+		radar_uart_->write((uint8_t)char(0x02));	//Command is two bytes long
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(CMD_ENGINEERING_ENABLE));	//Request enter engineering mode
+		radar_uart_->write((uint8_t)char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
 		return wait_for_command_ack_(CMD_ENGINEERING_ENABLE);
@@ -811,10 +811,10 @@ bool ld2410::requestEndEngineeringMode()
 		enter_configuration_mode_();
 		send_command_preamble_();
 		//Request firmware
-		radar_uart_->write(char(0x02));	//Command is two bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(CMD_ENGINEERING_END));	//Request leave engineering mode
-		radar_uart_->write(char(0x00));
+		radar_uart_->write((uint8_t)char(0x02));	//Command is two bytes long
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(CMD_ENGINEERING_END));	//Request leave engineering mode
+		radar_uart_->write((uint8_t)char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
 		return wait_for_command_ack_(CMD_ENGINEERING_END);
@@ -829,10 +829,10 @@ bool ld2410::requestCurrentConfiguration()
 		delay(50);
 		send_command_preamble_();
 		//Request firmware
-		radar_uart_->write(char(0x02));	//Command is two bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(CMD_READ_PARAMETER));	//Request current configuration
-		radar_uart_->write(char(0x00));
+		radar_uart_->write((uint8_t)char(0x02));	//Command is two bytes long
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(CMD_READ_PARAMETER));	//Request current configuration
+		radar_uart_->write((uint8_t)char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
 		return wait_for_command_ack_(CMD_READ_PARAMETER);
@@ -847,10 +847,10 @@ bool ld2410::requestFirmwareVersion()
 		delay(50);
 		send_command_preamble_();
 		//Request firmware
-		radar_uart_->write(char(0x02));	//Command is two bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(CMD_READ_FIRMWARE_VERSION));	//Request firmware version
-		radar_uart_->write(char(0x00));
+		radar_uart_->write((uint8_t)char(0x02));	//Command is two bytes long
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(CMD_READ_FIRMWARE_VERSION));	//Request firmware version
+		radar_uart_->write((uint8_t)char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
 		return wait_for_command_ack_(CMD_READ_FIRMWARE_VERSION);
@@ -865,10 +865,10 @@ bool ld2410::requestRestart()
 		delay(50);
 		send_command_preamble_();
 		//Request firmware
-		radar_uart_->write(char(0x02));	//Command is two bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(CMD_RESTART));	//Request restart
-		radar_uart_->write(char(0x00));
+		radar_uart_->write((uint8_t)char(0x02));	//Command is two bytes long
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(CMD_RESTART));	//Request restart
+		radar_uart_->write((uint8_t)char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
 		return wait_for_command_ack_(CMD_RESTART);
@@ -883,10 +883,10 @@ bool ld2410::requestFactoryReset()
 		delay(50);
 		send_command_preamble_();
 		//Request firmware
-		radar_uart_->write(char(0x02));	//Command is two bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(CMD_FACTORY_RESET));	//Request factory reset
-		radar_uart_->write(char(0x00));
+		radar_uart_->write((uint8_t)char(0x02));	//Command is two bytes long
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(CMD_FACTORY_RESET));	//Request factory reset
+		radar_uart_->write((uint8_t)char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
 		return wait_for_command_ack_(CMD_FACTORY_RESET);
@@ -916,12 +916,12 @@ bool ld2410::setSerialBaudRate(uint8_t cSpeed)
 		delay(50);
 		send_command_preamble_();
 		//Serial baud Rate
-		radar_uart_->write(char(0x04));	//Command is four bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(CMD_SET_SERIAL_PORT_BAUD));
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(cSpeed)); 	//Set serial baud rate 1-8, 9600-460800 default=7
-		radar_uart_->write(char(0x00));
+		radar_uart_->write((uint8_t)char(0x04));	//Command is four bytes long
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(CMD_SET_SERIAL_PORT_BAUD));
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(cSpeed)); 	//Set serial baud rate 1-8, 9600-460800 default=7
+		radar_uart_->write((uint8_t)char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
 		return wait_for_command_ack_(CMD_SET_SERIAL_PORT_BAUD);
@@ -941,28 +941,28 @@ bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactiv
 	{
 		delay(50);
 		send_command_preamble_();
-		radar_uart_->write(char(0x14));	//Command is 20 bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(CMD_MAX_DISTANCE_AND_UNMANNED_DURATION));	//Request set max values
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(0x00));	//Moving gate command
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(moving & 0x00FF));	//Moving gate value
-		radar_uart_->write(char((moving & 0xFF00)>>8));
-		radar_uart_->write(char(0x00));	//Spacer
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(0x01));	//Stationary gate command
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(stationary & 0x00FF));	//Stationary gate value
-		radar_uart_->write(char((stationary & 0xFF00)>>8));
-		radar_uart_->write(char(0x00));	//Spacer
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(0x02));	//Inactivity timer command
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(inactivityTimer & 0x00FF));	//Inactivity timer
-		radar_uart_->write(char((inactivityTimer & 0xFF00)>>8));
-		radar_uart_->write(char(0x00));	//Spacer
-		radar_uart_->write(char(0x00));
+		radar_uart_->write((uint8_t)char(0x14));	//Command is 20 bytes long
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(CMD_MAX_DISTANCE_AND_UNMANNED_DURATION));	//Request set max values
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(0x00));	//Moving gate command
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(moving & 0x00FF));	//Moving gate value
+		radar_uart_->write((uint8_t)char((moving & 0xFF00)>>8));
+		radar_uart_->write((uint8_t)char(0x00));	//Spacer
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(0x01));	//Stationary gate command
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(stationary & 0x00FF));	//Stationary gate value
+		radar_uart_->write((uint8_t)char((stationary & 0xFF00)>>8));
+		radar_uart_->write((uint8_t)char(0x00));	//Spacer
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(0x02));	//Inactivity timer command
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(inactivityTimer & 0x00FF));	//Inactivity timer
+		radar_uart_->write((uint8_t)char((inactivityTimer & 0xFF00)>>8));
+		radar_uart_->write((uint8_t)char(0x00));	//Spacer
+		radar_uart_->write((uint8_t)char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
 		return wait_for_command_ack_(CMD_MAX_DISTANCE_AND_UNMANNED_DURATION);
@@ -993,35 +993,35 @@ bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t s
 	{
 		delay(50);
 		send_command_preamble_();
-		radar_uart_->write(char(0x14));	//Command is 20 bytes long
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(CMD_RANGE_GATE_SENSITIVITY));	//Request set sensitivity values
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(0x00));	//Gate command
-		radar_uart_->write(char(0x00));
+		radar_uart_->write((uint8_t)char(0x14));	//Command is 20 bytes long
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(CMD_RANGE_GATE_SENSITIVITY));	//Request set sensitivity values
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(0x00));	//Gate command
+		radar_uart_->write((uint8_t)char(0x00));
 		if(gate == 255 ) {
-			radar_uart_->write(char(0xFF));	//Gate value
-			radar_uart_->write(char(0xFF));
-			radar_uart_->write(char(0xFF));	
-			radar_uart_->write(char(0xFF));
+			radar_uart_->write((uint8_t)char(0xFF));	//Gate value
+			radar_uart_->write((uint8_t)char(0xFF));
+			radar_uart_->write((uint8_t)char(0xFF));	
+			radar_uart_->write((uint8_t)char(0xFF));
 		} else {
-			radar_uart_->write(char(gate));	//Gate value
-			radar_uart_->write(char(0x00));
-			radar_uart_->write(char(0x00));	//Spacer
-			radar_uart_->write(char(0x00));
+			radar_uart_->write((uint8_t)char(gate));	//Gate value
+			radar_uart_->write((uint8_t)char(0x00));
+			radar_uart_->write((uint8_t)char(0x00));	//Spacer
+			radar_uart_->write((uint8_t)char(0x00));
 		}
-		radar_uart_->write(char(0x01));	//Motion sensitivity command
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(moving));	//Motion sensitivity value
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(0x00));	//Spacer
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(0x02));	//Stationary sensitivity command
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(stationary));	//Stationary sensitivity value
-		radar_uart_->write(char(0x00));
-		radar_uart_->write(char(0x00));	//Spacer
-		radar_uart_->write(char(0x00));
+		radar_uart_->write((uint8_t)char(0x01));	//Motion sensitivity command
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(moving));	//Motion sensitivity value
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(0x00));	//Spacer
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(0x02));	//Stationary sensitivity command
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(stationary));	//Stationary sensitivity value
+		radar_uart_->write((uint8_t)char(0x00));
+		radar_uart_->write((uint8_t)char(0x00));	//Spacer
+		radar_uart_->write((uint8_t)char(0x00));
 		send_command_postamble_();
 		radar_uart_last_command_ = millis();
 		return wait_for_command_ack_(CMD_RANGE_GATE_SENSITIVITY);
