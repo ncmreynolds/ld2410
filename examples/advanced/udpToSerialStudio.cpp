@@ -312,7 +312,7 @@ String commandProcessor(String &cmdStr) {
       sBuf += radar.cmdCommunicationBufferSize();
       sBuf += " bytes\nDevice firmare version: ";
       sBuf += radar.cmdFirmwareVersion();
-      sBuf += "\nEngineering retain data value: ";
+      sBuf += "\tEngineering retain data value: ";
       sBuf += radar.engRetainDataValue();
       sBuf += "\n";
   }
