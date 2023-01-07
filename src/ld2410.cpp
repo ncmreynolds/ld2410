@@ -167,12 +167,12 @@ bool ld2410::isConnected()
 
 bool ld2410::stationaryTargetDetected()
 {
-	return((target_type_ & TARGET_STATIONARY) && stationary_target_distance_ > 0 && stationary_target_energy_ > 0);
+	return((target_type_ & TARGET_STATIONARY));
 }
 
 bool ld2410::movingTargetDetected()
 {
-	return((target_type_ & TARGET_MOVING) && moving_target_distance_ > 0 && moving_target_energy_ > 0);
+	return((target_type_ & TARGET_MOVING));
 }
 
 String ld2410::cmdFirmwareVersion() {
