@@ -1,0 +1,194 @@
+.WiFi connected with IP: 10.100.1.186
+Client Listening on port: 8091
+Client Initialized...
+Sensor Initialized...
+setup() Complete...
+
+Supported commands:
+	( 1) help: this text.
+	( 2) streamstart: start sending udp data to SerialStudio.
+	( 3) streamstop: stop sending to SerialStream.
+	( 4) read: read current values from the sensor
+	( 5) readconfig: read the configuration from the sensor
+	( 6) enableengineeringmode: enable engineering mode
+	( 7) disableengineeringmode: disable engineering mode
+	( 8) setreportingformat: change reporting data format (0,1,2)
+	( 9) setmaxvalues <motion gate> <stationary gate> <inactivitytimer> (2-8) (0-65535)seconds
+	(10) setsensitivity <gate> <motionsensitivity> <stationarysensitivity> (2-8|255) (0-100)
+	(11) restart: restart the sensor
+	(12) readversion: read firmware version
+	(13) factoryreset: factory reset the sensor
+
+
+
+ choose> 4
+
+Reading from sensor: OK
+
+nothing detected
+
+
+ choose:> 1
+
+Supported commands:
+	( 1) help: this text.
+	( 2) streamstart: start sending udp data to SerialStudio.
+	( 3) streamstop: stop sending to SerialStream.
+	( 4) read: read current values from the sensor
+	( 5) readconfig: read the configuration from the sensor
+	( 6) enableengineeringmode: enable engineering mode
+	( 7) disableengineeringmode: disable engineering mode
+	( 8) setreportingformat: change reporting data format (0,1,2)
+	( 9) setmaxvalues <motion gate> <stationary gate> <inactivitytimer> (2-8) (0-65535)seconds
+	(10) setsensitivity <gate> <motionsensitivity> <stationarysensitivity> (2-8|255) (0-100)
+	(11) restart: restart the sensor
+	(12) readversion: read firmware version
+	(13) factoryreset: factory reset the sensor
+
+
+ choose> 
+
+ choose:> 5
+
+Reading configuration from sensor: Failed
+
+
+ choose:> 5
+
+Reading configuration from sensor: OK
+Maximum gate ID: 8
+Maximum gate for moving targets: 8
+Maximum gate for stationary targets: 8
+Idle time for targets: 300s
+Gate sensitivity
+Gate 0 moving targets: 50 dBZ stationary targets: 0 dBZ
+Gate 1 moving targets: 50 dBZ stationary targets: 0 dBZ
+Gate 2 moving targets: 40 dBZ stationary targets: 40 dBZ
+Gate 3 moving targets: 30 dBZ stationary targets: 40 dBZ
+Gate 4 moving targets: 20 dBZ stationary targets: 30 dBZ
+Gate 5 moving targets: 15 dBZ stationary targets: 30 dBZ
+Gate 6 moving targets: 15 dBZ stationary targets: 20 dBZ
+Gate 7 moving targets: 15 dBZ stationary targets: 20 dBZ
+Gate 8 moving targets: 15 dBZ stationary targets: 20 dBZ
+
+
+ choose:> 5
+
+Reading configuration from sensor: OK
+Maximum gate ID: 8
+Maximum gate for moving targets: 8
+Maximum gate for stationary targets: 8
+Idle time for targets: 300s
+Gate sensitivity
+Gate 0 moving targets: 50 dBZ stationary targets: 0 dBZ
+Gate 1 moving targets: 50 dBZ stationary targets: 0 dBZ
+Gate 2 moving targets: 40 dBZ stationary targets: 40 dBZ
+Gate 3 moving targets: 30 dBZ stationary targets: 40 dBZ
+Gate 4 moving targets: 20 dBZ stationary targets: 30 dBZ
+Gate 5 moving targets: 15 dBZ stationary targets: 30 dBZ
+Gate 6 moving targets: 15 dBZ stationary targets: 20 dBZ
+Gate 7 moving targets: 15 dBZ stationary targets: 20 dBZ
+Gate 8 moving targets: 15 dBZ stationary targets: 20 dBZ
+
+
+ choose:> 1
+
+Supported commands:
+	( 1) help: this text.
+	( 2) streamstart: start sending udp data to SerialStudio.
+	( 3) streamstop: stop sending to SerialStream.
+	( 4) read: read current values from the sensor
+	( 5) readconfig: read the configuration from the sensor
+	( 6) enableengineeringmode: enable engineering mode
+	( 7) disableengineeringmode: disable engineering mode
+	( 8) setreportingformat: change reporting data format (0,1,2)
+	( 9) setmaxvalues <motion gate> <stationary gate> <inactivitytimer> (2-8) (0-65535)seconds
+	(10) setsensitivity <gate> <motionsensitivity> <stationarysensitivity> (2-8|255) (0-100)
+	(11) restart: restart the sensor
+	(12) readversion: read firmware version
+	(13) factoryreset: factory reset the sensor
+
+
+ choose> 
+
+ choose:> 4
+
+Reading from sensor: OK
+
+nothing detected
+
+
+ choose:> 4
+
+Reading from sensor: OK
+
+nothing detected
+
+
+ choose:> 4
+
+Reading from sensor: OK
+No Detection, in Idle Hold window of: 4358 seconds
+
+
+ choose:> 4
+
+Reading from sensor: OK
+Stationary target: 425 cm energy: 21 dBZ
+
+
+ choose:> 4
+
+Reading from sensor: OK
+Stationary target: 425 cm energy: 9 dBZ
+
+
+ choose:> 4
+
+Reading from sensor: OK
+Stationary target: 425 cm energy: 6 dBZ
+
+
+ choose:> UDP Packet Type: Unicast, From: 10.100.1.5:64569, To: 10.100.1.186:8091, Length: 6, Data: hello
+
+UDP Packet Type: Unicast, From: 10.100.1.5:64569, To: 10.100.1.186:8091, Length: 5, Data: help
+
+1
+
+Supported commands:
+	( 1) help: this text.
+	( 2) streamstart: start sending udp data to SerialStudio.
+	( 3) streamstop: stop sending to SerialStream.
+	( 4) read: read current values from the sensor
+	( 5) readconfig: read the configuration from the sensor
+	( 6) enableengineeringmode: enable engineering mode
+	( 7) disableengineeringmode: disable engineering mode
+	( 8) setreportingformat: change reporting data format (0,1,2)
+	( 9) setmaxvalues <motion gate> <stationary gate> <inactivitytimer> (2-8) (0-65535)seconds
+	(10) setsensitivity <gate> <motionsensitivity> <stationarysensitivity> (2-8|255) (0-100)
+	(11) restart: restart the sensor
+	(12) readversion: read firmware version
+	(13) factoryreset: factory reset the sensor
+
+
+ choose> 
+
+ choose:> 4
+
+Reading from sensor: OK
+
+nothing detected
+
+
+ choose:> UDP Packet Type: Unicast, From: 10.100.1.5:64569, To: 10.100.1.186:8091, Length: 2, Data: 4
+
+UDP Packet Type: Unicast, From: 10.100.1.5:64569, To: 10.100.1.186:8091, Length: 2, Data: 5
+
+UDP Packet Type: Unicast, From: 10.100.1.5:64569, To: 10.100.1.186:8091, Length: 2, Data: 4
+
+UDP Packet Type: Unicast, From: 10.100.1.5:64569, To: 10.100.1.186:8091, Length: 2, Data: 5
+
+UDP Packet Type: Unicast, From: 10.100.1.5:64569, To: 10.100.1.186:8091, Length: 2, Data: 4
+
+UDP Packet Type: Unicast, From: 10.100.1.5:64569, To: 10.100.1.186:8091, Length: 2, Data: 1
+
