@@ -1,9 +1,53 @@
 /*
  * Example sketch to show using configuration commands on the LD2410.
  * 
- * The sketch assumes an ESP32 board with the LD2410 connected as Serial1 to pins 8 & 9, the serial configuration for other boards may vary
+ * This has been tested on the following platforms...
+ * 
+ * On ESP32, connect the LD2410 to GPIO pins 32&33
+ * On ESP32S2, connect the LD2410 to GPIO pins 8&9
+ * On ESP32C3, connect the LD2410 to GPIO pins 4&5
+ * On Arduino Leonardo or other ATmega32u4 board connect the LD2410 to GPIO pins TX & RX hardware serial
+ * 
+ * The serial configuration for other boards will vary and you'll need to assign them yourself
+ * 
+ * There is no example for ESP8266 as it only has one usable UART and will not boot if the alternate UART pins are used for the radar.
+ * 
+ * For this sketch and other examples to be useful the board needs to have two usable UARTs.
  * 
  */
+
+#if defined(ESP32)
+  #ifdef ESP_IDF_VERSION_MAJOR // IDF 4+
+    #if CONFIG_IDF_TARGET_ESP32 // ESP32/PICO-D4
+      #define MONITOR_SERIAL Serial
+      #define RADAR_SERIAL Serial1
+      #define RADAR_RX_PIN 32
+      #define RADAR_TX_PIN 33
+    #elif CONFIG_IDF_TARGET_ESP32S2
+      #define MONITOR_SERIAL Serial
+      #define RADAR_SERIAL Serial1
+      #define RADAR_RX_PIN 9
+      #define RADAR_TX_PIN 8
+    #elif CONFIG_IDF_TARGET_ESP32C3
+      #define MONITOR_SERIAL Serial
+      #define RADAR_SERIAL Serial1
+      #define RADAR_RX_PIN 4
+      #define RADAR_TX_PIN 5
+    #else 
+      #error Target CONFIG_IDF_TARGET is not supported
+    #endif
+  #else // ESP32 Before IDF 4.0
+    #define MONITOR_SERIAL Serial
+    #define RADAR_SERIAL Serial1
+    #define RADAR_RX_PIN 32
+    #define RADAR_TX_PIN 33
+  #endif
+#elif defined(__AVR_ATmega32U4__)
+  #define MONITOR_SERIAL Serial
+  #define RADAR_SERIAL Serial1
+  #define RADAR_RX_PIN 0
+  #define RADAR_TX_PIN 1
+#endif
 
 #include <ld2410.h>
 
@@ -13,95 +57,109 @@ String command;
 
 void setup(void)
 {
-  Serial.begin(115200); //Feedback over Serial Monitor
+  MONITOR_SERIAL.begin(115200); //Feedback over Serial Monitor
   delay(500); //Give a while for Serial Monitor to wake up
   //radar.debug(Serial); //Uncomment to show debug information from the library on the Serial Monitor. By default this does not show sensor reads as they are very frequent.
-  Serial1.begin (256000, SERIAL_8N1, 9, 8); //UART for monitoring the radar
+  #if defined(ESP32)
+    RADAR_SERIAL.begin(256000, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN); //UART for monitoring the radar
+  #elif defined(__AVR_ATmega32U4__)
+    RADAR_SERIAL.begin(256000); //UART for monitoring the radar
+  #endif
   delay(500);
-  Serial.print(F("\nLD2410 radar sensor initialising: "));
-  if(radar.begin(Serial1))
+  MONITOR_SERIAL.print(F("\nConnect LD2410 radar TX to GPIO:"));
+  MONITOR_SERIAL.println(RADAR_RX_PIN);
+  MONITOR_SERIAL.print(F("Connect LD2410 radar RX to GPIO:"));
+  MONITOR_SERIAL.println(RADAR_TX_PIN);
+  MONITOR_SERIAL.print(F("LD2410 radar sensor initialising: "));
+  if(radar.begin(RADAR_SERIAL))
   {
-    Serial.println(F("OK"));
+    MONITOR_SERIAL.println(F("OK"));
+    MONITOR_SERIAL.print(F("LD2410 firmware version: "));
+    MONITOR_SERIAL.print(radar.firmware_major_version);
+    MONITOR_SERIAL.print('.');
+    MONITOR_SERIAL.print(radar.firmware_minor_version);
+    MONITOR_SERIAL.print('.');
+    MONITOR_SERIAL.println(radar.firmware_bugfix_version, HEX);
   }
   else
   {
-    Serial.println(F("not connected"));
+    MONITOR_SERIAL.println(F("not connected"));
   }
-  Serial.println(F("Supported commands\nread: read current values from the sensor\nreadconfig: read the configuration from the sensor\nsetmaxvalues <motion gate> <stationary gate> <inactivitytimer>\nsetsensitivity <gate> <motionsensitivity> <stationarysensitivity>\nenableengineeringmode: enable engineering mode\ndisableengineeringmode: disable engineering mode\nrestart: restart the sensor\nreadversion: read firmware version\nfactoryreset: factory reset the sensor\n"));
+  MONITOR_SERIAL.println(F("Supported commands\nread: read current values from the sensor\nreadconfig: read the configuration from the sensor\nsetmaxvalues <motion gate> <stationary gate> <inactivitytimer>\nsetsensitivity <gate> <motionsensitivity> <stationarysensitivity>\nenableengineeringmode: enable engineering mode\ndisableengineeringmode: disable engineering mode\nrestart: restart the sensor\nreadversion: read firmware version\nfactoryreset: factory reset the sensor\n"));
 }
 
 void loop()
 {
   radar.read(); //Always read frames from the sensor
-  if(Serial.available())
+  if(MONITOR_SERIAL.available())
   {
-    char typedCharacter = Serial.read();
+    char typedCharacter = MONITOR_SERIAL.read();
     if(typedCharacter == '\r' || typedCharacter == '\n')
     {
       command.trim();
       if(command.equals("read"))
       {
         command = "";
-        Serial.print(F("Reading from sensor: "));
+        MONITOR_SERIAL.print(F("Reading from sensor: "));
         if(radar.isConnected())
         {
-          Serial.println(F("OK"));
+          MONITOR_SERIAL.println(F("OK"));
           if(radar.presenceDetected())
           {
             if(radar.stationaryTargetDetected())
             {
-              Serial.print(F("Stationary target: "));
-              Serial.print(radar.stationaryTargetDistance());
-              Serial.print(F("cm energy: "));
-              Serial.println(radar.stationaryTargetEnergy());
+              MONITOR_SERIAL.print(F("Stationary target: "));
+              MONITOR_SERIAL.print(radar.stationaryTargetDistance());
+              MONITOR_SERIAL.print(F("cm energy: "));
+              MONITOR_SERIAL.println(radar.stationaryTargetEnergy());
             }
             if(radar.movingTargetDetected())
             {
-              Serial.print(F("Moving target: "));
-              Serial.print(radar.movingTargetDistance());
-              Serial.print(F("cm energy: "));
-              Serial.println(radar.movingTargetEnergy());
+              MONITOR_SERIAL.print(F("Moving target: "));
+              MONITOR_SERIAL.print(radar.movingTargetDistance());
+              MONITOR_SERIAL.print(F("cm energy: "));
+              MONITOR_SERIAL.println(radar.movingTargetEnergy());
             }
           }
           else
           {
-            Serial.println(F("nothing detected"));
+            MONITOR_SERIAL.println(F("nothing detected"));
           }
         }
         else
         {
-          Serial.println(F("failed to read"));
+          MONITOR_SERIAL.println(F("failed to read"));
         }
       }
       else if(command.equals("readconfig"))
       {
         command = "";
-        Serial.print(F("Reading configuration from sensor: "));
+        MONITOR_SERIAL.print(F("Reading configuration from sensor: "));
         if(radar.requestCurrentConfiguration())
         {
-          Serial.println(F("OK"));
-          Serial.print(F("Maximum gate ID: "));
-          Serial.println(radar.max_gate);
-          Serial.print(F("Maximum gate for moving targets: "));
-          Serial.println(radar.max_moving_gate);
-          Serial.print(F("Maximum gate for stationary targets: "));
-          Serial.println(radar.max_stationary_gate);
-          Serial.print(F("Idle time for targets: "));
-          Serial.println(radar.sensor_idle_time);
-          Serial.println(F("Gate sensitivity"));
+          MONITOR_SERIAL.println(F("OK"));
+          MONITOR_SERIAL.print(F("Maximum gate ID: "));
+          MONITOR_SERIAL.println(radar.max_gate);
+          MONITOR_SERIAL.print(F("Maximum gate for moving targets: "));
+          MONITOR_SERIAL.println(radar.max_moving_gate);
+          MONITOR_SERIAL.print(F("Maximum gate for stationary targets: "));
+          MONITOR_SERIAL.println(radar.max_stationary_gate);
+          MONITOR_SERIAL.print(F("Idle time for targets: "));
+          MONITOR_SERIAL.println(radar.sensor_idle_time);
+          MONITOR_SERIAL.println(F("Gate sensitivity"));
           for(uint8_t gate = 0; gate <= radar.max_gate; gate++)
           {
-            Serial.print(F("Gate "));
-            Serial.print(gate);
-            Serial.print(F(" moving targets: "));
-            Serial.print(radar.motion_sensitivity[gate]);
-            Serial.print(F(" stationary targets: "));
-            Serial.println(radar.stationary_sensitivity[gate]);
+            MONITOR_SERIAL.print(F("Gate "));
+            MONITOR_SERIAL.print(gate);
+            MONITOR_SERIAL.print(F(" moving targets: "));
+            MONITOR_SERIAL.print(radar.motion_sensitivity[gate]);
+            MONITOR_SERIAL.print(F(" stationary targets: "));
+            MONITOR_SERIAL.println(radar.stationary_sensitivity[gate]);
           }
         }
         else
         {
-          Serial.println(F("Failed"));
+          MONITOR_SERIAL.println(F("Failed"));
         }
       }
       else if(command.startsWith("setmaxvalues"))
@@ -114,30 +172,30 @@ void loop()
         uint16_t inactivityTimer = (command.substring(thirdSpace,command.length())).toInt();
         if(newMovingMaxDistance > 0 && newStationaryMaxDistance > 0 && newMovingMaxDistance <= 8 && newStationaryMaxDistance <= 8)
         {
-          Serial.print(F("Setting max values to gate "));
-          Serial.print(newMovingMaxDistance);
-          Serial.print(F(" moving targets, gate "));
-          Serial.print(newStationaryMaxDistance);
-          Serial.print(F(" stationary targets, "));
-          Serial.print(inactivityTimer);
-          Serial.print(F("s inactivity timer: "));
+          MONITOR_SERIAL.print(F("Setting max values to gate "));
+          MONITOR_SERIAL.print(newMovingMaxDistance);
+          MONITOR_SERIAL.print(F(" moving targets, gate "));
+          MONITOR_SERIAL.print(newStationaryMaxDistance);
+          MONITOR_SERIAL.print(F(" stationary targets, "));
+          MONITOR_SERIAL.print(inactivityTimer);
+          MONITOR_SERIAL.print(F("s inactivity timer: "));
           command = "";
           if(radar.setMaxValues(newMovingMaxDistance, newStationaryMaxDistance, inactivityTimer))
           {
-            Serial.println(F("OK, now restart to apply settings"));
+            MONITOR_SERIAL.println(F("OK, now restart to apply settings"));
           }
           else
           {
-            Serial.println(F("failed"));
+            MONITOR_SERIAL.println(F("failed"));
           }
         }
         else
         {
-          Serial.print(F("Can't set distances to "));
-          Serial.print(newMovingMaxDistance);
-          Serial.print(F(" moving "));
-          Serial.print(newStationaryMaxDistance);
-          Serial.println(F(" stationary, try again"));
+          MONITOR_SERIAL.print(F("Can't set distances to "));
+          MONITOR_SERIAL.print(newMovingMaxDistance);
+          MONITOR_SERIAL.print(F(" moving "));
+          MONITOR_SERIAL.print(newStationaryMaxDistance);
+          MONITOR_SERIAL.println(F(" stationary, try again"));
           command = "";
         }
       }
@@ -151,109 +209,109 @@ void loop()
         uint8_t stationarySensitivity = (command.substring(thirdSpace,command.length())).toInt();
         if(motionSensitivity >= 0 && stationarySensitivity >= 0 && motionSensitivity <= 100 && stationarySensitivity <= 100)
         {
-          Serial.print(F("Setting gate "));
-          Serial.print(gate);
-          Serial.print(F(" motion sensitivity to "));
-          Serial.print(motionSensitivity);
-          Serial.print(F(" & stationary sensitivity to "));
-          Serial.print(stationarySensitivity);
-          Serial.println(F(": "));
+          MONITOR_SERIAL.print(F("Setting gate "));
+          MONITOR_SERIAL.print(gate);
+          MONITOR_SERIAL.print(F(" motion sensitivity to "));
+          MONITOR_SERIAL.print(motionSensitivity);
+          MONITOR_SERIAL.print(F(" & stationary sensitivity to "));
+          MONITOR_SERIAL.print(stationarySensitivity);
+          MONITOR_SERIAL.println(F(": "));
           command = "";
           if(radar.setGateSensitivityThreshold(gate, motionSensitivity, stationarySensitivity))
           {
-            Serial.println(F("OK, now restart to apply settings"));
+            MONITOR_SERIAL.println(F("OK, now restart to apply settings"));
           }
           else
           {
-            Serial.println(F("failed"));
+            MONITOR_SERIAL.println(F("failed"));
           }
         }
         else
         {
-          Serial.print(F("Can't set gate "));
-          Serial.print(gate);
-          Serial.print(F(" motion sensitivity to "));
-          Serial.print(motionSensitivity);
-          Serial.print(F(" & stationary sensitivity to "));
-          Serial.print(stationarySensitivity);
-          Serial.println(F(", try again"));
+          MONITOR_SERIAL.print(F("Can't set gate "));
+          MONITOR_SERIAL.print(gate);
+          MONITOR_SERIAL.print(F(" motion sensitivity to "));
+          MONITOR_SERIAL.print(motionSensitivity);
+          MONITOR_SERIAL.print(F(" & stationary sensitivity to "));
+          MONITOR_SERIAL.print(stationarySensitivity);
+          MONITOR_SERIAL.println(F(", try again"));
           command = "";
         }
       }
       else if(command.equals("enableengineeringmode"))
       {
         command = "";
-        Serial.print(F("Enabling engineering mode: "));
+        MONITOR_SERIAL.print(F("Enabling engineering mode: "));
         if(radar.requestStartEngineeringMode())
         {
-          Serial.println(F("OK"));
+          MONITOR_SERIAL.println(F("OK"));
         }
         else
         {
-          Serial.println(F("failed"));
+          MONITOR_SERIAL.println(F("failed"));
         }
       }
       else if(command.equals("disableengineeringmode"))
       {
         command = "";
-        Serial.print(F("Disabling engineering mode: "));
+        MONITOR_SERIAL.print(F("Disabling engineering mode: "));
         if(radar.requestEndEngineeringMode())
         {
-          Serial.println(F("OK"));
+          MONITOR_SERIAL.println(F("OK"));
         }
         else
         {
-          Serial.println(F("failed"));
+          MONITOR_SERIAL.println(F("failed"));
         }
       }
       else if(command.equals("restart"))
       {
         command = "";
-        Serial.print(F("Restarting sensor: "));
+        MONITOR_SERIAL.print(F("Restarting sensor: "));
         if(radar.requestRestart())
         {
-          Serial.println(F("OK"));
+          MONITOR_SERIAL.println(F("OK"));
         }
         else
         {
-          Serial.println(F("failed"));
+          MONITOR_SERIAL.println(F("failed"));
         }
       }
       else if(command.equals("readversion"))
       {
         command = "";
-        Serial.print(F("Requesting firmware version: "));
+        MONITOR_SERIAL.print(F("Requesting firmware version: "));
         if(radar.requestFirmwareVersion())
         {
-          Serial.print('v');
-          Serial.print(radar.firmware_major_version);
-          Serial.print('.');
-          Serial.print(radar.firmware_minor_version);
-          Serial.print('.');
-          Serial.println(radar.firmware_bugfix_version,HEX);
+          MONITOR_SERIAL.print('v');
+          MONITOR_SERIAL.print(radar.firmware_major_version);
+          MONITOR_SERIAL.print('.');
+          MONITOR_SERIAL.print(radar.firmware_minor_version);
+          MONITOR_SERIAL.print('.');
+          MONITOR_SERIAL.println(radar.firmware_bugfix_version,HEX);
         }
         else
         {
-          Serial.println(F("Failed"));
+          MONITOR_SERIAL.println(F("Failed"));
         }
       }
       else if(command.equals("factoryreset"))
       {
         command = "";
-        Serial.print(F("Factory resetting sensor: "));
+        MONITOR_SERIAL.print(F("Factory resetting sensor: "));
         if(radar.requestFactoryReset())
         {
-          Serial.println(F("OK, now restart sensor to take effect"));
+          MONITOR_SERIAL.println(F("OK, now restart sensor to take effect"));
         }
         else
         {
-          Serial.println(F("failed"));
+          MONITOR_SERIAL.println(F("failed"));
         }
       }
       else
       {
-        Serial.print(F("Unknown command: "));
-        Serial.println(command);
+        MONITOR_SERIAL.print(F("Unknown command: "));
+        MONITOR_SERIAL.println(command);
         command = "";
       }
     }
@@ -267,10 +325,10 @@ void loop()
   {
     if(radar.presenceDetected())
     {
-      Serial.print(F("Stationary target: "));
-      Serial.println(radar.stationaryTargetDistance());
-      Serial.print(F("Moving target: "));
-      Serial.println(radar.movingTargetDistance());
+      MONITOR_SERIAL.print(F("Stationary target: "));
+      MONITOR_SERIAL.println(radar.stationaryTargetDistance());
+      MONITOR_SERIAL.print(F("Moving target: "));
+      MONITOR_SERIAL.println(radar.movingTargetDistance());
     }
   }
   */
