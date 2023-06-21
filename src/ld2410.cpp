@@ -608,7 +608,7 @@ bool ld2410::parse_command_frame_()
 					debug_uart_->print(motion_sensitivity[i]);
 					debug_uart_->print(F(" Stationary: "));
 					debug_uart_->print(stationary_sensitivity[i]);
-					
+
 				}
 				debug_uart_->print(F("\nSensor idle timeout: "));
 				debug_uart_->print(sensor_idle_time);
@@ -803,7 +803,7 @@ bool ld2410::leave_configuration_mode_()
 {
 	send_command_preamble_();
 	//Request firmware
-	radar_uart_->write((byte) 0x02);	//Command is four bytes long
+	radar_uart_->write((byte) 0x02);	//Command is two bytes long
 	radar_uart_->write((byte) 0x00);
 	radar_uart_->write((byte) 0xFE);	//Request leave command mode
 	radar_uart_->write((byte) 0x00);
@@ -826,7 +826,7 @@ bool ld2410::requestStartEngineeringMode()
 {
 	send_command_preamble_();
 	//Request firmware
-	radar_uart_->write((byte) 0x02);	//Command is four bytes long
+	radar_uart_->write((byte) 0x02);	//Command is two bytes long
 	radar_uart_->write((byte) 0x00);
 	radar_uart_->write((byte) 0x62);	//Request enter command mode
 	radar_uart_->write((byte) 0x00);
@@ -849,7 +849,7 @@ bool ld2410::requestEndEngineeringMode()
 {
 	send_command_preamble_();
 	//Request firmware
-	radar_uart_->write((byte) 0x02);	//Command is four bytes long
+	radar_uart_->write((byte) 0x02);	//Command is two bytes long
 	radar_uart_->write((byte) 0x00);
 	radar_uart_->write((byte) 0x63);	//Request leave command mode
 	radar_uart_->write((byte) 0x00);
