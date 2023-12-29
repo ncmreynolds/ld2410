@@ -626,6 +626,34 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x62) // Engineering mode
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for enginnering mode: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x64)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
@@ -824,25 +852,31 @@ bool ld2410::leave_configuration_mode_()
 
 bool ld2410::requestStartEngineeringMode()
 {
-	send_command_preamble_();
-	//Request firmware
-	radar_uart_->write((byte) 0x02);	//Command is two bytes long
-	radar_uart_->write((byte) 0x00);
-	radar_uart_->write((byte) 0x62);	//Request enter command mode
-	radar_uart_->write((byte) 0x00);
-	send_command_postamble_();
-	radar_uart_last_command_ = millis();
-	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
-	{
-		if(read_frame_())
-		{
-			if(latest_ack_ == 0x62 && latest_command_success_)
-			{
-				return true;
-			}
-		}
+  bool ret = false;
+  if(enter_configuration_mode_())
+  {
+    send_command_preamble_();
+    //Request firmware
+    radar_uart_->write((byte) 0x02);	//Command is two bytes long
+    radar_uart_->write((byte) 0x00);
+    radar_uart_->write((byte) 0x62);	//Request enter command mode
+    radar_uart_->write((byte) 0x00);
+    send_command_postamble_();
+    radar_uart_last_command_ = millis();
+    while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+    {
+      if(read_frame_())
+      {
+        if(latest_ack_ == 0x62 && latest_command_success_)
+        {
+          ret = true;
+          break;
+        }
+      }
+    }
 	}
-	return false;
+	leave_configuration_mode_();
+	return ret;
 }
 
 bool ld2410::requestEndEngineeringMode()
