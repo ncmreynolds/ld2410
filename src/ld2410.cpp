@@ -101,6 +101,11 @@ bool ld2410::presenceDetected()
 	return target_type_ != 0;
 }
 
+bool ld2410::isEngineeringMode()
+{
+	return engineering_mode_;
+}
+
 bool ld2410::stationaryTargetDetected()
 {
 	if((target_type_ & 0x02) && stationary_target_distance_ > 0 && stationary_target_energy_ > 0)
@@ -368,11 +373,28 @@ bool ld2410::parse_data_frame_()
 				}
 			}
 			#endif
-			/*
-			 *
-			 *	To-do support engineering mode
-			 *
-			 */
+			target_type_                = radar_data_frame_[8];
+			moving_target_distance_ 	= radar_data_frame_[9] + (radar_data_frame_[10] << 8);
+			moving_target_energy_       = radar_data_frame_[11];
+			stationary_target_distance_ = radar_data_frame_[12] + (radar_data_frame_[13] << 8);
+			stationary_target_energy_   = radar_data_frame_[14];
+			engineering_detection_distance     	= radar_data_frame_[15] + (radar_data_frame_[16] << 8);
+			engineering_max_moving_distance    	= radar_data_frame_[17];
+			engineering_max_stationary_distance	= radar_data_frame_[18];
+			
+			uint8_t pos = 19;
+
+			// motion energ
+			for(uint8_t gate = 0; gate < sizeof(engineering_moving_target_energy); ++gate) {
+				engineering_moving_target_energy[gate] = radar_data_frame_[pos++];
+			}
+			// stationary energy
+			for(uint8_t gate = 0; gate < sizeof(engineering_stationary_target_energy); ++gate) {
+				engineering_stationary_target_energy[gate] = radar_data_frame_[pos++];
+			}
+			engineering_mode_ = true;
+			radar_uart_last_packet_ = millis();
+			return true;
 		}
 		else if(intra_frame_data_length_ == 13 && radar_data_frame_[6] == 0x02 && radar_data_frame_[7] == 0xAA && radar_data_frame_[17] == 0x55 && radar_data_frame_[18] == 0x00)	//Normal target data
 		{
@@ -419,6 +441,7 @@ bool ld2410::parse_data_frame_()
 				}
 			}
 			#endif
+			engineering_mode_ = false;
 			radar_uart_last_packet_ = millis();
 			return true;
 		}

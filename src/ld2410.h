@@ -14,7 +14,7 @@
 #define ld2410_h
 #include <Arduino.h>
 
-#define LD2410_MAX_FRAME_LENGTH 40
+#define LD2410_MAX_FRAME_LENGTH 72
 //#define LD2410_DEBUG_DATA
 #define LD2410_DEBUG_COMMANDS
 //#define LD2410_DEBUG_PARSE
@@ -46,6 +46,12 @@ class ld2410	{
 		uint16_t sensor_idle_time = 0;
 		uint8_t motion_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
 		uint8_t stationary_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
+		bool isEngineeringMode();										//Receiving engineering mode messages or not
+		uint8_t engineering_max_moving_distance = 0;
+		uint8_t engineering_moving_target_energy[9] = {0,0,0,0,0,0,0,0,0};
+		uint8_t engineering_max_stationary_distance = 0;
+		uint8_t engineering_stationary_target_energy[9] = {0,0,0,0,0,0,0,0,0};
+		uint16_t engineering_detection_distance = 0;
 		bool requestRestart();
 		bool requestFactoryReset();
 		bool requestStartEngineeringMode();
@@ -65,6 +71,7 @@ class ld2410	{
 		uint8_t radar_data_frame_[LD2410_MAX_FRAME_LENGTH];				//Store the incoming data from the radar, to check it's in a valid format
 		uint8_t radar_data_frame_position_ = 0;							//Where in the frame we are currently writing
 		bool frame_started_ = false;									//Whether a frame is currently being read
+		bool engineering_mode_ = false;
 		bool ack_frame_ = false;										//Whether the incoming frame is LIKELY an ACK frame
 		bool waiting_for_ack_ = false;									//Whether a command has just been sent
 		uint8_t target_type_ = 0;
