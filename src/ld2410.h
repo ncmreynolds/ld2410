@@ -47,9 +47,9 @@ class ld2410	{
 		uint8_t motion_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
 		uint8_t stationary_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
 		bool isEngineeringMode();										//Receiving engineering mode messages or not
-		uint8_t engineering_max_moving_distance = 0;
+		//uint8_t engineering_max_moving_distance = 0;
 		uint8_t engineering_moving_target_energy[9] = {0,0,0,0,0,0,0,0,0};
-		uint8_t engineering_max_stationary_distance = 0;
+		//uint8_t engineering_max_stationary_distance = 0;
 		uint8_t engineering_stationary_target_energy[9] = {0,0,0,0,0,0,0,0,0};
 		uint16_t engineering_detection_distance = 0;
 		bool requestRestart();
