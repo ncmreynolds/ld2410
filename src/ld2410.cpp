@@ -379,18 +379,18 @@ bool ld2410::parse_data_frame_()
 			stationary_target_distance_ = radar_data_frame_[12] + (radar_data_frame_[13] << 8);
 			stationary_target_energy_   = radar_data_frame_[14];
 			engineering_detection_distance     	= radar_data_frame_[15] + (radar_data_frame_[16] << 8);
-			//engineering_max_moving_distance    	= radar_data_frame_[17];
-			//engineering_max_stationary_distance	= radar_data_frame_[18];
+			engineering_max_gates_moving_distance    	= radar_data_frame_[17]+1;
+			engineering_max_gates_stationary_distance	= radar_data_frame_[18]+1;
 			
 			uint8_t pos = 19;
 
 			// motion energy
-			for(uint8_t gate = 0; gate < sizeof(engineering_moving_target_energy); ++gate) {
+			for(uint8_t gate = 0; gate < engineering_max_gates_moving_distance; ++gate) {
 				engineering_moving_target_energy[gate] = radar_data_frame_[pos++];
 			}
 			// stationary energy
 			pos+=2;
-			for(uint8_t gate = 0; gate < sizeof(engineering_stationary_target_energy); ++gate) {
+			for(uint8_t gate = 0; gate < engineering_max_gates_stationary_distance; ++gate) {
 				engineering_stationary_target_energy[gate] = radar_data_frame_[pos++];
 			}
 			engineering_mode_ = true;
