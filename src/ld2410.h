@@ -16,7 +16,7 @@
 
 #define LD2410_MAX_FRAME_LENGTH 40
 //#define LD2410_DEBUG_DATA
-#define LD2410_DEBUG_COMMANDS
+//#define LD2410_DEBUG_COMMANDS
 //#define LD2410_DEBUG_PARSE
 
 class ld2410	{
@@ -46,12 +46,19 @@ class ld2410	{
 		uint16_t sensor_idle_time = 0;
 		uint8_t motion_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
 		uint8_t stationary_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
+        bool requestResolution();
+        uint8_t resolution = 0;
+        bool setResolution(uint8_t res);
 		bool requestRestart();
 		bool requestFactoryReset();
 		bool requestStartEngineeringMode();
 		bool requestEndEngineeringMode();
 		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
+		bool enableBluetooth();                                         //Enable or Disable Bluetooth
+		bool disableBluetooth();
+		bool getMAC();
+		uint8_t mac[6] = {0,0,0,0,0,0};
 	protected:
 	private:
 		Stream *radar_uart_ = nullptr;

@@ -608,7 +608,7 @@ bool ld2410::parse_command_frame_()
 					debug_uart_->print(motion_sensitivity[i]);
 					debug_uart_->print(F(" Stationary: "));
 					debug_uart_->print(stationary_sensitivity[i]);
-
+					
 				}
 				debug_uart_->print(F("\nSensor idle timeout: "));
 				debug_uart_->print(sensor_idle_time);
@@ -743,6 +743,141 @@ bool ld2410::parse_command_frame_()
 			}
 			return false;
 		}
+	}	
+    else if(intra_frame_data_length_ == 6 && latest_ack_ == 0xAB)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for read distance resolution: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			resolution = radar_data_frame_[10];
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xAA)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for set distance resolution: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xA4)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for set Bluetooth: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+	else if(intra_frame_data_length_ == 10 && latest_ack_ == 0xA5)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for get MAC: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+
+			mac[0] = radar_data_frame_[10];
+			mac[1] = radar_data_frame_[11];
+			mac[2] = radar_data_frame_[12];
+			mac[3] = radar_data_frame_[13];
+			mac[4] = radar_data_frame_[14];
+			mac[5] = radar_data_frame_[15];
+
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("\nMAC Address: "));
+				debug_uart_->print(mac[0], HEX);
+				debug_uart_->print(mac[1], HEX);
+				debug_uart_->print(mac[2], HEX);
+				debug_uart_->print(mac[3], HEX);
+				debug_uart_->print(mac[4], HEX);
+				debug_uart_->print(mac[5], HEX);
+				debug_uart_->print(F("\n"));
+			}
+			#endif
+
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
 	}
 	else
 	{
@@ -803,7 +938,7 @@ bool ld2410::leave_configuration_mode_()
 {
 	send_command_preamble_();
 	//Request firmware
-	radar_uart_->write((byte) 0x02);	//Command is two bytes long
+	radar_uart_->write((byte) 0x02);	//Command is four bytes long
 	radar_uart_->write((byte) 0x00);
 	radar_uart_->write((byte) 0xFE);	//Request leave command mode
 	radar_uart_->write((byte) 0x00);
@@ -826,7 +961,7 @@ bool ld2410::requestStartEngineeringMode()
 {
 	send_command_preamble_();
 	//Request firmware
-	radar_uart_->write((byte) 0x02);	//Command is two bytes long
+	radar_uart_->write((byte) 0x02);	//Command is four bytes long
 	radar_uart_->write((byte) 0x00);
 	radar_uart_->write((byte) 0x62);	//Request enter command mode
 	radar_uart_->write((byte) 0x00);
@@ -849,7 +984,7 @@ bool ld2410::requestEndEngineeringMode()
 {
 	send_command_preamble_();
 	//Request firmware
-	radar_uart_->write((byte) 0x02);	//Command is two bytes long
+	radar_uart_->write((byte) 0x02);	//Command is four bytes long
 	radar_uart_->write((byte) 0x00);
 	radar_uart_->write((byte) 0x63);	//Request leave command mode
 	radar_uart_->write((byte) 0x00);
@@ -987,6 +1122,170 @@ bool ld2410::requestFactoryReset()
 	}
 	delay(50);
 	leave_configuration_mode_();
+	return false;
+}
+
+bool ld2410::requestResolution()
+{
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		send_command_preamble_();
+		//Request distance resolution
+		radar_uart_->write((byte) 0x02);	//Command is two bytes long
+		radar_uart_->write((byte) 0x00);
+		radar_uart_->write((byte) 0xAB);	//Request distance resolution setting
+		radar_uart_->write((byte) 0x00);
+		send_command_postamble_();
+		radar_uart_last_command_ = millis();
+		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+		{
+			if(read_frame_())
+			{
+				if(latest_ack_ == 0xAB && latest_command_success_)
+				{
+					delay(50);
+					leave_configuration_mode_();
+					return true;
+				}
+			}
+		}
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+
+bool ld2410::setResolution(uint8_t res)
+{
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		send_command_preamble_();
+		radar_uart_->write((byte) 0x04);	
+		radar_uart_->write((byte) 0x00);
+		radar_uart_->write((byte) 0xAA);
+		radar_uart_->write((byte) 0x00);
+
+		radar_uart_->write(char(res));
+		radar_uart_->write((byte) 0x00);
+		send_command_postamble_();
+		radar_uart_last_command_ = millis();
+		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+		{
+			if(read_frame_())
+			{
+				if(latest_ack_ == 0xAA && latest_command_success_)
+				{
+					delay(50);
+					leave_configuration_mode_();
+					return true;
+				}
+			}
+		}
+	}
+	delay(50);
+	leave_configuration_mode_();
+
+	return false;
+}
+
+bool ld2410::enableBluetooth()
+{
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		send_command_preamble_();
+		radar_uart_->write((byte) 0x04);	
+		radar_uart_->write((byte) 0x00);
+		radar_uart_->write((byte) 0xA4);
+		radar_uart_->write((byte) 0x00);
+		radar_uart_->write((byte) 0x01);
+		radar_uart_->write((byte) 0x00);
+		send_command_postamble_();
+		radar_uart_last_command_ = millis();
+		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+		{
+			if(read_frame_())
+			{
+				if(latest_ack_ == 0xA4 && latest_command_success_)
+				{
+					delay(50);
+					leave_configuration_mode_();
+					return true;
+				}
+			}
+		}
+	}
+	delay(50);
+	leave_configuration_mode_();
+
+	return false;
+}
+
+bool ld2410::disableBluetooth()
+{
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		send_command_preamble_();
+		radar_uart_->write((byte) 0x04);	
+		radar_uart_->write((byte) 0x00);
+		radar_uart_->write((byte) 0xA4);
+		radar_uart_->write((byte) 0x00);
+		radar_uart_->write((byte) 0x00);
+		radar_uart_->write((byte) 0x00);
+		send_command_postamble_();
+		radar_uart_last_command_ = millis();
+		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+		{
+			if(read_frame_())
+			{
+				if(latest_ack_ == 0xA4 && latest_command_success_)
+				{
+					delay(50);
+					leave_configuration_mode_();
+					return true;
+				}
+			}
+		}
+	}
+	delay(50);
+	leave_configuration_mode_();
+
+	return false;
+}
+
+bool ld2410::getMAC()
+{
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		send_command_preamble_();
+		radar_uart_->write((byte) 0x04);	
+		radar_uart_->write((byte) 0x00);
+		radar_uart_->write((byte) 0xA5);
+		radar_uart_->write((byte) 0x00);
+		radar_uart_->write((byte) 0x01);
+		radar_uart_->write((byte) 0x00);
+		send_command_postamble_();
+		radar_uart_last_command_ = millis();
+		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
+		{
+			if(read_frame_())
+			{
+				if(latest_ack_ == 0xA5 && latest_command_success_)
+				{
+					delay(50);
+					leave_configuration_mode_();
+					return true;
+				}
+			}
+		}
+	}
+	delay(50);
+	leave_configuration_mode_();
+
 	return false;
 }
 
