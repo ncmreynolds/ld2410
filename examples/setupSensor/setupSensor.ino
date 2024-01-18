@@ -20,9 +20,9 @@
   #ifdef ESP_IDF_VERSION_MAJOR // IDF 4+
     #if CONFIG_IDF_TARGET_ESP32 // ESP32/PICO-D4
       #define MONITOR_SERIAL Serial
-      #define RADAR_SERIAL Serial1
-      #define RADAR_RX_PIN 32
-      #define RADAR_TX_PIN 33
+      #define RADAR_SERIAL Serial2
+      #define RADAR_RX_PIN 16
+      #define RADAR_TX_PIN 17
     #elif CONFIG_IDF_TARGET_ESP32S2
       #define MONITOR_SERIAL Serial
       #define RADAR_SERIAL Serial1
@@ -85,7 +85,7 @@ void setup(void)
   {
     MONITOR_SERIAL.println(F("not connected"));
   }
-  MONITOR_SERIAL.println(F("Supported commands\nread: read current values from the sensor\nreadconfig: read the configuration from the sensor\nsetmaxvalues <motion gate> <stationary gate> <inactivitytimer>\nsetsensitivity <gate> <motionsensitivity> <stationarysensitivity>\nenableengineeringmode: enable engineering mode\ndisableengineeringmode: disable engineering mode\nrestart: restart the sensor\nreadversion: read firmware version\nfactoryreset: factory reset the sensor\n"));
+  MONITOR_SERIAL.println(F("Supported commands\nread: read current values from the sensor\nreadconfig: read the configuration from the sensor\nsetmaxvalues <motion gate> <stationary gate> <inactivitytimer>\nsetsensitivity <gate> <motionsensitivity> <stationarysensitivity>\nenableengineeringmode: enable engineering mode\ndisableengineeringmode: disable engineering mode\nrestart: restart the sensor\nreadversion: read firmware version\nfactoryreset: factory reset the sensor\nreadresolution: read distance resolution\nsetresolution: <res>\ndisablebluetooth: turn off Bluetooth\nenablebluetooth: turn on Bluetooth\ngetMAC: get the Bluetooth MAC address"));
 }
 
 void loop()
@@ -293,6 +293,84 @@ void loop()
         else
         {
           MONITOR_SERIAL.println(F("Failed"));
+        }
+      }
+      else if(command.equals("readresolution"))
+      {
+        command = "";
+        MONITOR_SERIAL.print(F("Requesting Distance Resolution: "));
+        if(radar.requestResolution())
+        {
+          MONITOR_SERIAL.println(radar.resolution);
+        }
+        else
+        {
+          MONITOR_SERIAL.println(F("Failed"));
+        }
+      }
+      else if(command.startsWith("setresolution"))
+      {
+        uint8_t firstSpace = command.indexOf(' ');
+        uint8_t secondSpace = command.indexOf(' ',firstSpace + 1);
+        uint8_t newResolution = (command.substring(firstSpace,secondSpace)).toInt();
+        if((newResolution == 0) || (newResolution == 1))
+        {
+          MONITOR_SERIAL.print(F("Setting distance resolution to: "));
+          MONITOR_SERIAL.print(newResolution);
+
+          command = "";
+          if(radar.setResolution(newResolution))
+          {
+            MONITOR_SERIAL.println(F(" OK"));
+          }
+          else
+          {
+            MONITOR_SERIAL.println(F("failed"));
+          }
+        }
+      }
+      else if(command.equals("disablebluetooth"))
+      {
+        command = "";
+        MONITOR_SERIAL.print(F("Disabling Bluetooth: "));
+        if(radar.disableBluetooth())
+        {
+          MONITOR_SERIAL.println(F("OK, now restart sensor to take effect"));
+        }
+        else
+        {
+          MONITOR_SERIAL.println(F("failed"));
+        }
+      }
+      else if(command.equals("enablebluetooth"))
+      {
+        command = "";
+        MONITOR_SERIAL.print(F("Enabling Bluetooth: "));
+        if(radar.enableBluetooth())
+        {
+          MONITOR_SERIAL.println(F("OK, now restart sensor to take effect"));
+        }
+        else
+        {
+          MONITOR_SERIAL.println(F("failed"));
+        }
+      }
+      else if(command.equals("getMAC"))
+      {
+        command = "";
+        MONITOR_SERIAL.print(F("Requesting Bluetooth MAC address: "));
+        if(radar.getMAC())
+        {
+          MONITOR_SERIAL.print(radar.mac[0],HEX);
+          MONITOR_SERIAL.print(radar.mac[1],HEX);
+          MONITOR_SERIAL.print(radar.mac[2],HEX);
+          MONITOR_SERIAL.print(radar.mac[3],HEX);
+          MONITOR_SERIAL.print(radar.mac[4],HEX);
+          MONITOR_SERIAL.println(radar.mac[5],HEX);
+        }
+        else
+        {
+          MONITOR_SERIAL.println(F("failed"));
         }
       }
       else if(command.equals("factoryreset"))
