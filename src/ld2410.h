@@ -52,6 +52,8 @@ class ld2410	{
 		bool requestEndEngineeringMode();
 		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
+		const uint8_t* getFrameData();
+
 	protected:
 	private:
 		Stream *radar_uart_ = nullptr;

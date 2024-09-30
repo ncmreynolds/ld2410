@@ -1085,4 +1085,10 @@ bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t s
 	leave_configuration_mode_();
 	return false;
 }
+
+
+const uint8_t* ld2410::getFrameData() {
+    // Restituisce il buffer contenente l'ultimo frame di dati
+    return radar_data_frame_;
+}
 #endif
