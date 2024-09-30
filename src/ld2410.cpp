@@ -15,12 +15,49 @@
 #include "ld2410.h"
 
 
+#define BUFFER_SIZE 256
+uint8_t circular_buffer[BUFFER_SIZE];
+uint16_t buffer_head = 0;
+uint16_t buffer_tail = 0;
+
+// Enumerazione per lo stato del parsing
+enum ParseState { WAITING_START, READING_LENGTH, READING_DATA, CHECKING_END };
+ParseState current_state = WAITING_START;
+
+// Buffer pre-allocato per il frame
+#define MAX_FRAME_SIZE 1024
+uint8_t frame_buffer[MAX_FRAME_SIZE];
+uint16_t frame_position = 0;
+uint16_t frame_length = 0;
+
+
 ld2410::ld2410()	//Constructor function
 {
 }
 
 ld2410::~ld2410()	//Destructor function
 {
+}
+
+void add_to_buffer(uint8_t byte) {
+    circular_buffer[buffer_head] = byte;
+    buffer_head = (buffer_head + 1) % BUFFER_SIZE;
+}
+
+uint8_t read_from_buffer() {
+    uint8_t byte = circular_buffer[buffer_tail];
+    buffer_tail = (buffer_tail + 1) % BUFFER_SIZE;
+    return byte;
+}
+
+bool find_frame_start() {
+    while (buffer_tail != buffer_head) {
+        if (circular_buffer[buffer_tail] == 0xF4 || circular_buffer[buffer_tail] == 0xFD) {
+            return true;
+        }
+        buffer_tail = (buffer_tail + 1) % BUFFER_SIZE;
+    }
+    return false;
 }
 
 bool ld2410::begin(Stream &radarStream, bool waitForRadar)	{
@@ -155,151 +192,61 @@ uint8_t ld2410::movingTargetEnergy()
 	//return 0;
 }
 
-bool ld2410::read_frame_()
-{
-	if(radar_uart_ -> available())
-	{
-		if(frame_started_ == false)
-		{
-			uint8_t byte_read_ = radar_uart_ -> read();
-			if(byte_read_ == 0xF4)
-			{
-				#ifdef LD2410_DEBUG_DATA
-				if(debug_uart_ != nullptr)
-				{
-					debug_uart_->print(F("\nRcvd : 00 "));
-				}
-				#endif
-				radar_data_frame_[radar_data_frame_position_++] = byte_read_;
-				frame_started_ = true;
-				ack_frame_ = false;
-			}
-			else if(byte_read_ == 0xFD)
-			{
-				#ifdef LD2410_DEBUG_COMMANDS
-				if(debug_uart_ != nullptr)
-				{
-					debug_uart_->print(F("\nRcvd : 00 "));
-				}
-				#endif
-				radar_data_frame_[radar_data_frame_position_++] = byte_read_;
-				frame_started_ = true;
-				ack_frame_ = true;
-			}
-		}
-		else
-		{
-			if(radar_data_frame_position_ < LD2410_MAX_FRAME_LENGTH)
-			{
-				#ifdef LD2410_DEBUG_DATA
-				if(debug_uart_ != nullptr && ack_frame_ == false)
-				{
-					if(radar_data_frame_position_ < 0x10)
-					{
-						debug_uart_->print('0');
-					}
-					debug_uart_->print(radar_data_frame_position_, HEX);
-					debug_uart_->print(' ');
-				}
-				#endif
-				#ifdef LD2410_DEBUG_COMMANDS
-				if(debug_uart_ != nullptr && ack_frame_ == true)
-				{
-					if(radar_data_frame_position_ < 0x10)
-					{
-						debug_uart_->print('0');
-					}
-					debug_uart_->print(radar_data_frame_position_, HEX);
-					debug_uart_->print(' ');
-				}
-				#endif
-				radar_data_frame_[radar_data_frame_position_++] = radar_uart_ -> read();
-				if(radar_data_frame_position_ > 7)	//Can check for start and end
-				{
-					if(	radar_data_frame_[0]                              == 0xF4 &&	//Data frame end state
-						radar_data_frame_[1]                              == 0xF3 &&
-						radar_data_frame_[2]                              == 0xF2 &&
-						radar_data_frame_[3]                              == 0xF1 &&
-						radar_data_frame_[radar_data_frame_position_ - 4] == 0xF8 &&
-						radar_data_frame_[radar_data_frame_position_ - 3] == 0xF7 &&
-						radar_data_frame_[radar_data_frame_position_ - 2] == 0xF6 &&
-						radar_data_frame_[radar_data_frame_position_ - 1] == 0xF5
-					)
-					{
-						if(parse_data_frame_())
-						{
-							#ifdef LD2410_DEBUG_DATA
-							if(debug_uart_ != nullptr)
-							{
-								debug_uart_->print(F("parsed data OK"));
-							}
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-							return true;
-						}
-						else
-						{
-							#ifdef LD2410_DEBUG_DATA
-							if(debug_uart_ != nullptr)
-							{
-								debug_uart_->print(F("failed to parse data"));
-							}
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-						}
-					}
-					else if(radar_data_frame_[0]                              == 0xFD &&	//Command frame end state
-							radar_data_frame_[1]                              == 0xFC &&
-							radar_data_frame_[2]                              == 0xFB &&
-							radar_data_frame_[3]                              == 0xFA &&
-							radar_data_frame_[radar_data_frame_position_ - 4] == 0x04 &&
-							radar_data_frame_[radar_data_frame_position_ - 3] == 0x03 &&
-							radar_data_frame_[radar_data_frame_position_ - 2] == 0x02 &&
-							radar_data_frame_[radar_data_frame_position_ - 1] == 0x01
-						)
-					{
-						if(parse_command_frame_())
-						{
-							#ifdef LD2410_DEBUG_COMMANDS
-							if(debug_uart_ != nullptr)
-							{
-								debug_uart_->print(F("parsed command OK"));
-							}
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-							return true;
-						}
-						else
-						{
-							#ifdef LD2410_DEBUG_COMMANDS
-							if(debug_uart_ != nullptr)
-							{
-								debug_uart_->print(F("failed to parse command"));
-							}
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-						}
-					}
-				}
-			}
-			else
-			{
-				#if defined(LD2410_DEBUG_DATA) || defined(LD2410_DEBUG_COMMANDS)
-				if(debug_uart_ != nullptr)
-				{
-					debug_uart_->print(F("\nLD2410 frame overran"));
-				}
-				#endif
-				frame_started_ = false;
-				radar_data_frame_position_ = 0;
-			}
-		}
-	}
-	return false;
+bool ld2410::read_frame_() {
+    while (radar_uart_->available()) {
+        uint8_t byte_read = radar_uart_->read();
+        
+        if (!frame_started_) {
+            if (byte_read == 0xF4 || byte_read == 0xFD) {
+                radar_data_frame_[0] = byte_read;
+                radar_data_frame_position_ = 1;
+                frame_started_ = true;
+                ack_frame_ = (byte_read == 0xFD);
+            }
+        } else {
+            if (radar_data_frame_position_ < LD2410_MAX_FRAME_LENGTH) {
+                radar_data_frame_[radar_data_frame_position_++] = byte_read;
+                
+                // Controllo incrementale della fine del frame
+                if (radar_data_frame_position_ >= 8) {
+                    if (check_frame_end_()) {
+                        if (ack_frame_) {
+                            return parse_command_frame_();
+                        } else {
+                            return parse_data_frame_();
+                        }
+                    }
+                }
+            } else {
+                // Overflow del buffer
+                frame_started_ = false;
+                radar_data_frame_position_ = 0;
+            }
+        }
+    }
+    return false;
+}
+
+bool ld2410::check_frame_end_() {
+    if (ack_frame_) {
+        return (radar_data_frame_[0] == 0xFD &&
+                radar_data_frame_[1] == 0xFC &&
+                radar_data_frame_[2] == 0xFB &&
+                radar_data_frame_[3] == 0xFA &&
+                radar_data_frame_[radar_data_frame_position_ - 4] == 0x04 &&
+                radar_data_frame_[radar_data_frame_position_ - 3] == 0x03 &&
+                radar_data_frame_[radar_data_frame_position_ - 2] == 0x02 &&
+                radar_data_frame_[radar_data_frame_position_ - 1] == 0x01);
+    } else {
+        return (radar_data_frame_[0] == 0xF4 &&
+                radar_data_frame_[1] == 0xF3 &&
+                radar_data_frame_[2] == 0xF2 &&
+                radar_data_frame_[3] == 0xF1 &&
+                radar_data_frame_[radar_data_frame_position_ - 4] == 0xF8 &&
+                radar_data_frame_[radar_data_frame_position_ - 3] == 0xF7 &&
+                radar_data_frame_[radar_data_frame_position_ - 2] == 0xF6 &&
+                radar_data_frame_[radar_data_frame_position_ - 1] == 0xF5);
+    }
 }
 
 void ld2410::print_frame_()
@@ -326,126 +273,30 @@ void ld2410::print_frame_()
 	}
 }
 
-bool ld2410::parse_data_frame_()
-{
-	uint16_t intra_frame_data_length_ = radar_data_frame_[4] + (radar_data_frame_[5] << 8);
-	if(radar_data_frame_position_ == intra_frame_data_length_ + 10)
-	{
-		#ifdef LD2410_DEBUG_DATA
-		if(debug_uart_ != nullptr && ack_frame_ == false)
-		{
-			print_frame_();
-		}
-		#endif
-		#ifdef LD2410_DEBUG_COMMANDS
-		if(debug_uart_ != nullptr && ack_frame_ == true)
-		{
-			print_frame_();
-		}
-		#endif
-		if(radar_data_frame_[6] == 0x01 && radar_data_frame_[7] == 0xAA)	//Engineering mode data
-		{
-			target_type_ = radar_data_frame_[8];
-			#ifdef LD2410_DEBUG_PARSE
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("\nEngineering data - "));
-				if(target_type_ == 0x00)
-				{
-					debug_uart_->print(F("no target"));
-				}
-				else if(target_type_ == 0x01)
-				{
-					debug_uart_->print(F("moving target:"));
-				}
-				else if(target_type_ == 0x02)
-				{
-					debug_uart_->print(F("stationary target:"));
-				}
-				else if(target_type_ == 0x03)
-				{
-					debug_uart_->print(F("moving & stationary targets:"));
-				}
-			}
-			#endif
-			/*
-			 *
-			 *	To-do support engineering mode
-			 *
-			 */
-		}
-		else if(intra_frame_data_length_ == 13 && radar_data_frame_[6] == 0x02 && radar_data_frame_[7] == 0xAA && radar_data_frame_[17] == 0x55 && radar_data_frame_[18] == 0x00)	//Normal target data
-		{
-			target_type_ = radar_data_frame_[8];
-			//moving_target_distance_ = radar_data_frame_[9] + (radar_data_frame_[10] << 8);
-			stationary_target_distance_ = radar_data_frame_[9] + (radar_data_frame_[10] << 8);
-			stationary_target_energy_ = radar_data_frame_[14];
-			moving_target_energy_ = radar_data_frame_[11];
-			//stationary_target_distance_ = radar_data_frame_[12] + (radar_data_frame_[13] << 8);
-			moving_target_distance_ = radar_data_frame_[15] + (radar_data_frame_[16] << 8);
-			#ifdef LD2410_DEBUG_PARSE
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("\nNormal data - "));
-				if(target_type_ == 0x00)
-				{
-					debug_uart_->print(F("no target"));
-				}
-				else if(target_type_ == 0x01)
-				{
-					debug_uart_->print(F("moving target:"));
-				}
-				else if(target_type_ == 0x02)
-				{
-					debug_uart_->print(F("stationary target:"));
-				}
-				else if(target_type_ == 0x03)
-				{
-					debug_uart_->print(F("moving & stationary targets:"));
-				}
-				if(radar_data_frame_[8] & 0x01)
-				{
-					debug_uart_->print(F(" moving at "));
-					debug_uart_->print(moving_target_distance_);
-					debug_uart_->print(F("cm power "));
-					debug_uart_->print(moving_target_energy_);
-				}
-				if(radar_data_frame_[8] & 0x02)
-				{
-					debug_uart_->print(F(" stationary at "));
-					debug_uart_->print(stationary_target_distance_);
-					debug_uart_->print(F("cm power "));
-					debug_uart_->print(stationary_target_energy_);
-				}
-			}
-			#endif
-			radar_uart_last_packet_ = millis();
-			return true;
-		}
-		else
-		{
-			#ifdef LD2410_DEBUG_DATA
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("\nUnknown frame type"));
-			}
-			#endif
-			print_frame_();
-		}
-	}
-	else
-	{
-		#ifdef LD2410_DEBUG_DATA
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nFrame length unexpected: "));
-			debug_uart_->print(radar_data_frame_position_);
-			debug_uart_->print(F(" not "));
-			debug_uart_->print(intra_frame_data_length_ + 10);
-		}
-		#endif
-	}
-	return false;
+bool ld2410::parse_data_frame_() {
+    uint16_t intra_frame_data_length = radar_data_frame_[4] | (radar_data_frame_[5] << 8);
+    
+    if (radar_data_frame_position_ != intra_frame_data_length + 10) {
+        return false;
+    }
+
+    if (radar_data_frame_[6] == 0x02 && radar_data_frame_[7] == 0xAA &&
+        radar_data_frame_[17] == 0x55 && radar_data_frame_[18] == 0x00) {
+        
+        target_type_ = radar_data_frame_[8];
+        
+        uint16_t* distance_ptr = (uint16_t*)(&radar_data_frame_[9]);
+        stationary_target_distance_ = *distance_ptr;
+        moving_target_distance_ = *(uint16_t*)(&radar_data_frame_[15]);
+
+        stationary_target_energy_ = radar_data_frame_[14];
+        moving_target_energy_ = radar_data_frame_[11];
+
+        radar_uart_last_packet_ = millis();
+        return true;
+    }
+
+    return false;
 }
 
 bool ld2410::parse_command_frame_()
@@ -754,6 +605,12 @@ bool ld2410::parse_command_frame_()
 		#endif
 	}
 	return false;
+}
+
+void UART_ISR() {
+    while (radar_uart_->available()) {
+        add_to_buffer(radar_uart_->read());
+    }
 }
 
 void ld2410::send_command_preamble_()
