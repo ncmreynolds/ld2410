@@ -15,6 +15,9 @@
 #include <Arduino.h>
 
 #define LD2410_MAX_FRAME_LENGTH 40
+#ifndef LD2410_BUFFER_SIZE
+#define LD2410_BUFFER_SIZE 256
+#endif
 //#define LD2410_DEBUG_DATA
 #define LD2410_DEBUG_COMMANDS
 //#define LD2410_DEBUG_PARSE
@@ -74,6 +77,16 @@ class ld2410	{
 		uint8_t moving_target_energy_ = 0;
 		uint16_t stationary_target_distance_ = 0;
 		uint8_t stationary_target_energy_ = 0;
+
+		uint8_t circular_buffer[LD2410_BUFFER_SIZE];
+        uint16_t buffer_head = 0;
+        uint16_t buffer_tail = 0;
+
+        // Nuove funzioni private
+		void add_to_buffer(uint8_t byte);
+        uint8_t read_from_buffer();
+        bool find_frame_start();
+        bool check_frame_end_();
 		
 		bool read_frame_();												//Try to read a frame from the UART
 		bool parse_data_frame_();										//Is the current data frame valid?

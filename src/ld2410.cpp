@@ -15,8 +15,7 @@
 #include "ld2410.h"
 
 
-#define BUFFER_SIZE 256
-uint8_t circular_buffer[BUFFER_SIZE];
+uint8_t circular_buffer[LD2410_BUFFER_SIZE];
 uint16_t buffer_head = 0;
 uint16_t buffer_tail = 0;
 
@@ -39,23 +38,23 @@ ld2410::~ld2410()	//Destructor function
 {
 }
 
-void add_to_buffer(uint8_t byte) {
+void ld2410::add_to_buffer(uint8_t byte) {
     circular_buffer[buffer_head] = byte;
-    buffer_head = (buffer_head + 1) % BUFFER_SIZE;
+    buffer_head = (buffer_head + 1) % LD2410_BUFFER_SIZE;
 }
 
-uint8_t read_from_buffer() {
+uint8_t ld2410::read_from_buffer() {
     uint8_t byte = circular_buffer[buffer_tail];
-    buffer_tail = (buffer_tail + 1) % BUFFER_SIZE;
+    buffer_tail = (buffer_tail + 1) % LD2410_BUFFER_SIZE;
     return byte;
 }
 
-bool find_frame_start() {
+bool ld2410::find_frame_start() {
     while (buffer_tail != buffer_head) {
         if (circular_buffer[buffer_tail] == 0xF4 || circular_buffer[buffer_tail] == 0xFD) {
             return true;
         }
-        buffer_tail = (buffer_tail + 1) % BUFFER_SIZE;
+        buffer_tail = (buffer_tail + 1) % LD2410_BUFFER_SIZE;
     }
     return false;
 }
@@ -128,9 +127,19 @@ bool ld2410::isConnected()
 	return false;
 }
 
-bool ld2410::read()
-{
-	return read_frame_();
+bool ld2410::read() {
+    bool new_data = false;
+    // Leggi tutti i dati disponibili dal buffer UART
+    while (radar_uart_->available()) {
+        add_to_buffer(radar_uart_->read());
+        new_data = true;
+    }
+
+    // Prova a leggere e processare un frame
+    bool frame_processed = read_frame_();
+    
+    // Restituisce true se sono stati letti nuovi dati o se un frame è stato processato
+    return new_data || frame_processed;
 }
 
 bool ld2410::presenceDetected()
@@ -193,8 +202,8 @@ uint8_t ld2410::movingTargetEnergy()
 }
 
 bool ld2410::read_frame_() {
-    while (radar_uart_->available()) {
-        uint8_t byte_read = radar_uart_->read();
+    while (buffer_tail != buffer_head) {
+        uint8_t byte_read = read_from_buffer();
         
         if (!frame_started_) {
             if (byte_read == 0xF4 || byte_read == 0xFD) {
@@ -607,11 +616,7 @@ bool ld2410::parse_command_frame_()
 	return false;
 }
 
-void UART_ISR() {
-    while (radar_uart_->available()) {
-        add_to_buffer(radar_uart_->read());
-    }
-}
+
 
 void ld2410::send_command_preamble_()
 {
