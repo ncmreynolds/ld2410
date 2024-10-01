@@ -61,6 +61,8 @@ class ld2410	{
 		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
     	FrameData getFrameData() const;
+		void autoReadTask(uint32_t stack, uint32_t priority, uint32_t core);
+		void taskFunction();
 
 	protected:
 	private:
