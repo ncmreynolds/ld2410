@@ -39,24 +39,44 @@ ld2410::~ld2410()	//Destructor function
 }
 
 void ld2410::add_to_buffer(uint8_t byte) {
+    // Inserisce il byte nel buffer circolare
     circular_buffer[buffer_head] = byte;
     buffer_head = (buffer_head + 1) % LD2410_BUFFER_SIZE;
+
+    // Gestione del caso in cui il buffer si riempia
+    if (buffer_head == buffer_tail) {
+        buffer_tail = (buffer_tail + 1) % LD2410_BUFFER_SIZE;  // Sovrascrive i dati più vecchi
+    }
 }
 
-uint8_t ld2410::read_from_buffer() {
-    uint8_t byte = circular_buffer[buffer_tail];
-    buffer_tail = (buffer_tail + 1) % LD2410_BUFFER_SIZE;
-    return byte;
+// Funzione per leggere il buffer
+bool ld2410::read_from_buffer(uint8_t &byte) {
+    if (buffer_head == buffer_tail) {
+        return false;  // Buffer vuoto
+    } else {
+        byte = circular_buffer[buffer_tail];
+        buffer_tail = (buffer_tail + 1) % LD2410_BUFFER_SIZE;
+        return true;
+    }
 }
 
 bool ld2410::find_frame_start() {
-    while (buffer_tail != buffer_head) {
-        if (circular_buffer[buffer_tail] == 0xF4 || circular_buffer[buffer_tail] == 0xFD) {
+    uint8_t byte;
+
+    // Continua a leggere dal buffer finché non trovi l'inizio del frame
+    while (read_from_buffer(byte)) {
+        // Controlla se il byte è l'inizio di un frame
+        if (byte == 0xF4 || byte == 0xFD) {
+            // Inizia un nuovo frame
+            radar_data_frame_[0] = byte;
+            radar_data_frame_position_ = 1;  // Reset della posizione del frame
+            frame_started_ = true;
+            ack_frame_ = (byte == 0xFD);  // Determina il tipo di frame (ack o data)
             return true;
         }
-        buffer_tail = (buffer_tail + 1) % LD2410_BUFFER_SIZE;
     }
-    return false;
+
+    return false;  // Nessun frame trovato
 }
 
 bool ld2410::begin(Stream &radarStream, bool waitForRadar)	{
@@ -142,6 +162,41 @@ bool ld2410::read() {
     return new_data || frame_processed;
 }
 
+
+void ld2410::taskFunction(void* param) {
+    ld2410* sensor = static_cast<ld2410*>(param);
+    for (;;) {
+        // Legge i dati dalla UART e li aggiunge al buffer circolare
+        bool new_data = false;
+        while (sensor->radar_uart_->available()) {
+            sensor->add_to_buffer(sensor->radar_uart_->read());
+            new_data = true;
+        }
+
+        // Se ci sono nuovi dati, tenta di processare un frame
+        if (new_data) {
+            bool frame_processed = sensor->read_frame_();
+        }
+
+        // Delay per evitare il sovraccarico del task
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+// Funzione per avviare il task
+void ld2410::autoReadTask(uint32_t stack, uint32_t priority, uint32_t core) {
+    xTaskCreatePinnedToCore(
+        taskFunction,
+        "LD2410Task",
+        stack,
+        this,
+        priority,
+        nullptr,
+        core
+    );
+}
+
+
 bool ld2410::presenceDetected()
 {
 	return target_type_ != 0;
@@ -192,13 +247,11 @@ uint16_t ld2410::movingTargetDistance()
 	//return 0;
 }
 
-uint8_t ld2410::movingTargetEnergy()
-{
-	//if(moving_target_distance_ > 0)
-	{
-		return moving_target_energy_;
-	}
-	//return 0;
+uint8_t ld2410::movingTargetEnergy() {
+    if (moving_target_energy_ > 100) {
+        return 100;  // Limita a 100 se il valore è superiore
+    }
+    return moving_target_energy_;  // Restituisci il valore se è già compreso tra 0 e 100
 }
 
 bool ld2410::read_frame_() {
@@ -282,32 +335,79 @@ void ld2410::print_frame_()
 	}
 }
 
+bool ld2410::read_frame_() {
+    while (buffer_tail != buffer_head) {
+        uint8_t byte_read = read_from_buffer();
+
+        if (!frame_started_) {
+            // Inizia un nuovo frame se troviamo l'intestazione corretta
+            if (byte_read == 0xF4 || byte_read == 0xFD) {
+                radar_data_frame_[0] = byte_read;
+                radar_data_frame_position_ = 1;
+                frame_started_ = true;
+                ack_frame_ = (byte_read == 0xFD);  // Determina il tipo di frame
+            }
+        } else {
+            // Accumula i byte finché il frame non è completo
+            radar_data_frame_[radar_data_frame_position_++] = byte_read;
+
+            // Se abbiamo almeno 8 byte, verifichiamo la lunghezza del frame
+            if (radar_data_frame_position_ == 8) {
+                uint16_t intra_frame_data_length = radar_data_frame_[4] | (radar_data_frame_[5] << 8);
+
+                // Verifica overflow del frame
+                if (intra_frame_data_length + 10 > LD2410_MAX_FRAME_LENGTH) {
+                    // Frame troppo grande, resetta lo stato
+                    frame_started_ = false;
+                    radar_data_frame_position_ = 0;
+                    continue;
+                }
+            }
+
+            // Controlla la fine del frame
+            if (radar_data_frame_position_ >= 8 && check_frame_end_()) {
+                frame_started_ = false;  // Frame completato, resettare lo stato
+
+                // Elabora il frame in base al tipo (ack o data)
+                if (ack_frame_) {
+                    return parse_command_frame_();
+                } else {
+                    return parse_data_frame_();
+                }
+            }
+        }
+    }
+    return false;  // Nessun frame completo trovato
+}
+
 bool ld2410::parse_data_frame_() {
     uint16_t intra_frame_data_length = radar_data_frame_[4] | (radar_data_frame_[5] << 8);
-    
+
+    // Verifica se la lunghezza del frame è corretta
     if (radar_data_frame_position_ != intra_frame_data_length + 10) {
         return false;
     }
 
+    // Controllo dei byte specifici per validare il frame
     if (radar_data_frame_[6] == 0x02 && radar_data_frame_[7] == 0xAA &&
         radar_data_frame_[17] == 0x55 && radar_data_frame_[18] == 0x00) {
-        
-        target_type_ = radar_data_frame_[8];
-        
-        uint16_t* distance_ptr = (uint16_t*)(&radar_data_frame_[9]);
-        stationary_target_distance_ = *distance_ptr;
-        moving_target_distance_ = *(uint16_t*)(&radar_data_frame_[15]);
 
+        target_type_ = radar_data_frame_[8];
+
+        // Estrai distanze e energie dei bersagli
+        stationary_target_distance_ = *(uint16_t*)(&radar_data_frame_[9]);
+        moving_target_distance_ = *(uint16_t*)(&radar_data_frame_[15]);
         stationary_target_energy_ = radar_data_frame_[14];
         moving_target_energy_ = radar_data_frame_[11];
 
-		last_valid_frame_length = radar_data_frame_position_;  // Aggiungi questa linea
-        radar_uart_last_packet_ = millis();
+        last_valid_frame_length = radar_data_frame_position_;  // Aggiunto per tracciare la lunghezza del frame
+        radar_uart_last_packet_ = millis();  // Aggiorna il timestamp dell'ultimo pacchetto
         return true;
     }
 
-    return false;
+    return false;  // Frame non valido
 }
+
 
 bool ld2410::parse_command_frame_()
 {
