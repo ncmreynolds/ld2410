@@ -955,14 +955,42 @@ bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t s
 	return false;
 }
 
+FrameData ld2410::getFrameData() const {
+    // Usa last_valid_frame_length come lunghezza iniziale
+    uint16_t frame_length = last_valid_frame_length;
 
-const uint8_t* ld2410::getFrameData() {
-    // Restituisce il buffer contenente l'ultimo frame di dati
-    return radar_data_frame_;
+    // Verifica dell'header
+    if (radar_data_frame_[0] != 0xF4 || 
+        radar_data_frame_[1] != 0xF3 || 
+        radar_data_frame_[2] != 0xF2 || 
+        radar_data_frame_[3] != 0xF1) {
+        // Header non valido
+        return {nullptr, 0};
+    }
+
+    // Verifica la lunghezza del frame dai byte 4 e 5
+    uint16_t reported_length = radar_data_frame_[4] | (radar_data_frame_[5] << 8);
+    reported_length += 10;  // Aggiungi 10 per header e footer
+
+    // Usa la lunghezza minore tra quella riportata e last_valid_frame_length
+    frame_length = (reported_length < frame_length) ? reported_length : frame_length;
+
+    // Verifica che la lunghezza del frame sia valida
+    if (frame_length > LD2410_MAX_FRAME_LENGTH || frame_length < 10) {
+        // Lunghezza del frame non valida
+        return {nullptr, 0};
+    }
+
+    // Verifica del footer
+    if (radar_data_frame_[frame_length - 4] != 0xF8 || 
+        radar_data_frame_[frame_length - 3] != 0xF7 || 
+        radar_data_frame_[frame_length - 2] != 0xF6 || 
+        radar_data_frame_[frame_length - 1] != 0xF5) {
+        // Footer non valido
+        return {nullptr, 0};
+    }
+
+    // Se tutti i controlli sono passati, restituisci i dati validi
+    return {radar_data_frame_, frame_length};
 }
-
-uint16_t ld2410::getFrameLength() const {
-    return last_valid_frame_length;
-}
-
 #endif
