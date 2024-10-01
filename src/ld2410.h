@@ -62,7 +62,6 @@ class ld2410	{
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
     	FrameData getFrameData() const;
 		void autoReadTask(uint32_t stack, uint32_t priority, uint32_t core);
-		void taskFunction();
 
 	protected:
 	private:
@@ -92,7 +91,7 @@ class ld2410	{
 
         // Nuove funzioni private
 		void add_to_buffer(uint8_t byte);
-        uint8_t read_from_buffer();
+		bool read_from_buffer(uint8_t &byte);
         bool find_frame_start();
         bool check_frame_end_();
 		
@@ -104,5 +103,6 @@ class ld2410	{
 		void send_command_postamble_();									//Commands have the same postamble
 		bool enter_configuration_mode_();								//Necessary before sending any command
 		bool leave_configuration_mode_();								//Will not read values without leaving command mode
+		static void taskFunction(void* param);
 };
 #endif

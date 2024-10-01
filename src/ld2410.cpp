@@ -177,7 +177,7 @@ void ld2410::taskFunction(void* param) {
         if (new_data) {
             bool frame_processed = sensor->read_frame_();
         }
-
+        
         // Delay per evitare il sovraccarico del task
         vTaskDelay(pdMS_TO_TICKS(10));
     }
@@ -254,40 +254,7 @@ uint8_t ld2410::movingTargetEnergy() {
     return moving_target_energy_;  // Restituisci il valore se è già compreso tra 0 e 100
 }
 
-bool ld2410::read_frame_() {
-    while (buffer_tail != buffer_head) {
-        uint8_t byte_read = read_from_buffer();
-        
-        if (!frame_started_) {
-            if (byte_read == 0xF4 || byte_read == 0xFD) {
-                radar_data_frame_[0] = byte_read;
-                radar_data_frame_position_ = 1;
-                frame_started_ = true;
-                ack_frame_ = (byte_read == 0xFD);
-            }
-        } else {
-            if (radar_data_frame_position_ < LD2410_MAX_FRAME_LENGTH) {
-                radar_data_frame_[radar_data_frame_position_++] = byte_read;
-                
-                // Controllo incrementale della fine del frame
-                if (radar_data_frame_position_ >= 8) {
-                    if (check_frame_end_()) {
-                        if (ack_frame_) {
-                            return parse_command_frame_();
-                        } else {
-                            return parse_data_frame_();
-                        }
-                    }
-                }
-            } else {
-                // Overflow del buffer
-                frame_started_ = false;
-                radar_data_frame_position_ = 0;
-            }
-        }
-    }
-    return false;
-}
+
 
 bool ld2410::check_frame_end_() {
     if (ack_frame_) {
@@ -336,39 +303,37 @@ void ld2410::print_frame_()
 }
 
 bool ld2410::read_frame_() {
-    while (buffer_tail != buffer_head) {
-        uint8_t byte_read = read_from_buffer();
-
+    uint8_t byte_read;
+    while (read_from_buffer(byte_read)) {  // Corrected to pass byte_read by reference
+        // If the frame has not started, check for the frame start
         if (!frame_started_) {
-            // Inizia un nuovo frame se troviamo l'intestazione corretta
             if (byte_read == 0xF4 || byte_read == 0xFD) {
                 radar_data_frame_[0] = byte_read;
                 radar_data_frame_position_ = 1;
                 frame_started_ = true;
-                ack_frame_ = (byte_read == 0xFD);  // Determina il tipo di frame
+                ack_frame_ = (byte_read == 0xFD);  // Determine the type of frame
             }
         } else {
-            // Accumula i byte finché il frame non è completo
+            // Continue accumulating the frame bytes
             radar_data_frame_[radar_data_frame_position_++] = byte_read;
 
-            // Se abbiamo almeno 8 byte, verifichiamo la lunghezza del frame
+            // After reading at least 8 bytes, verify the frame length
             if (radar_data_frame_position_ == 8) {
                 uint16_t intra_frame_data_length = radar_data_frame_[4] | (radar_data_frame_[5] << 8);
 
-                // Verifica overflow del frame
+                // Check if the frame length exceeds the maximum allowed
                 if (intra_frame_data_length + 10 > LD2410_MAX_FRAME_LENGTH) {
-                    // Frame troppo grande, resetta lo stato
                     frame_started_ = false;
                     radar_data_frame_position_ = 0;
-                    continue;
+                    continue;  // Skip this frame
                 }
             }
 
-            // Controlla la fine del frame
+            // Check if the frame is complete
             if (radar_data_frame_position_ >= 8 && check_frame_end_()) {
-                frame_started_ = false;  // Frame completato, resettare lo stato
+                frame_started_ = false;  // Reset state for the next frame
 
-                // Elabora il frame in base al tipo (ack o data)
+                // Process the frame (command or data)
                 if (ack_frame_) {
                     return parse_command_frame_();
                 } else {
@@ -377,7 +342,7 @@ bool ld2410::read_frame_() {
             }
         }
     }
-    return false;  // Nessun frame completo trovato
+    return false;  // No complete frame was found
 }
 
 bool ld2410::parse_data_frame_() {
