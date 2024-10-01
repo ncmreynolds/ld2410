@@ -301,6 +301,7 @@ bool ld2410::parse_data_frame_() {
         stationary_target_energy_ = radar_data_frame_[14];
         moving_target_energy_ = radar_data_frame_[11];
 
+		last_valid_frame_length = radar_data_frame_position_;  // Aggiungi questa linea
         radar_uart_last_packet_ = millis();
         return true;
     }
@@ -613,6 +614,12 @@ bool ld2410::parse_command_frame_()
 		}
 		#endif
 	}
+
+    if (latest_command_success_) {
+        last_valid_frame_length = radar_data_frame_position_;  // Aggiungi questa linea
+        radar_uart_last_packet_ = millis();
+        return true;
+    }
 	return false;
 }
 
@@ -953,4 +960,9 @@ const uint8_t* ld2410::getFrameData() {
     // Restituisce il buffer contenente l'ultimo frame di dati
     return radar_data_frame_;
 }
+
+uint16_t ld2410::getFrameLength() const {
+    return last_valid_frame_length;
+}
+
 #endif

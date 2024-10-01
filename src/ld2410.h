@@ -56,6 +56,7 @@ class ld2410	{
 		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
 		const uint8_t* getFrameData();
+    	uint16_t getFrameLength() const;
 
 	protected:
 	private:
@@ -77,6 +78,7 @@ class ld2410	{
 		uint8_t moving_target_energy_ = 0;
 		uint16_t stationary_target_distance_ = 0;
 		uint8_t stationary_target_energy_ = 0;
+    	uint16_t last_valid_frame_length = 0;
 
 		uint8_t circular_buffer[LD2410_BUFFER_SIZE];
         uint16_t buffer_head = 0;
