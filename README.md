@@ -77,6 +77,9 @@ bool requestEndEngineeringMode() - Request the end of engineering mode.
 
 ## Changelog
 
+- v0.1.4 - Changed to circular buffer for incoming data
+- v0.1.3 - Update to some Serial.write() statements to be compatible with more Arduino core variants. Expand examples to be slightly more verbose and explain lack of ESP8266 support in the example.
+- v0.1.2 - Not released
 - v0.1.1 - Readings for stationary and moving targets were transposed, now fixed. Fixes #1 - stationaryTargetDetected() always true. Many improvements to parsing of commands/acks from the LD2410 and better debug logging.
 - v0.1.0 - Initial release
 
