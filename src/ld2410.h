@@ -95,7 +95,8 @@ class ld2410	{
         bool find_frame_start();
         bool check_frame_end_();
 		
-		bool read_frame_();												//Try to read a frame from the UART
+		bool read_frame_();		
+		bool read_frame_no_buffer_();										//Try to read a frame from the UART
 		bool parse_data_frame_();										//Is the current data frame valid?
 		bool parse_command_frame_();									//Is the current command frame valid?
 		void print_frame_();											//Print the frame for debugging

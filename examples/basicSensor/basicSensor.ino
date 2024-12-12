@@ -71,6 +71,8 @@ void setup(void)
   MONITOR_SERIAL.print(F("Connect LD2410 radar RX to GPIO:"));
   MONITOR_SERIAL.println(RADAR_TX_PIN);
   MONITOR_SERIAL.print(F("LD2410 radar sensor initialising: "));
+
+  
   if(radar.begin(RADAR_SERIAL))
   {
     MONITOR_SERIAL.println(F("OK"));
