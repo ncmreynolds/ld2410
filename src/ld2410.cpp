@@ -79,48 +79,49 @@ bool ld2410::find_frame_start() {
     return false;  // Nessun frame trovato
 }
 
-bool ld2410::begin(Stream &radarStream, bool waitForRadar)	{
-	radar_uart_ = &radarStream;		//Set the stream used for the LD2410
-	if(debug_uart_ != nullptr)
-	{
-		debug_uart_->println(F("ld2410 started"));
-	}
-	if(waitForRadar)
-	{
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nLD2410 firmware: "));
-		}
-		if(requestFirmwareVersion())
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F(" v"));
-				debug_uart_->print(firmware_major_version);
-				debug_uart_->print('.');
-				debug_uart_->print(firmware_minor_version);
-				debug_uart_->print('.');
-				debug_uart_->print(firmware_bugfix_version);
-			}
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("no response"));
-			}
-		}
-	}
-	else
-	{
-		if(debug_uart_ != nullptr)
-		{
-			debug_uart_->print(F("\nLD2410 library configured"));
-		}
-		return true;
-	}
-	return false;
+bool ld2410::begin(Stream &radarStream, bool waitForRadar) {
+    radar_uart_ = &radarStream;
+    
+    if (debug_uart_ != nullptr) {
+        debug_uart_->println(F("ld2410 started"));
+    }
+    
+    if (!waitForRadar) {
+        return true;
+    }
+    
+    // Prova a leggere la versione firmware
+    if (debug_uart_ != nullptr) {
+        debug_uart_->print(F("\nLD2410 firmware: "));
+    }
+    
+    uint32_t start_time = millis();
+    bool firmware_received = false;
+    
+    while (millis() - start_time < 1000) { // timeout di 1 secondo
+        if (requestFirmwareVersion()) {
+            firmware_received = true;
+            break;
+        }
+        yield();
+    }
+    
+    if (firmware_received) {
+        if (debug_uart_ != nullptr) {
+            debug_uart_->print(F(" v"));
+            debug_uart_->print(firmware_major_version);
+            debug_uart_->print('.');
+            debug_uart_->print(firmware_minor_version);
+            debug_uart_->print('.');
+            debug_uart_->print(firmware_bugfix_version);
+        }
+        return true;
+    }
+    
+    if (debug_uart_ != nullptr) {
+        debug_uart_->print(F("no response"));
+    }
+    return false;
 }
 
 void ld2410::debug(Stream &terminalStream)
@@ -722,7 +723,7 @@ bool ld2410::enter_configuration_mode_()
 	radar_uart_last_command_ = millis();
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
-		if(read_frame_())
+		if(read_frame_no_buffer_())
 		{
 			if(latest_ack_ == 0xFF && latest_command_success_)
 			{
@@ -745,7 +746,7 @@ bool ld2410::leave_configuration_mode_()
 	radar_uart_last_command_ = millis();
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
-		if(read_frame_())
+		if(read_frame_no_buffer_())
 		{
 			if(latest_ack_ == 0xFE && latest_command_success_)
 			{
@@ -768,7 +769,7 @@ bool ld2410::requestStartEngineeringMode()
 	radar_uart_last_command_ = millis();
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
-		if(read_frame_())
+		if(read_frame_no_buffer_())
 		{
 			if(latest_ack_ == 0x62 && latest_command_success_)
 			{
@@ -791,7 +792,7 @@ bool ld2410::requestEndEngineeringMode()
 	radar_uart_last_command_ = millis();
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
-		if(read_frame_())
+		if(read_frame_no_buffer_())
 		{
 			if(latest_ack_ == 0x63 && latest_command_success_)
 			{
@@ -817,7 +818,7 @@ bool ld2410::requestCurrentConfiguration()
 		radar_uart_last_command_ = millis();
 		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			if(read_frame_())
+			if(read_frame_no_buffer_())
 			{
 				if(latest_ack_ == 0x61 && latest_command_success_)
 				{
@@ -848,7 +849,7 @@ bool ld2410::requestFirmwareVersion()
 		radar_uart_last_command_ = millis();
 		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			read_frame_();
+			read_frame_no_buffer_();
 			if(latest_ack_ == 0xA0 && latest_command_success_)
 			{
 				delay(50);
@@ -861,6 +862,80 @@ bool ld2410::requestFirmwareVersion()
 	leave_configuration_mode_();
 	return false;
 }
+
+
+bool ld2410::read_frame_no_buffer_() {
+    if(radar_uart_->available()) {
+        if(frame_started_ == false) {
+            uint8_t byte_read_ = radar_uart_->read();
+            if(byte_read_ == 0xF4) {
+                radar_data_frame_[radar_data_frame_position_++] = byte_read_;
+                frame_started_ = true;
+                ack_frame_ = false;
+            }
+            else if(byte_read_ == 0xFD) {
+                radar_data_frame_[radar_data_frame_position_++] = byte_read_;
+                frame_started_ = true;
+                ack_frame_ = true;
+            }
+        }
+        else {
+            if(radar_data_frame_position_ < LD2410_MAX_FRAME_LENGTH) {
+                radar_data_frame_[radar_data_frame_position_++] = radar_uart_->read();
+                
+                if(radar_data_frame_position_ > 7) {
+                    // Check data frame end
+                    if( radar_data_frame_[0] == 0xF4 &&
+                        radar_data_frame_[1] == 0xF3 &&
+                        radar_data_frame_[2] == 0xF2 &&
+                        radar_data_frame_[3] == 0xF1 &&
+                        radar_data_frame_[radar_data_frame_position_ - 4] == 0xF8 &&
+                        radar_data_frame_[radar_data_frame_position_ - 3] == 0xF7 &&
+                        radar_data_frame_[radar_data_frame_position_ - 2] == 0xF6 &&
+                        radar_data_frame_[radar_data_frame_position_ - 1] == 0xF5)
+                    {
+                        if(parse_data_frame_()) {
+                            frame_started_ = false;
+                            radar_data_frame_position_ = 0;
+                            return true;
+                        }
+                        else {
+                            frame_started_ = false;
+                            radar_data_frame_position_ = 0;
+                        }
+                    }
+                    // Check command frame end
+                    else if(radar_data_frame_[0] == 0xFD &&
+                            radar_data_frame_[1] == 0xFC &&
+                            radar_data_frame_[2] == 0xFB &&
+                            radar_data_frame_[3] == 0xFA &&
+                            radar_data_frame_[radar_data_frame_position_ - 4] == 0x04 &&
+                            radar_data_frame_[radar_data_frame_position_ - 3] == 0x03 &&
+                            radar_data_frame_[radar_data_frame_position_ - 2] == 0x02 &&
+                            radar_data_frame_[radar_data_frame_position_ - 1] == 0x01)
+                    {
+                        if(parse_command_frame_()) {
+                            frame_started_ = false;
+                            radar_data_frame_position_ = 0;
+                            return true;
+                        }
+                        else {
+                            frame_started_ = false;
+                            radar_data_frame_position_ = 0;
+                        }
+                    }
+                }
+            }
+            else {
+                frame_started_ = false;
+                radar_data_frame_position_ = 0;
+            }
+        }
+    }
+    return false;
+}
+
+
 
 bool ld2410::requestRestart()
 {

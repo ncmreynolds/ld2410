@@ -36,3 +36,4 @@
 examples/basicSensor/debug.cfg
 examples/basicSensor/debug.svd
 examples/basicSensor/debug_custom.json
+*.code-workspace
