@@ -73,7 +73,23 @@ bool requestRestart() - Request a restart of the LD2410. Which is needed to appl
 bool requestFactoryReset() - Request a factory reset of the LD2410. You need to restart afterwards to take effect.
 bool requestStartEngineeringMode() - Request engineering mode, which sends more data on targets.
 bool requestEndEngineeringMode() - Request the end of engineering mode.
+bool enableBluetooth();   - enable Bluetooth
+bool disableBluetooth();  - disbale Bluetooth
+bool getMAC(); - get the Bluetooth MAC address
+uint8_t mac[6] = {0,0,0,0,0,0};
+bool requestResolution(); - get the gate resolution
+uint8_t resolution = 0;
+bool setResolution(uint8_t res); - set the gate resolution (0 or 1)
 ```
+
+## LD2410C
+
+The LD2410C adds both Bluetooth and the concept of gate distance resolution.  
+
+The gate resolution can be either 0 or 1, with 0 signifying a resolution of 0.75 meters and a value of 1 signifying a resolution of 0.20 meters.   Note that the product documentation states, "Factory default value is 0x0001, which is 0.75m.".  This is incorrect, the factory default value is 0x0000, which specifies 0.75m.  The documentation does not state that the module should be restarted when the resolution is changed in order for the change to take effect.  The modules that I have been using seem to need to be restarted after changing the gate resolution.  The gate resolution can be queried, and returns either a 0 or a 1.
+
+The Bluetooth can be enabled or disabled.  As per the product documentation, the module does need to be restarted in order for the change to take effect.  The MAC address for the Bluetooth can be queried.  Although not stated in the product documentation, the Bluetooth must be enabled when querying the MAC address.
+
 
 ## Changelog
 
