@@ -361,8 +361,8 @@ bool ld2410::parse_data_frame_() {
         target_type_ = radar_data_frame_[8];
 
         // Estrai distanze e energie dei bersagli
-        stationary_target_distance_ = *(uint16_t*)(&radar_data_frame_[9]);
-        moving_target_distance_ = *(uint16_t*)(&radar_data_frame_[15]);
+        stationary_target_distance_ = *(uint16_t*)(&radar_data_frame_[12]);
+        moving_target_distance_ = *(uint16_t*)(&radar_data_frame_[9]);
         stationary_target_energy_ = radar_data_frame_[14];
         moving_target_energy_ = radar_data_frame_[11];
 
