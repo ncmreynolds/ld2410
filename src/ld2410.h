@@ -287,7 +287,8 @@ class ld2410	{
 
 		void add_to_buffer(uint8_t byte);
 		bool read_from_buffer(uint8_t &byte);
-		bool check_frame_end_();
+		bool check_frame_start_();							//Validate F4F3F2F1 / FDFCFBFA at buffer[0..3]
+		bool check_frame_end_();							//Validate F8F7F6F5 / 04030201 at buffer[position-4..position-1]
 		
 		bool read_frame_();		
 		bool parse_data_frame_();										//Is the current data frame valid?

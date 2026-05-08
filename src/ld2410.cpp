@@ -14,6 +14,7 @@
 #define ld2410_cpp
 #include "ld2410.h"
 #include "ld2410_frame.h"
+#include <string.h>
 ld2410::ld2410()	//Constructor function
 {
 }
@@ -311,17 +312,19 @@ bool ld2410::engineeringRetrieved() {
 }
 
 
-bool ld2410::check_frame_end_() {
+// Validate the 4-byte header magic at the start of the buffer. Stage A of
+// read_frame_() already validates these byte-by-byte during accumulation, so
+// this is a defensive post-hoc check (e.g. against a hypothetical buffer
+// corruption between accumulation and frame finalisation).
+bool ld2410::check_frame_start_() {
     const uint8_t *head = ack_frame_ ? LD2410_CMD_FRAME_HEAD : LD2410_DATA_FRAME_HEAD;
+    return memcmp(radar_data_frame_, head, 4) == 0;
+}
+
+// Validate the 4-byte trailer magic at the end of the assembled frame.
+bool ld2410::check_frame_end_() {
     const uint8_t *tail = ack_frame_ ? LD2410_CMD_FRAME_TAIL : LD2410_DATA_FRAME_TAIL;
-    return (radar_data_frame_[0] == head[0] &&
-            radar_data_frame_[1] == head[1] &&
-            radar_data_frame_[2] == head[2] &&
-            radar_data_frame_[3] == head[3] &&
-            radar_data_frame_[radar_data_frame_position_ - 4] == tail[0] &&
-            radar_data_frame_[radar_data_frame_position_ - 3] == tail[1] &&
-            radar_data_frame_[radar_data_frame_position_ - 2] == tail[2] &&
-            radar_data_frame_[radar_data_frame_position_ - 1] == tail[3]);
+    return memcmp(&radar_data_frame_[radar_data_frame_position_ - 4], tail, 4) == 0;
 }
 
 void ld2410::print_frame_()
@@ -425,11 +428,11 @@ bool ld2410::read_frame_() {
         const uint16_t total = intra + 10;
         if (radar_data_frame_position_ < total) continue;
 
-        // Frame fully received. Validate footer once at the known position.
-        const bool footer_ok = check_frame_end_();
+        // Frame fully received. Validate envelope (header + footer) at known positions.
+        const bool envelope_ok = check_frame_start_() && check_frame_end_();
         const bool was_ack   = ack_frame_;
         bool ok = false;
-        if (footer_ok) {
+        if (envelope_ok) {
             ok = was_ack ? parse_command_frame_() : parse_data_frame_();
         }
         radar_data_frame_position_ = 0;
