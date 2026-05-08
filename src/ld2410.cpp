@@ -1317,11 +1317,11 @@ FrameData ld2410::getFrameData() const {
     uint16_t frame_length = last_valid_frame_length;
 
     // Verifica dell'header
-    if (radar_data_frame_[0] != 0xF4 || 
-        radar_data_frame_[1] != 0xF3 || 
-        radar_data_frame_[2] != 0xF2 || 
-        radar_data_frame_[3] != 0xF1) {
-        // Header non valido
+    // Verify data-frame header — same constants as check_frame_start_(),
+    // applied here directly because getFrameData() is const-correct (the
+    // helper isn't) and is fixed to data-frame magic (no ack_frame_
+    // branching needed).
+    if (memcmp(radar_data_frame_, LD2410_DATA_FRAME_HEAD, 4) != 0) {
         return {nullptr, 0};
     }
 
@@ -1338,12 +1338,11 @@ FrameData ld2410::getFrameData() const {
         return {nullptr, 0};
     }
 
-    // Verifica del footer
-    if (radar_data_frame_[frame_length - 4] != 0xF8 || 
-        radar_data_frame_[frame_length - 3] != 0xF7 || 
-        radar_data_frame_[frame_length - 2] != 0xF6 || 
-        radar_data_frame_[frame_length - 1] != 0xF5) {
-        // Footer non valido
+    // Verify data-frame footer at the runtime-determined length
+    // (frame_length is clamped to last_valid_frame_length above, so it
+    // may be < radar_data_frame_position_ — that is why this does NOT
+    // call check_frame_end_(), which uses the live position).
+    if (memcmp(&radar_data_frame_[frame_length - 4], LD2410_DATA_FRAME_TAIL, 4) != 0) {
         return {nullptr, 0};
     }
 
