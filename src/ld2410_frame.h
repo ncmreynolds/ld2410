@@ -47,4 +47,21 @@ inline void ld2410_write_cmd_frame_tail(Stream * uart) {
 	uart->write(LD2410_CMD_FRAME_TAIL[3]);
 }
 
+// Helpers for emitting little-endian multi-byte values onto the radar UART.
+// The protocol uses LE consistently for length fields, command words, and
+// parameter values; centralising the byte split here lets call sites read
+// at the level of the protocol (a 16-bit param word) instead of the wire
+// (two raw bytes) and avoids the "& 0xFF / >> 8" boilerplate.
+inline void ld2410_write_le16(Stream * uart, uint16_t value) {
+	uart->write((uint8_t)(value & 0xFF));
+	uart->write((uint8_t)((value >> 8) & 0xFF));
+}
+
+inline void ld2410_write_le32(Stream * uart, uint32_t value) {
+	uart->write((uint8_t)(value & 0xFF));
+	uart->write((uint8_t)((value >> 8) & 0xFF));
+	uart->write((uint8_t)((value >> 16) & 0xFF));
+	uart->write((uint8_t)((value >> 24) & 0xFF));
+}
+
 #endif
