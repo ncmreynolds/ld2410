@@ -13,13 +13,7 @@
 #ifndef ld2410_cpp
 #define ld2410_cpp
 #include "ld2410.h"
-
-// Magic header bytes for the two frame kinds. The protocol document
-// (HLK-LD2410C V1.00 §2.3) defines them as fixed 4-byte preambles; the
-// parser validates all four bytes before committing to a frame.
-static const uint8_t LD2410_DATA_HDR[4] = {0xF4, 0xF3, 0xF2, 0xF1};
-static const uint8_t LD2410_CMD_HDR[4]  = {0xFD, 0xFC, 0xFB, 0xFA};
-
+#include "ld2410_frame.h"
 ld2410::ld2410()	//Constructor function
 {
 }
@@ -402,7 +396,7 @@ bool ld2410::read_frame_() {
         }
 
         if (pos < 4) {
-            const uint8_t expected = (ack_frame_ ? LD2410_CMD_HDR : LD2410_DATA_HDR)[pos];
+            const uint8_t expected = (ack_frame_ ? LD2410_CMD_FRAME_HEAD : LD2410_DATA_FRAME_HEAD)[pos];
             if (byte_read == expected) {
                 radar_data_frame_[pos] = byte_read;
                 radar_data_frame_position_ = pos + 1;
@@ -950,46 +944,38 @@ bool ld2410::parse_command_frame_()
 
 void ld2410::send_command_preamble_()
 {
-	//Command preamble
-	radar_uart_->write((byte)0xFD);
-	radar_uart_->write((byte)0xFC);
-	radar_uart_->write((byte)0xFB);
-	radar_uart_->write((byte)0xFA);
+	ld2410_write_cmd_frame_head(radar_uart_);
 }
 
 void ld2410::send_command_postamble_()
 {
-	//Command end
-	radar_uart_->write((byte)0x04);
-	radar_uart_->write((byte)0x03);
-	radar_uart_->write((byte)0x02);
-	radar_uart_->write((byte)0x01);
+	ld2410_write_cmd_frame_tail(radar_uart_);
 }
 
 bool ld2410::enter_configuration_mode_()
 {
-	begin_command_(0xFF);
+	begin_command_(LD2410_OP_ENABLE_CFG);
 	send_command_preamble_();
 	radar_uart_->write((byte) 0x04);	//Command is four bytes long
 	radar_uart_->write((byte) 0x00);
-	radar_uart_->write((byte) 0xFF);	//Request enter command mode
+	radar_uart_->write((byte) LD2410_OP_ENABLE_CFG);	//Request enter command mode
 	radar_uart_->write((byte) 0x00);
 	radar_uart_->write((byte) 0x01);
 	radar_uart_->write((byte) 0x00);
 	send_command_postamble_();
-	return wait_for_ack_(0xFF, radar_uart_command_timeout_);
+	return wait_for_ack_(LD2410_OP_ENABLE_CFG, radar_uart_command_timeout_);
 }
 
 bool ld2410::leave_configuration_mode_()
 {
-	begin_command_(0xFE);
+	begin_command_(LD2410_OP_END_CFG);
 	send_command_preamble_();
 	radar_uart_->write((byte) 0x02);	//Command is two bytes long
 	radar_uart_->write((byte) 0x00);
-	radar_uart_->write((byte) 0xFE);	//Request leave command mode
+	radar_uart_->write((byte) LD2410_OP_END_CFG);	//Request leave command mode
 	radar_uart_->write((byte) 0x00);
 	send_command_postamble_();
-	return wait_for_ack_(0xFE, radar_uart_command_timeout_);
+	return wait_for_ack_(LD2410_OP_END_CFG, radar_uart_command_timeout_);
 }
 
 #ifdef LD2410_HAS_ENGINEERING_MODE
@@ -1005,14 +991,14 @@ bool ld2410::requestStartEngineeringMode()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(0x62);
+		begin_command_(LD2410_OP_START_ENGINEERING);
 		send_command_preamble_();
 		radar_uart_->write((byte) 0x02);	//Command is two bytes long
 		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) 0x62);	//Request enter engineering mode
+		radar_uart_->write((byte) LD2410_OP_START_ENGINEERING);	//Request enter engineering mode
 		radar_uart_->write((byte) 0x00);
 		send_command_postamble_();
-		bool ok = wait_for_ack_(0x62, radar_uart_command_timeout_);
+		bool ok = wait_for_ack_(LD2410_OP_START_ENGINEERING, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;
@@ -1031,14 +1017,14 @@ bool ld2410::requestEndEngineeringMode()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(0x63);
+		begin_command_(LD2410_OP_END_ENGINEERING);
 		send_command_preamble_();
 		radar_uart_->write((byte) 0x02);	//Command is two bytes long
 		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) 0x63);	//Request leave engineering mode
+		radar_uart_->write((byte) LD2410_OP_END_ENGINEERING);	//Request leave engineering mode
 		radar_uart_->write((byte) 0x00);
 		send_command_postamble_();
-		bool ok = wait_for_ack_(0x63, radar_uart_command_timeout_);
+		bool ok = wait_for_ack_(LD2410_OP_END_ENGINEERING, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;
@@ -1057,14 +1043,14 @@ bool ld2410::requestCurrentConfiguration()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(0x61);
+		begin_command_(LD2410_OP_READ_PARAMS);
 		send_command_preamble_();
 		radar_uart_->write((byte) 0x02);	//Command is two bytes long
 		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) 0x61);	//Request current configuration
+		radar_uart_->write((byte) LD2410_OP_READ_PARAMS);	//Request current configuration
 		radar_uart_->write((byte) 0x00);
 		send_command_postamble_();
-		bool ok = wait_for_ack_(0x61, radar_uart_command_timeout_);
+		bool ok = wait_for_ack_(LD2410_OP_READ_PARAMS, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;
@@ -1082,14 +1068,14 @@ bool ld2410::requestFirmwareVersion()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(0xA0);
+		begin_command_(LD2410_OP_FIRMWARE_VERSION);
 		send_command_preamble_();
 		radar_uart_->write((byte) 0x02);	//Command is two bytes long
 		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) 0xA0);	//Request firmware version
+		radar_uart_->write((byte) LD2410_OP_FIRMWARE_VERSION);	//Request firmware version
 		radar_uart_->write((byte) 0x00);
 		send_command_postamble_();
-		bool ok = wait_for_ack_(0xA0, radar_uart_command_timeout_);
+		bool ok = wait_for_ack_(LD2410_OP_FIRMWARE_VERSION, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;
@@ -1109,14 +1095,14 @@ bool ld2410::requestRestart()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(0xA3);
+		begin_command_(LD2410_OP_RESTART);
 		send_command_preamble_();
 		radar_uart_->write((byte) 0x02);	//Command is two bytes long
 		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) 0xA3);	//Request restart
+		radar_uart_->write((byte) LD2410_OP_RESTART);	//Request restart
 		radar_uart_->write((byte) 0x00);
 		send_command_postamble_();
-		bool ok = wait_for_ack_(0xA3, radar_uart_command_timeout_);
+		bool ok = wait_for_ack_(LD2410_OP_RESTART, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		if (ok) {
@@ -1168,14 +1154,14 @@ bool ld2410::requestFactoryReset()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(0xA2);
+		begin_command_(LD2410_OP_FACTORY_RESET);
 		send_command_preamble_();
 		radar_uart_->write((byte) 0x02);	//Command is two bytes long
 		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) 0xA2);	//Request factory reset
+		radar_uart_->write((byte) LD2410_OP_FACTORY_RESET);	//Request factory reset
 		radar_uart_->write((byte) 0x00);
 		send_command_postamble_();
-		bool ok = wait_for_ack_(0xA2, radar_uart_command_timeout_);
+		bool ok = wait_for_ack_(LD2410_OP_FACTORY_RESET, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;
@@ -1194,11 +1180,11 @@ bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactiv
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(0x60);
+		begin_command_(LD2410_OP_SET_MAX_VALUES);
 		send_command_preamble_();
 		radar_uart_->write((byte) 0x14);	//Command is 20 bytes long
 		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) 0x60);	//Request set max values
+		radar_uart_->write((byte) LD2410_OP_SET_MAX_VALUES);	//Request set max values
 		radar_uart_->write((byte) 0x00);
 		radar_uart_->write((byte) 0x00);	//Moving gate command
 		radar_uart_->write((byte) 0x00);
@@ -1219,7 +1205,7 @@ bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactiv
 		radar_uart_->write((byte) 0x00);	//Spacer
 		radar_uart_->write((byte) 0x00);
 		send_command_postamble_();
-		bool ok = wait_for_ack_(0x60, radar_uart_command_timeout_);
+		bool ok = wait_for_ack_(LD2410_OP_SET_MAX_VALUES, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;
@@ -1238,11 +1224,11 @@ bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t s
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(0x64);
+		begin_command_(LD2410_OP_GATE_SENSITIVITY);
 		send_command_preamble_();
 		radar_uart_->write((byte) 0x14);	//Command is 20 bytes long
 		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) 0x64);	//Request set sensitivity values
+		radar_uart_->write((byte) LD2410_OP_GATE_SENSITIVITY);	//Request set sensitivity values
 		radar_uart_->write((byte) 0x00);
 		radar_uart_->write((byte) 0x00);	//Gate command
 		radar_uart_->write((byte) 0x00);
@@ -1263,7 +1249,7 @@ bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t s
 		radar_uart_->write((byte) 0x00);	//Spacer
 		radar_uart_->write((byte) 0x00);
 		send_command_postamble_();
-		bool ok = wait_for_ack_(0x64, radar_uart_command_timeout_);
+		bool ok = wait_for_ack_(LD2410_OP_GATE_SENSITIVITY, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;

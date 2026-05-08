@@ -128,9 +128,9 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 4 | `src/ld2410_variants/ld2410_s.h` — S standalone (UNVERIFIED) | ✅ done (commits `f79816f`, `c184679`) |
 | 5 | Variant dispatcher + variant-aware buffer sizing in `ld2410.h` | ✅ done (commits `cfaca07`, `b53b9f7`) |
 | 5b | Debug flags made opt-in | ✅ done (commit `ccc9800`) |
-| **6** | **Apply `LD2410_HAS_*` gates to existing `class ld2410` methods + .cpp definitions + parse_command_frame_ branches** | 🚧 in progress |
-| 7 | `CommandTransaction` lock for concurrency safety across `request*/set*` calls | pending |
-| 8 | Refactor `request*/set*` to use `LD2410_OP_*` macros and dispatch FW-version opcode by variant | pending |
+| 6 | Apply `LD2410_HAS_*` gates to existing `class ld2410` methods + .cpp definitions + parse_command_frame_ branches | ✅ done (commit `95e22dd`) |
+| 7 | `CommandTransaction` lock for concurrency safety across `request*/set*` calls | ✅ done (commit `f7f9089`) |
+| **8** | **Refactor `request*/set*` to use `LD2410_OP_*` macros + use `frame.h` helpers in send_command_preamble_/postamble_** | 🚧 in progress |
 | 9 | Refactor `parse_command_frame_` to use opcode macros + drop dead branches per variant | pending |
 | 10 | Refactor `parse_data_frame_` for variant-aware gates: 16-gate inline (S), data type `0x03`, minimal frame `6E…62` | pending — blocking for S support |
 | 11a | Add `setBaudRate()` for base/C (regression fix) | pending |
