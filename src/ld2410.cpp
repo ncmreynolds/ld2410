@@ -1034,6 +1034,38 @@ bool ld2410::parse_command_frame_()
 		}
 	}
 #endif
+#ifdef LD2410_HAS_BAUD_RATE
+	// HLK-LD2410 §2.2.9 — baud-rate ACK is 4-byte intra (cmd-word + 2-byte
+	// status). Identical envelope to setMaxValues / restart / factory-reset.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_SET_BAUD_RATE)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for setting baud rate: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+#endif
 #ifdef LD2410_HAS_FACTORY_RESET
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_FACTORY_RESET)
 	{
@@ -1334,6 +1366,39 @@ bool ld2410::requestFactoryReset()
 		radar_uart_->write((byte) 0x00);
 		send_command_postamble_();
 		bool ok = wait_for_ack_(LD2410_OP_FACTORY_RESET, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_BAUD_RATE
+// 0xA1 §2.2.9 — set serial port baud rate (base/C only).
+// Send: cmd-word + 2-byte LE index (LD2410_BAUD_INDEX_*). Intra length = 4.
+// ACK : cmd-word + 2-byte LE status. Intra length = 4 — handled in
+//       parse_command_frame_ via the LD2410_OP_SET_BAUD_RATE branch.
+// The new baud takes effect only after a module restart; the caller is
+// responsible for reopening the host UART at the matching rate.
+// See docs/method-coverage.md Table 1 row 0xA1 (regression vs v0.1.3,
+// upstream issue #39).
+bool ld2410::setBaudRate(uint16_t baud_index)
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_SET_BAUD_RATE);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0004);                              // intra-frame data length (4 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_SET_BAUD_RATE);             // command word (LE)
+		ld2410_write_le16(radar_uart_, baud_index);                          // baud-rate index (LE)
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_SET_BAUD_RATE, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;

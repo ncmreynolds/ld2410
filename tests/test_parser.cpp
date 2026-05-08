@@ -415,6 +415,50 @@ static void test_command_seq() {
     std::printf("ok\n");
 }
 
+// Test: setBaudRate(LD2410_BAUD_INDEX_256000) — opcode 0xA1.
+// Inject ACKs in radar order (enter-config, set-baud, leave-config); all
+// three must succeed. Closes regression vs v0.1.3 (upstream issue #39).
+static void test_command_set_baud_rate() {
+    std::printf("test_command_set_baud_rate ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0xA1, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+
+    bool ok = r.setBaudRate(LD2410_BAUD_INDEX_256000);
+    CHECK(ok);
+    std::printf("ok\n");
+}
+
+// Test: setBaudRate must report failure if the radar replies with a
+// non-zero ACK status word. Same envelope as success but with
+// status bytes set to 0xFF 0xFF.
+static void test_command_set_baud_rate_failure() {
+    std::printf("test_command_set_baud_rate_failure ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+
+    // Build a failure ACK: 0xA1 cmd-word, 0xFFFF status (instead of 0x0000).
+    std::vector<uint8_t> bad_ack = {
+        0xFD, 0xFC, 0xFB, 0xFA,
+        0x04, 0x00,
+        0xA1, 0x01,
+        0xFF, 0xFF,                 // status: failure
+        0x04, 0x03, 0x02, 0x01
+    };
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(bad_ack);
+    s.inject_response(make_short_ack(0xFE, 4));
+
+    bool ok = r.setBaudRate(LD2410_BAUD_INDEX_57600);
+    CHECK(!ok);
+    std::printf("ok\n");
+}
+
 // Test: completely silent UART -> command must time out cleanly (no
 // infinite loop, no field corruption).
 static void test_command_no_ack() {
@@ -842,6 +886,8 @@ int main() {
     test_command_ack_stale();
     test_command_seq();
     test_command_no_ack();
+    test_command_set_baud_rate();
+    test_command_set_baud_rate_failure();
     test_lone_F4_not_a_header();
     test_resync_F4_at_wrong_position();
     test_no_early_termination_on_payload_footer();

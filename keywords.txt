@@ -19,6 +19,7 @@ requestStartEngineeringMode	KEYWORD2
 requestEndEngineeringMode	KEYWORD2
 setMaxValues	KEYWORD2
 setGateSensitivityThreshold	KEYWORD2
+setBaudRate	KEYWORD2
 getFrameData	KEYWORD2
 detectionDistance	KEYWORD2
 movingEnergyAtGate	KEYWORD2

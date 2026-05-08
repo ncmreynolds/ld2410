@@ -36,7 +36,7 @@ Legend:
 | `0x63` | §2.2.6 base/C | Close engineering mode | ✅ | ✅ | — | `requestEndEngineeringMode()` | `LD2410_HAS_ENGINEERING_MODE` |
 | `0x64` | §2.2.7 base/C | Range gate sensitivity | ✅ | ✅ | — | `setGateSensitivityThreshold(gate, moving, stationary)` | `LD2410_HAS_GATE_SENSITIVITY` |
 | `0xA0` (base/C) / `0x00` (S) | §2.2.8 base/C, §2.2.2 S | Read firmware version | ✅ | ✅ | ✅ | `requestFirmwareVersion()` — variant-aware send opcode (step 8) and variant-aware ACK length/offsets (step 9). On S, major/minor 16-bit values are stored as their LE low byte into the existing uint8_t fields; patch is stored full-width 16-bit in firmware_bugfix_version. | `LD2410_HAS_FIRMWARE_VERSION` |
-| `0xA1` | §2.2.9 base/C | Set serial port baud rate | ❌ | ❌ | — | *missing* (regression vs v0.1.3, upstream issue #39) | `LD2410_HAS_BAUD_RATE` |
+| `0xA1` | §2.2.9 base/C | Set serial port baud rate | ✅ | ✅ | — | `setBaudRate(uint16_t baud_index)` — index from `LD2410_BAUD_INDEX_*`; takes effect after restart | `LD2410_HAS_BAUD_RATE` |
 | `0xA2` | §2.2.10 base/C | Factory reset | ✅ | ✅ | — | `requestFactoryReset()` | `LD2410_HAS_FACTORY_RESET` |
 | `0xA3` | §2.2.11 base/C | Restart module | ✅ | ✅ | — | `requestRestart()` (with 800 ms reboot blackout for ESP32 autoReadTask) | `LD2410_HAS_RESTART` |
 | `0xA4` | §2.2.12 C | Bluetooth on/off | — | ❌ | — | *missing* (regression vs v0.1.3) | `LD2410_HAS_BLUETOOTH` |
@@ -73,16 +73,13 @@ Legend:
 ## Table 3 — Per-variant missing capabilities (priority-ordered)
 
 ### LD2410 base
-| Missing | Opcode | Severity |
-|---|---|---|
-| `setBaudRate()` | `0xA1` | regression vs v0.1.3 (upstream issue #39) |
+*All documented commands now exposed.*
 
-→ **1 capability missing**.
+→ **0 capabilities missing**.
 
 ### LD2410C
 | Missing | Opcode | Severity |
 |---|---|---|
-| `setBaudRate()` | `0xA1` | regression vs v0.1.3 |
 | `setBluetooth()` | `0xA4` | regression vs v0.1.3 |
 | `getMACAddress()` | `0xA5` | regression vs v0.1.3 |
 | `obtainBluetoothPermissions()` | `0xA8` | never exposed |
@@ -90,7 +87,7 @@ Legend:
 | `setDistanceResolution()` | `0xAA` | regression vs v0.1.3 |
 | `getDistanceResolution()` | `0xAB` | regression vs v0.1.3 |
 
-→ **7 capabilities missing** (5 are regressions vs v0.1.3).
+→ **6 capabilities missing** (4 are regressions vs v0.1.3).
 
 ### LD2410S
 Almost everything is missing — only enter/leave configuration currently
@@ -136,7 +133,7 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 10-min | Refactor `parse_data_frame_` + `check_frame_end_` + `read_frame_` to use frame.h constants; engineering arrays sized via `LD2410_GATE_COUNT`; S `data type 0x01` (standard) decode | ✅ done (this commit) |
 | 10b | Add S auto-threshold-progress (`data type 0x03`) parsing + `autoThresholdProgress()`/`autoThresholdReceived()` accessors | ✅ done (this commit) |
 | 10c | Add S minimal frame (`6E … 62`) parsing — `read_frame_` recognises 3 header types; new `parse_minimal_frame_` private method | ✅ done (this commit) |
-| 11a | Add `setBaudRate()` for base/C (regression fix) | pending |
+| 11a | Add `setBaudRate()` for base/C (regression fix, upstream issue #39) | ✅ done (this commit) |
 | 11b | Add `setBluetooth/getMACAddress/setDistanceResolution/getDistanceResolution` for C (regression fixes) | pending |
 | 11c | Add `setBluetoothPassword/obtainBluetoothPermissions` for C | pending (low priority) |
 | 11d | Add 11 S commands (`setOutputMode`, `write/readTriggerThreshold`, `write/readHoldThreshold`, `autoUpdateThreshold`, `write/readSerialNumber`, `write/readGenericParams`) | pending — blocking for S support |

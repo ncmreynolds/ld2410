@@ -203,6 +203,18 @@ class ld2410	{
 		bool requestFactoryReset();
 #endif
 
+#ifdef LD2410_HAS_BAUD_RATE
+		// 0xA1 §2.2.9 — set serial port baud rate. base/C only.
+		// (S has no 0xA1 command — its baud is fixed at the variant default.)
+		// Pass one of the LD2410_BAUD_INDEX_* constants from the variant
+		// header (e.g. LD2410_BAUD_INDEX_256000 = 0x0007). Setting is
+		// non-volatile and takes effect after the next module restart;
+		// the host UART must be reopened at the new rate before further I/O.
+		// See docs/method-coverage.md Table 1 row 0xA1 (closes regression
+		// vs v0.1.3, upstream issue #39).
+		bool setBaudRate(uint16_t baud_index);
+#endif
+
 #ifdef LD2410_HAS_ENGINEERING_MODE
 		// 0x62 §2.2.5 / 0x63 §2.2.6 — enable / close engineering mode.
 		// base/C only. (S standard frame already includes per-gate energies
