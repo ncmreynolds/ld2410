@@ -80,9 +80,49 @@
 #ifndef LD2410_BUFFER_SIZE
 #  define LD2410_BUFFER_SIZE (4 * LD2410_MAX_FRAME_LENGTH)
 #endif
-//#define LD2410_DEBUG_DATA
-#define LD2410_DEBUG_COMMANDS
-//#define LD2410_DEBUG_PARSE
+// ---- Debug flags ----------------------------------------------------------
+// Compile-time gates for verbose Serial output via the user-provided
+// debug stream (set with radar.debug(Stream&) at runtime). When a flag
+// is NOT defined, the corresponding debug code paths are completely
+// removed at compile time — no runtime overhead, no flash cost.
+//
+// All four flags are OFF by default. To enable, define the macro BEFORE
+// #include <ld2410.h> in your sketch, or pass it via build flags:
+//
+//     // in the .ino, BEFORE the include
+//     #define LD2410_DEBUG_COMMANDS
+//     #include <ld2410.h>
+//
+//     // PlatformIO
+//     build_flags = -DLD2410_DEBUG_COMMANDS
+//
+//     // arduino-cli
+//     --build-property "compiler.cpp.extra_flags=-DLD2410_DEBUG_COMMANDS"
+//
+// Categories:
+//   LD2410_DEBUG_COMMANDS  log every command sent + ACK received   [ACTIVE]
+//   LD2410_DEBUG_DATA      dump every parsed data frame           [reserved]
+//   LD2410_DEBUG_PARSE     trace the byte-level parser state      [reserved]
+//   LD2410_DEBUG           meta-flag — turns on all three above
+//
+// "[ACTIVE]" means the .cpp currently gates code on this flag. The
+// "[reserved]" flags are recognised here for forward compatibility but
+// no code in the current .cpp gates on them — defining them is harmless
+// but produces no extra output yet.
+//
+// At runtime each gate is also conditional on a non-null debug stream,
+// so #define-ing a flag is harmless if radar.debug(...) is never called.
+#if defined(LD2410_DEBUG)
+#  ifndef LD2410_DEBUG_DATA
+#    define LD2410_DEBUG_DATA
+#  endif
+#  ifndef LD2410_DEBUG_COMMANDS
+#    define LD2410_DEBUG_COMMANDS
+#  endif
+#  ifndef LD2410_DEBUG_PARSE
+#    define LD2410_DEBUG_PARSE
+#  endif
+#endif
 
 struct FrameData {
     const uint8_t* data;
