@@ -20,13 +20,29 @@
 // ---- Variant identification -----------------------------------------------
 #define LD2410_VARIANT_NAME "LD2410"
 
-// ---- Distance gates (HLK §1.2.2) ------------------------------------------
-// 9 gates (indices 0..8) at 0.75 m each. Settable max gate range is 1..8.
-// Gates 0 and 1 cannot have stationary sensitivity set (factory-locked).
-#define LD2410_GATE_COUNT          9
-#define LD2410_GATE_FIRST          0
-#define LD2410_GATE_LAST           8
-#define LD2410_GATE_WIDTH_CM       75    // 0.75 m
+// ---- Distance gates (HLK §1.2.2 + §2.2.3) ---------------------------------
+// 9 gates at 0.75 m each. Two distinct ranges apply, do NOT confuse them:
+//
+//   1. Gate INDICES — used for array storage (motion_sensitivity[i],
+//      stationary_sensitivity[i], engineering-frame Table 14 offsets) and
+//      as the gate selector in the 0x64 per-gate sensitivity command:
+//      valid range is 0..8 (9 values).
+//
+//   2. Max-distance-gate VALUES — sent as the parameter value of the 0x60
+//      command parameter words LD2410_PARAM_MAX_MOVING /
+//      LD2410_PARAM_MAX_STATIONARY: valid range is 1..8. Sending 0 is
+//      rejected by the radar (HLK §1.2.2: "the setting range is 1 to 8";
+//      see also upstream issue #28).
+//
+// Stationary sensitivity for gates 0 and 1 is factory-locked (HLK Table 7);
+// the 0x64 command accepts it but the value is ignored by the firmware.
+#define LD2410_GATE_COUNT             9
+#define LD2410_GATE_INDEX_FIRST       0
+#define LD2410_GATE_INDEX_LAST        8
+#define LD2410_GATE_WIDTH_CM          75   // 0.75 m
+
+#define LD2410_MAX_GATE_MIN           1
+#define LD2410_MAX_GATE_MAX           8
 
 // ---- UART defaults --------------------------------------------------------
 // 57600 since protocol V1.03 (2023-03-22). V1.02 used a different default.
