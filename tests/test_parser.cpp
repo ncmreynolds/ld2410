@@ -110,6 +110,7 @@ static void drain(ld2410& r, MockSerial& s) {
 //   stationary distance=0, stationary energy=0x3B=59,
 //   detection distance=0
 // ---------------------------------------------------------------------------
+#if !defined(LD2410_VARIANT_S)
 static void test_basic_frame() {
     std::printf("test_basic_frame ... ");
     ld2410 r;
@@ -545,8 +546,111 @@ static void test_resync_after_bogus_length() {
     CHECK_EQ((int)r.movingTargetDistance(), 81);
     std::printf("ok\n");
 }
+#endif // !LD2410_VARIANT_S
+
+
+#if defined(LD2410_VARIANT_S)
+// ---------------------------------------------------------------------------
+// S Test 1: standard data frame (HLK-LD2410S §2.1 Table 2-1).
+//
+// Layout (all offsets as full-frame indices after F4 F3 F2 F1):
+//   [4-5]  intra-frame data length = 70 (LE: 0x46 0x00)
+//   [6]    data type = LD2410_DATA_TYPE_STANDARD (0x01)
+//   [7]    target state (0/1=no one, 2/3=present)
+//   [8-9]  object distance (cm, LE)
+//   [10-11] reserved bits
+//   [12..43] motion energies for gates 0..15 (1 B each — first half of the
+//            documented 64 B per-gate block; layout is unverified on HW)
+//   [44..75] stationary energies for gates 0..15 + 16 B remainder unread
+//   [76..79] frame end F8 F7 F6 F5
+//
+// The remaining 32 B of the 64 B per-gate block (offsets [60..75]) are
+// padded with 0xFF to confirm parse_data_frame_ does NOT consume them.
+// ---------------------------------------------------------------------------
+static void test_s_standard_frame() {
+    std::printf("test_s_standard_frame ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x46, 0x00,                                    // intra length = 70
+        0x01,                                          // data type STANDARD
+        0x02,                                          // target state = 2 (present)
+        0xC8, 0x00,                                    // object distance = 200 cm
+        0x00, 0x00,                                    // reserved bits
+        // motion gates 0..15 (16 B)
+        0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80,
+        0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+        // stationary gates 0..15 (16 B)
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
+        // remaining 32 B of the 64 B documented block — must NOT be consumed
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+
+    // Object distance is reported via detectionDistance() on S (single distance field).
+    CHECK_EQ((int)r.detectionDistance(), 200);
+    // base/C-only fields are zero on S.
+    CHECK_EQ((int)r.movingTargetDistance(), 0);
+    CHECK_EQ((int)r.movingTargetEnergy(), 0);
+    CHECK_EQ((int)r.stationaryTargetDistance(), 0);
+    CHECK_EQ((int)r.stationaryTargetEnergy(), 0);
+    // Target state byte goes into target_type_, accessor exposed via presenceDetected().
+    CHECK(r.presenceDetected());
+
+    int expected_motion[16]     = {0x10,0x20,0x30,0x40,0x50,0x60,0x70,0x80,
+                                    0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88};
+    int expected_stationary[16] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+                                    0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F,0x10};
+    for (uint8_t g = 0; g < LD2410_GATE_COUNT; g++) {
+        CHECK_EQ((int)r.movingEnergyAtGate(g),     expected_motion[g]);
+        CHECK_EQ((int)r.stationaryEnergyAtGate(g), expected_stationary[g]);
+    }
+    // Out-of-range gate must return 0 (S has 16 gates, indexed 0..15).
+    CHECK_EQ((int)r.movingEnergyAtGate(LD2410_GATE_COUNT), 0);
+    CHECK_EQ((int)r.stationaryEnergyAtGate(255), 0);
+    CHECK(r.engineeringRetrieved());
+
+    std::printf("ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// S Test 2: a frame with the wrong intra length (e.g. 35 = base/C eng size)
+// must be rejected on -DLD2410_VARIANT_S.
+// ---------------------------------------------------------------------------
+static void test_s_rejects_basec_engineering_length() {
+    std::printf("test_s_rejects_basec_engineering_length ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x23, 0x00,                                    // intra length = 35 (base/C engineering)
+        0x01,                                          // data type STANDARD on S
+        0xAA,                                          // 0xAA — base/C intra head; doesn't matter on S
+        0x03, 0x1E, 0x00, 0x3C, 0x00, 0x00, 0x39, 0x00, 0x00,
+        0x08, 0x08,
+        0x3C, 0x22, 0x05, 0x03, 0x03, 0x04, 0x03, 0x06, 0x05,
+        0x00, 0x00, 0x39, 0x10, 0x13, 0x06, 0x06, 0x08, 0x04,
+        0x03, 0x05, 0x55, 0x00,
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+    // Frame must be rejected — fields stay at their pre-frame defaults (0).
+    CHECK_EQ((int)r.detectionDistance(), 0);
+    CHECK(!r.engineeringRetrieved());
+    std::printf("ok\n");
+}
+#endif   // LD2410_VARIANT_S
 
 int main() {
+#if !defined(LD2410_VARIANT_S)
     test_basic_frame();
     test_engineering_frame();
     test_invalid_data_type();
@@ -560,6 +664,10 @@ int main() {
     test_resync_F4_at_wrong_position();
     test_no_early_termination_on_payload_footer();
     test_resync_after_bogus_length();
+#else
+    test_s_standard_frame();
+    test_s_rejects_basec_engineering_length();
+#endif
 
     if (failures == 0) {
         std::printf("\nALL TESTS PASS\n");

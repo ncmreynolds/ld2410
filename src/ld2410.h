@@ -269,8 +269,8 @@ class ld2410	{
 		uint8_t stationary_target_energy_ = 0;
     	uint16_t last_valid_frame_length = 0;
 		uint16_t detection_distance_ = 0;
-		uint8_t engineering_motion_energy_[9] = {0,0,0,0,0,0,0,0,0};
-		uint8_t engineering_stationary_energy_[9] = {0,0,0,0,0,0,0,0,0};
+		uint8_t engineering_motion_energy_[LD2410_GATE_COUNT] = {};      // 9 on base/C, 16 on S — see variants/*.h
+		uint8_t engineering_stationary_energy_[LD2410_GATE_COUNT] = {};
 		bool engineering_data_received_ = false;
 		uint8_t cmd_seq_ = 0;											//Monotonic counter; bumped before each command issue
 		uint8_t cmd_ack_seq_ = 0;										//Mirrored by parser when an ACK matches expected_ack_opcode_

@@ -293,14 +293,14 @@ uint16_t ld2410::detectionDistance() {
 }
 
 uint8_t ld2410::movingEnergyAtGate(uint8_t gate) {
-    if (gate >= 9) {
+    if (gate >= LD2410_GATE_COUNT) {
         return 0;
     }
     return engineering_motion_energy_[gate];
 }
 
 uint8_t ld2410::stationaryEnergyAtGate(uint8_t gate) {
-    if (gate >= 9) {
+    if (gate >= LD2410_GATE_COUNT) {
         return 0;
     }
     return engineering_stationary_energy_[gate];
@@ -312,25 +312,16 @@ bool ld2410::engineeringRetrieved() {
 
 
 bool ld2410::check_frame_end_() {
-    if (ack_frame_) {
-        return (radar_data_frame_[0] == 0xFD &&
-                radar_data_frame_[1] == 0xFC &&
-                radar_data_frame_[2] == 0xFB &&
-                radar_data_frame_[3] == 0xFA &&
-                radar_data_frame_[radar_data_frame_position_ - 4] == 0x04 &&
-                radar_data_frame_[radar_data_frame_position_ - 3] == 0x03 &&
-                radar_data_frame_[radar_data_frame_position_ - 2] == 0x02 &&
-                radar_data_frame_[radar_data_frame_position_ - 1] == 0x01);
-    } else {
-        return (radar_data_frame_[0] == 0xF4 &&
-                radar_data_frame_[1] == 0xF3 &&
-                radar_data_frame_[2] == 0xF2 &&
-                radar_data_frame_[3] == 0xF1 &&
-                radar_data_frame_[radar_data_frame_position_ - 4] == 0xF8 &&
-                radar_data_frame_[radar_data_frame_position_ - 3] == 0xF7 &&
-                radar_data_frame_[radar_data_frame_position_ - 2] == 0xF6 &&
-                radar_data_frame_[radar_data_frame_position_ - 1] == 0xF5);
-    }
+    const uint8_t *head = ack_frame_ ? LD2410_CMD_FRAME_HEAD : LD2410_DATA_FRAME_HEAD;
+    const uint8_t *tail = ack_frame_ ? LD2410_CMD_FRAME_TAIL : LD2410_DATA_FRAME_TAIL;
+    return (radar_data_frame_[0] == head[0] &&
+            radar_data_frame_[1] == head[1] &&
+            radar_data_frame_[2] == head[2] &&
+            radar_data_frame_[3] == head[3] &&
+            radar_data_frame_[radar_data_frame_position_ - 4] == tail[0] &&
+            radar_data_frame_[radar_data_frame_position_ - 3] == tail[1] &&
+            radar_data_frame_[radar_data_frame_position_ - 2] == tail[2] &&
+            radar_data_frame_[radar_data_frame_position_ - 1] == tail[3]);
 }
 
 void ld2410::print_frame_()
@@ -382,11 +373,11 @@ bool ld2410::read_frame_() {
 
         // Stage A: locate the magic header (positions 0..3).
         if (pos == 0) {
-            if (byte_read == 0xF4) {
+            if (byte_read == LD2410_DATA_FRAME_HEAD[0]) {
                 radar_data_frame_[0] = byte_read;
                 radar_data_frame_position_ = 1;
                 ack_frame_ = false;
-            } else if (byte_read == 0xFD) {
+            } else if (byte_read == LD2410_CMD_FRAME_HEAD[0]) {
                 radar_data_frame_[0] = byte_read;
                 radar_data_frame_position_ = 1;
                 ack_frame_ = true;
@@ -400,11 +391,11 @@ bool ld2410::read_frame_() {
             if (byte_read == expected) {
                 radar_data_frame_[pos] = byte_read;
                 radar_data_frame_position_ = pos + 1;
-            } else if (byte_read == 0xF4) {
+            } else if (byte_read == LD2410_DATA_FRAME_HEAD[0]) {
                 radar_data_frame_[0] = byte_read;
                 radar_data_frame_position_ = 1;
                 ack_frame_ = false;
-            } else if (byte_read == 0xFD) {
+            } else if (byte_read == LD2410_CMD_FRAME_HEAD[0]) {
                 radar_data_frame_[0] = byte_read;
                 radar_data_frame_position_ = 1;
                 ack_frame_ = true;
@@ -450,56 +441,104 @@ bool ld2410::read_frame_() {
 bool ld2410::parse_data_frame_() {
     uint16_t intra_frame_data_length = radar_data_frame_[4] | (radar_data_frame_[5] << 8);
 
-    // Frame totale = header(4) + length(2) + intra-frame + footer(4) = intra+10
+    // Frame total = header(4) + length(2) + intra-frame + footer(4) = intra + 10
     if (radar_data_frame_position_ != intra_frame_data_length + 10) {
         return false;
     }
 
-    // Per Tabella 11, il primo byte intra-frame indica il tipo: 0x02 basic, 0x01 engineering.
     uint8_t data_type = radar_data_frame_[6];
-    if (data_type != 0x01 && data_type != 0x02) {
+
+#if defined(LD2410_VARIANT_S)
+    // S protocol exposes only the "standard" data type (0x01) on this code
+    // path. Auto-threshold-progress (0x03) and minimal frame (0x6E…0x62)
+    // are handled by step 10b/c. The S standard frame layout is fixed at
+    // 70 bytes intra (HLK-LD2410S §2.1 Table 2-1):
+    //   1 B data type + 1 B target state + 2 B object distance
+    //   + 2 B reserved + 64 B per-gate energy.
+    // Note: S does NOT use the 0xAA / 0x55 / 0x00 intra-frame markers
+    // that base/C use, so we only validate length here.
+    if (data_type != LD2410_DATA_TYPE_STANDARD || intra_frame_data_length != 70) {
         return false;
     }
-
-    // Per Tabella 10, i marker di coda 0x55 0x00 sono SEMPRE gli ultimi 2 byte
-    // dell'intra-frame data: per il basic frame (intra=13) coincidono con [17][18]
-    // ma in engineering la posizione varia. Calcoliamo gli offset dinamicamente.
-    uint16_t tail_index = intra_frame_data_length + 4;        // 0x55
-    uint16_t cal_index = intra_frame_data_length + 5;         // 0x00
-    if (radar_data_frame_[7] != 0xAA ||
-        radar_data_frame_[tail_index] != 0x55 ||
-        radar_data_frame_[cal_index] != 0x00) {
+#else
+    // base/C: 0x01 engineering frame (basic info + per-gate appended) or
+    // 0x02 basic frame. Both use 0xAA / 0x55 / 0x00 intra-frame markers
+    // (HLK Table 9 / Table 10).
+    if (data_type != LD2410_DATA_TYPE_ENGINEERING && data_type != LD2410_DATA_TYPE_BASIC) {
         return false;
     }
+    uint16_t tail_index = intra_frame_data_length + 4;        // expects LD2410_DATA_INTRA_TAIL  (0x55)
+    uint16_t cal_index  = intra_frame_data_length + 5;        // expects LD2410_DATA_INTRA_CHECK (0x00)
+    if (radar_data_frame_[7]          != LD2410_DATA_INTRA_HEAD ||
+        radar_data_frame_[tail_index] != LD2410_DATA_INTRA_TAIL ||
+        radar_data_frame_[cal_index]  != LD2410_DATA_INTRA_CHECK) {
+        return false;
+    }
+#endif
 
-    // Tabella 12: dati basic (presenti sia in 0x01 che in 0x02)
-    // Sezione critica: su ESP32 dual-core il task pinnato a core 0 può aggiornare
-    // i campi mentre il loop utente li legge da core 1. Il critical section
-    // evita stati inconsistenti tra campi di uno stesso frame e funge da
-    // memory barrier per i lettori dei singoli getter.
+    // Critical section: on ESP32 dual-core the task pinned to core 0 may
+    // update these fields while the user loop on core 1 reads them. The
+    // portMUX prevents inconsistent state between fields of a single frame
+    // and acts as a memory barrier for the getters.
 #if defined(ESP32)
     portENTER_CRITICAL(&data_mux_);
 #endif
-    target_type_ = radar_data_frame_[8];
-    moving_target_distance_ = *(uint16_t*)(&radar_data_frame_[9]);
-    moving_target_energy_ = radar_data_frame_[11];
-    stationary_target_distance_ = *(uint16_t*)(&radar_data_frame_[12]);
-    stationary_target_energy_ = radar_data_frame_[14];
-    detection_distance_ = *(uint16_t*)(&radar_data_frame_[15]);
 
-    // Tabella 14: extra engineering. Layout (full-frame index, 0-based):
-    //   17 = max moving gate N (ridondante con max_moving_gate da requestCurrentConfiguration)
-    //   18 = max stationary gate N
-    //   19..27 = energie motion gate 0..8
-    //   28..36 = energie stationary gate 0..8
-    //   poi M byte di retain + tail/cal (gestiti sopra)
-    if (data_type == 0x01 && intra_frame_data_length >= 33) {
-        for (uint8_t gate = 0; gate < 9; gate++) {
-            engineering_motion_energy_[gate] = radar_data_frame_[19 + gate];
-            engineering_stationary_energy_[gate] = radar_data_frame_[28 + gate];
+#if defined(LD2410_VARIANT_S)
+    // S standard frame field decode (offsets are full-frame indices).
+    target_type_        = radar_data_frame_[7];
+    detection_distance_ = (uint16_t)radar_data_frame_[8] | ((uint16_t)radar_data_frame_[9] << 8);
+    // base/C-only fields not present on S — clear them so getters return
+    // consistent zeros instead of stale base/C-shaped values.
+    moving_target_distance_     = 0;
+    moving_target_energy_       = 0;
+    stationary_target_distance_ = 0;
+    stationary_target_energy_   = 0;
+
+    // Per-gate energy block: 64 bytes starting at offset 12 (after data
+    // type + target state + object distance + reserved bits).
+    //
+    // LAYOUT ASSUMPTION — UNVERIFIED ON HARDWARE:
+    // The S V1.00 protocol document specifies "64 bytes" but does not
+    // detail the per-gate breakdown. We assume the same convention as
+    // base/C (1 byte per energy value), giving 16 motion + 16 stationary
+    // = 32 bytes consumed; the remaining 32 bytes of the documented
+    // 64-byte block are left unread pending HW verification. See the
+    // STATUS block at the top of src/ld2410_variants/ld2410_s.h.
+    for (uint8_t g = 0; g < LD2410_GATE_COUNT; g++) {
+        engineering_motion_energy_[g]     = radar_data_frame_[12 + g];
+        engineering_stationary_energy_[g] = radar_data_frame_[12 + LD2410_GATE_COUNT + g];
+    }
+    engineering_data_received_ = true;
+#else
+    // base/C basic-info layout (HLK Table 12 — full-frame indices):
+    //   [8]    target state
+    //   [9-10] moving target distance (cm, LE)
+    //   [11]   moving target energy
+    //   [12-13] stationary target distance (cm, LE)
+    //   [14]   stationary target energy
+    //   [15-16] detection distance (cm, LE)
+    target_type_                = radar_data_frame_[8];
+    moving_target_distance_     = *(uint16_t*)(&radar_data_frame_[9]);
+    moving_target_energy_       = radar_data_frame_[11];
+    stationary_target_distance_ = *(uint16_t*)(&radar_data_frame_[12]);
+    stationary_target_energy_   = radar_data_frame_[14];
+    detection_distance_         = *(uint16_t*)(&radar_data_frame_[15]);
+
+    // Engineering frame extras (HLK Table 14):
+    //   [17]    max moving gate N (redundant with max_moving_gate from 0x61 ACK)
+    //   [18]    max stationary gate N
+    //   [19..27] motion energies for gate 0..8
+    //   [28..36] stationary energies for gate 0..8
+    //   then M reserved bytes + intra tail/check (already validated above).
+    if (data_type == LD2410_DATA_TYPE_ENGINEERING && intra_frame_data_length >= 33) {
+        for (uint8_t g = 0; g < LD2410_GATE_COUNT; g++) {
+            engineering_motion_energy_[g]     = radar_data_frame_[19 + g];
+            engineering_stationary_energy_[g] = radar_data_frame_[28 + g];
         }
         engineering_data_received_ = true;
     }
+#endif
 
     last_valid_frame_length = radar_data_frame_position_;
     radar_uart_last_packet_ = millis();

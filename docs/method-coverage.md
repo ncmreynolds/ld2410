@@ -133,7 +133,9 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 8 | Refactor `request*/set*` to use `LD2410_OP_*` macros + use `frame.h` helpers in send_command_preamble_/postamble_ | ✅ done (commit `95605bb`) |
 | 8b | Use `LD2410_PARAM_*` for parameter words in setMaxValues / setGateSensitivityThreshold (+ ld2410_write_le16/le32 helpers) | ✅ done (commit `e12610d`) |
 | **9** | **Refactor `parse_command_frame_` ACK branches with macros + variant-aware FW version handling** | ✅ done (this commit) |
-| 10 | Refactor `parse_data_frame_` for variant-aware gates: 16-gate inline (S), data type `0x03`, minimal frame `6E…62` | pending — blocking for S support |
+| 10-min | Refactor `parse_data_frame_` + `check_frame_end_` + `read_frame_` to use frame.h constants; engineering arrays sized via `LD2410_GATE_COUNT`; S `data type 0x01` (standard) decode | ✅ done (this commit) |
+| 10b | Add S auto-threshold-progress (`data type 0x03`) parsing | pending |
+| 10c | Add S minimal frame (`6E … 62`) parsing | pending |
 | 11a | Add `setBaudRate()` for base/C (regression fix) | pending |
 | 11b | Add `setBluetooth/getMACAddress/setDistanceResolution/getDistanceResolution` for C (regression fixes) | pending |
 | 11c | Add `setBluetoothPassword/obtainBluetoothPermissions` for C | pending (low priority) |
