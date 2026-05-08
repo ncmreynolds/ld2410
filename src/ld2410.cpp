@@ -26,6 +26,12 @@ ld2410::ld2410()	//Constructor function
 
 ld2410::~ld2410()	//Destructor function
 {
+#if defined(ESP32)
+	if (cmd_mutex_ != nullptr) {
+		vSemaphoreDelete(cmd_mutex_);
+		cmd_mutex_ = nullptr;
+	}
+#endif
 }
 
 void ld2410::add_to_buffer(uint8_t byte) {
@@ -52,6 +58,11 @@ bool ld2410::read_from_buffer(uint8_t &byte) {
 
 bool ld2410::begin(Stream &radarStream, bool waitForRadar) {
     radar_uart_ = &radarStream;
+#if defined(ESP32)
+    if (cmd_mutex_ == nullptr) {
+        cmd_mutex_ = xSemaphoreCreateMutex();
+    }
+#endif
     
     if (debug_uart_ != nullptr) {
         debug_uart_->println(F("ld2410 started"));
@@ -196,6 +207,32 @@ bool ld2410::isAutoReadTaskRunning() {
     return taskHandle_ != nullptr;
 #else
     return false;
+#endif
+}
+
+// Acquire the per-instance command mutex (ESP32). Returns true if the
+// lock was obtained within timeout_ms or if no mutex exists yet (begin()
+// not called — single-thread assumption). Mirrors the always-false
+// stub pattern of isAutoReadTaskRunning() so the .h declaration is
+// universal and consumer code can call request*/set* without #if guards.
+bool ld2410::lock_command_(uint32_t timeout_ms) {
+#if defined(ESP32)
+	if (cmd_mutex_ == nullptr) {
+		return true;
+	}
+	return xSemaphoreTake(cmd_mutex_, pdMS_TO_TICKS(timeout_ms)) == pdTRUE;
+#else
+	(void)timeout_ms;
+	return true;
+#endif
+}
+
+// Release the per-instance command mutex (ESP32). No-op on other
+// platforms and on ESP32 if the mutex was never created.
+void ld2410::unlock_command_() {
+#if defined(ESP32)
+	if (cmd_mutex_ == nullptr) return;
+	xSemaphoreGive(cmd_mutex_);
 #endif
 }
 
@@ -958,6 +995,8 @@ bool ld2410::leave_configuration_mode_()
 #ifdef LD2410_HAS_ENGINEERING_MODE
 bool ld2410::requestStartEngineeringMode()
 {
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
 	// Per protocol §2.4.1, every config command must be issued inside an
 	// enter/leave configuration window — otherwise the radar silently
 	// rejects it. The other request*/set* helpers all wrap; these two
@@ -987,6 +1026,8 @@ bool ld2410::requestStartEngineeringMode()
 #ifdef LD2410_HAS_ENGINEERING_MODE
 bool ld2410::requestEndEngineeringMode()
 {
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
 	if(enter_configuration_mode_())
 	{
 		delay(50);
@@ -1011,6 +1052,8 @@ bool ld2410::requestEndEngineeringMode()
 #ifdef LD2410_HAS_READ_PARAMS
 bool ld2410::requestCurrentConfiguration()
 {
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
 	if(enter_configuration_mode_())
 	{
 		delay(50);
@@ -1034,6 +1077,8 @@ bool ld2410::requestCurrentConfiguration()
 
 bool ld2410::requestFirmwareVersion()
 {
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
 	if(enter_configuration_mode_())
 	{
 		delay(50);
@@ -1059,6 +1104,8 @@ bool ld2410::requestFirmwareVersion()
 #ifdef LD2410_HAS_RESTART
 bool ld2410::requestRestart()
 {
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
 	if(enter_configuration_mode_())
 	{
 		delay(50);
@@ -1116,6 +1163,8 @@ bool ld2410::requestRestart()
 #ifdef LD2410_HAS_FACTORY_RESET
 bool ld2410::requestFactoryReset()
 {
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
 	if(enter_configuration_mode_())
 	{
 		delay(50);
@@ -1140,6 +1189,8 @@ bool ld2410::requestFactoryReset()
 #ifdef LD2410_HAS_MAX_VALUES
 bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer)
 {
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
 	if(enter_configuration_mode_())
 	{
 		delay(50);
@@ -1182,6 +1233,8 @@ bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactiv
 #ifdef LD2410_HAS_GATE_SENSITIVITY
 bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary)
 {
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
 	if(enter_configuration_mode_())
 	{
 		delay(50);

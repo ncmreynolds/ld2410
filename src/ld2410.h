@@ -222,6 +222,33 @@ class ld2410	{
 		void stopAutoReadTask();
 #endif
 
+		// ---- Command serialization (concurrency safety) ------------------
+		// RAII guard around lock_command_ / unlock_command_. Each
+		// request* / set* helper constructs a CommandTransaction at the
+		// top of the function; the destructor releases the mutex even on
+		// early return. On non-ESP32 platforms the lock is a no-op (no
+		// FreeRTOS scheduler, single-thread assumption).
+		//
+		// Without this lock, two FreeRTOS tasks calling e.g.
+		// requestFirmwareVersion() and requestRestart() simultaneously
+		// would interleave bytes on the radar UART TX. PR #3 already
+		// protects the ACK-matching state via portMUX(data_mux_); this
+		// extends the protection to the send path itself.
+		//
+		// Default timeout 1000 ms ≈ 5 commands worth of contention before
+		// the second caller fails fast with .ok() == false.
+		class CommandTransaction {
+			ld2410 &sensor_;
+			bool acquired_;
+		public:
+			explicit CommandTransaction(ld2410 &s, uint32_t timeout_ms = 1000)
+				: sensor_(s), acquired_(s.lock_command_(timeout_ms)) {}
+			~CommandTransaction() { if (acquired_) sensor_.unlock_command_(); }
+			bool ok() const { return acquired_; }
+			CommandTransaction(const CommandTransaction&) = delete;
+			CommandTransaction& operator=(const CommandTransaction&) = delete;
+		};
+
 	protected:
 	private:
 		Stream *radar_uart_ = nullptr;
@@ -251,6 +278,7 @@ class ld2410	{
 #if defined(ESP32)
 		TaskHandle_t taskHandle_ = nullptr;
 		portMUX_TYPE data_mux_ = portMUX_INITIALIZER_UNLOCKED;
+		SemaphoreHandle_t cmd_mutex_ = nullptr;		//Serializes request*/set* on ESP32 (created in begin(), destroyed in dtor)
 #endif
 
 		uint8_t circular_buffer[LD2410_BUFFER_SIZE];
@@ -266,6 +294,8 @@ class ld2410	{
 		bool parse_command_frame_();									//Is the current command frame valid?
 		void begin_command_(uint8_t expected_op);						//Bump cmd_seq_, reset stale state, set expected ACK opcode
 		bool wait_for_ack_(uint8_t expected_op, uint32_t timeout_ms);	//Block until matching ACK arrives or timeout
+		bool lock_command_(uint32_t timeout_ms);				//Acquire cmd_mutex_ on ESP32; always-true stub on other platforms
+		void unlock_command_();								//Release cmd_mutex_ on ESP32; no-op on other platforms
 		void print_frame_();											//Print the frame for debugging
 		void send_command_preamble_();									//Commands have the same preamble
 		void send_command_postamble_();									//Commands have the same postamble
