@@ -3,6 +3,22 @@
  *
  *	Reference: docs/HLK-LD2410S_protocol.md (V1.00, 2024-08-23).
  *
+ *	==========================================================================
+ *	STATUS — UNVERIFIED ON HARDWARE
+ *
+ *	Every value in this header is transcribed directly from the HLK-LD2410S
+ *	V1.00 protocol PDF dated 2024-08-23. NONE of these opcodes, parameter
+ *	encodings, frame layouts, or feature flags has been exercised against a
+ *	real LD2410S unit by the maintainers of this fork (we own and develop
+ *	against LD2410C hardware only). Treat this file as a faithful translation
+ *	of the spec, not as field-validated code.
+ *
+ *	If you have an LD2410S on your bench: please report any discrepancy
+ *	between the spec values here and what the firmware actually accepts —
+ *	especially around frame layouts, the 0x7A output-mode payload, and the
+ *	per-gate energy ordering inside data-type 0x01 frames. PRs welcome.
+ *	==========================================================================
+ *
  *	The S variant uses a SEPARATE protocol: it shares only the
  *	configuration-mode envelope (0xFF / 0xFE) with base/C. Every other
  *	opcode and the entire data-frame meaning differ. This header is
