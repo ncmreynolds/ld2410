@@ -311,6 +311,11 @@ bool ld2410::engineeringRetrieved() {
     return engineering_data_received_;
 }
 
+#ifdef LD2410_HAS_AUTO_THRESHOLD
+uint16_t ld2410::autoThresholdProgress() { return auto_threshold_progress_; }
+bool     ld2410::autoThresholdReceived() { return auto_threshold_received_; }
+#endif
+
 
 // Validate the 4-byte header magic at the start of the buffer. Stage A of
 // read_frame_() already validates these byte-by-byte during accumulation, so
@@ -452,15 +457,16 @@ bool ld2410::parse_data_frame_() {
     uint8_t data_type = radar_data_frame_[6];
 
 #if defined(LD2410_VARIANT_S)
-    // S protocol exposes only the "standard" data type (0x01) on this code
-    // path. Auto-threshold-progress (0x03) and minimal frame (0x6E…0x62)
-    // are handled by step 10b/c. The S standard frame layout is fixed at
-    // 70 bytes intra (HLK-LD2410S §2.1 Table 2-1):
-    //   1 B data type + 1 B target state + 2 B object distance
-    //   + 2 B reserved + 64 B per-gate energy.
-    // Note: S does NOT use the 0xAA / 0x55 / 0x00 intra-frame markers
-    // that base/C use, so we only validate length here.
-    if (data_type != LD2410_DATA_TYPE_STANDARD || intra_frame_data_length != 70) {
+    // S protocol data types accepted on this path:
+    //   0x01 (standard) — 70-byte intra (HLK-LD2410S §2.1 Table 2-1)
+    //   0x03 (auto-threshold progress) — 3-byte intra (HLK §2.2.9), only
+    //         emitted while the 0x09 autoUpdateThreshold command is running
+    // Minimal frame (6E…62) is a different envelope handled by step 10c.
+    // S does NOT use the 0xAA / 0x55 / 0x00 intra-frame markers that
+    // base/C use, so we only validate length here.
+    const bool is_standard       = (data_type == LD2410_DATA_TYPE_STANDARD       && intra_frame_data_length == 70);
+    const bool is_auto_threshold = (data_type == LD2410_DATA_TYPE_AUTO_THRESHOLD && intra_frame_data_length == 3);
+    if (!is_standard && !is_auto_threshold) {
         return false;
     }
 #else
@@ -488,31 +494,39 @@ bool ld2410::parse_data_frame_() {
 #endif
 
 #if defined(LD2410_VARIANT_S)
-    // S standard frame field decode (offsets are full-frame indices).
-    target_type_        = radar_data_frame_[7];
-    detection_distance_ = (uint16_t)radar_data_frame_[8] | ((uint16_t)radar_data_frame_[9] << 8);
-    // base/C-only fields not present on S — clear them so getters return
-    // consistent zeros instead of stale base/C-shaped values.
-    moving_target_distance_     = 0;
-    moving_target_energy_       = 0;
-    stationary_target_distance_ = 0;
-    stationary_target_energy_   = 0;
+    if (data_type == LD2410_DATA_TYPE_AUTO_THRESHOLD) {
+        // 0x03 progress frame: 2-byte LE at offsets [7..8] (after head + length + type).
+        // The radar encodes "progress × 100"; we store the raw 16-bit value so
+        // the user owns the divide (e.g. 5000 = 50.00%).
+        auto_threshold_progress_ = (uint16_t)radar_data_frame_[7] | ((uint16_t)radar_data_frame_[8] << 8);
+        auto_threshold_received_ = true;
+    } else {
+        // 0x01 standard frame field decode (offsets are full-frame indices).
+        target_type_        = radar_data_frame_[7];
+        detection_distance_ = (uint16_t)radar_data_frame_[8] | ((uint16_t)radar_data_frame_[9] << 8);
+        // base/C-only fields not present on S — clear them so getters return
+        // consistent zeros instead of stale base/C-shaped values.
+        moving_target_distance_     = 0;
+        moving_target_energy_       = 0;
+        stationary_target_distance_ = 0;
+        stationary_target_energy_   = 0;
 
-    // Per-gate energy block: 64 bytes starting at offset 12 (after data
-    // type + target state + object distance + reserved bits).
-    //
-    // LAYOUT ASSUMPTION — UNVERIFIED ON HARDWARE:
-    // The S V1.00 protocol document specifies "64 bytes" but does not
-    // detail the per-gate breakdown. We assume the same convention as
-    // base/C (1 byte per energy value), giving 16 motion + 16 stationary
-    // = 32 bytes consumed; the remaining 32 bytes of the documented
-    // 64-byte block are left unread pending HW verification. See the
-    // STATUS block at the top of src/ld2410_variants/ld2410_s.h.
-    for (uint8_t g = 0; g < LD2410_GATE_COUNT; g++) {
-        engineering_motion_energy_[g]     = radar_data_frame_[12 + g];
-        engineering_stationary_energy_[g] = radar_data_frame_[12 + LD2410_GATE_COUNT + g];
+        // Per-gate energy block: 64 bytes starting at offset 12 (after data
+        // type + target state + object distance + reserved bits).
+        //
+        // LAYOUT ASSUMPTION — UNVERIFIED ON HARDWARE:
+        // The S V1.00 protocol document specifies "64 bytes" but does not
+        // detail the per-gate breakdown. We assume the same convention as
+        // base/C (1 byte per energy value), giving 16 motion + 16 stationary
+        // = 32 bytes consumed; the remaining 32 bytes of the documented
+        // 64-byte block are left unread pending HW verification. See the
+        // STATUS block at the top of src/ld2410_variants/ld2410_s.h.
+        for (uint8_t g = 0; g < LD2410_GATE_COUNT; g++) {
+            engineering_motion_energy_[g]     = radar_data_frame_[12 + g];
+            engineering_stationary_energy_[g] = radar_data_frame_[12 + LD2410_GATE_COUNT + g];
+        }
+        engineering_data_received_ = true;
     }
-    engineering_data_received_ = true;
 #else
     // base/C basic-info layout (HLK Table 12 — full-frame indices):
     //   [8]    target state

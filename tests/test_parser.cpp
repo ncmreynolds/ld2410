@@ -647,6 +647,96 @@ static void test_s_rejects_basec_engineering_length() {
     CHECK(!r.engineeringRetrieved());
     std::printf("ok\n");
 }
+
+// ---------------------------------------------------------------------------
+// S Test 3: auto-threshold progress frame (HLK-LD2410S §2.2.9, data type 0x03).
+// Layout: F4 F3 F2 F1 | 03 00 (intra=3) | 03 (data type) | LO HI (progress LE)
+//                     | F8 F7 F6 F5
+// Total 13 bytes. The radar emits these continuously while the 0x09
+// autoUpdateThreshold command is running.
+// ---------------------------------------------------------------------------
+static void test_s_auto_threshold_progress() {
+    std::printf("test_s_auto_threshold_progress ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+
+    // Sanity: no progress before any frame is received.
+    CHECK(!r.autoThresholdReceived());
+    CHECK_EQ((int)r.autoThresholdProgress(), 0);
+
+    // First progress frame: 5000 (= 50.00% in the radar's "progress×100"
+    // encoding; 0x1388 LE = 0x88 0x13).
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x03, 0x00,                    // intra length = 3
+        0x03,                          // data type AUTO_THRESHOLD
+        0x88, 0x13,                    // progress = 0x1388 = 5000
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+    CHECK_EQ((int)r.autoThresholdProgress(), 5000);
+    CHECK(r.autoThresholdReceived());
+
+    // Second progress frame: 10000 (= 100.00% completed).
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x03, 0x00,
+        0x03,
+        0x10, 0x27,                    // 0x2710 = 10000
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+    CHECK_EQ((int)r.autoThresholdProgress(), 10000);
+
+    // Standard frame interleaved must NOT touch the auto-threshold field.
+    // Build a 70-byte intra standard frame with object distance = 123 cm.
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x46, 0x00,                                    // intra = 70
+        0x01,                                          // STANDARD
+        0x02,                                          // target state
+        0x7B, 0x00,                                    // object distance = 123
+        0x00, 0x00,
+        // 64 bytes of per-gate energy (zeros + sentinel)
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+    CHECK_EQ((int)r.detectionDistance(), 123);
+    CHECK_EQ((int)r.autoThresholdProgress(), 10000);   // last value, untouched
+    CHECK(r.autoThresholdReceived());
+
+    std::printf("ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// S Test 4: a 0x03 frame with the wrong intra length must be rejected.
+// ---------------------------------------------------------------------------
+static void test_s_auto_threshold_rejects_wrong_length() {
+    std::printf("test_s_auto_threshold_rejects_wrong_length ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x05, 0x00,                    // intra = 5 (WRONG; spec says 3)
+        0x03,
+        0xAA, 0xBB, 0xCC, 0xDD,        // 4 stray bytes
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+    CHECK(!r.autoThresholdReceived());
+    CHECK_EQ((int)r.autoThresholdProgress(), 0);
+    std::printf("ok\n");
+}
 #endif   // LD2410_VARIANT_S
 
 int main() {
@@ -667,6 +757,8 @@ int main() {
 #else
     test_s_standard_frame();
     test_s_rejects_basec_engineering_length();
+    test_s_auto_threshold_progress();
+    test_s_auto_threshold_rejects_wrong_length();
 #endif
 
     if (failures == 0) {

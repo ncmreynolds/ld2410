@@ -156,6 +156,18 @@ class ld2410	{
 		uint8_t stationaryEnergyAtGate(uint8_t gate);
 		bool engineeringRetrieved();
 
+#ifdef LD2410_HAS_AUTO_THRESHOLD
+		// 0x03 data type §2.2.9 — auto-threshold tuning progress, reported
+		// by the radar while the 0x09 autoUpdateThreshold() command is
+		// running. The radar encodes "progress × 100" (e.g. 5000 = 50.00%);
+		// autoThresholdProgress() returns the raw 16-bit value so the user
+		// can divide as needed. autoThresholdReceived() flips true the
+		// first time a 0x03 frame is parsed and stays true.
+		// See docs/method-coverage.md Table 2 row "Auto-threshold progress".
+		uint16_t autoThresholdProgress();
+		bool     autoThresholdReceived();
+#endif
+
 		// ---- Firmware version ---------------------------------------------
 		// 0xA0 §2.2.8 (base/C) / 0x00 §2.2.2 (S) — read firmware version.
 		// All three variants expose the capability; the .cpp currently
@@ -272,6 +284,10 @@ class ld2410	{
 		uint8_t engineering_motion_energy_[LD2410_GATE_COUNT] = {};      // 9 on base/C, 16 on S — see variants/*.h
 		uint8_t engineering_stationary_energy_[LD2410_GATE_COUNT] = {};
 		bool engineering_data_received_ = false;
+#ifdef LD2410_HAS_AUTO_THRESHOLD
+		uint16_t auto_threshold_progress_ = 0;                          // populated by parse_data_frame_ on 0x03 frames
+		bool     auto_threshold_received_ = false;                      // sticky flag — true once any 0x03 frame parsed
+#endif
 		uint8_t cmd_seq_ = 0;											//Monotonic counter; bumped before each command issue
 		uint8_t cmd_ack_seq_ = 0;										//Mirrored by parser when an ACK matches expected_ack_opcode_
 		uint8_t expected_ack_opcode_ = 0;								//Set by command issuer; checked by parse_command_frame_
