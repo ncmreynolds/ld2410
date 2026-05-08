@@ -132,12 +132,18 @@ struct FrameData {
 class ld2410	{
 
 	public:
-		ld2410();														//Constructor function
-		~ld2410();														//Destructor function
-		bool begin(Stream &, bool waitForRadar = true);					//Start the ld2410
-		void debug(Stream &);											//Start debugging on a stream
+		// ---- Lifecycle ----------------------------------------------------
+		ld2410();
+		~ld2410();
+		bool begin(Stream &, bool waitForRadar = true);
+		void debug(Stream &);
 		bool isConnected();
 		bool read();
+
+		// ---- Target-state accessors ---------------------------------------
+		// Populated by parse_data_frame_() for every parsed frame, see
+		// docs/method-coverage.md Table 2. State semantics differ between
+		// base/C (4 states) and S (no-one / present); see roadmap §10.
 		bool presenceDetected();
 		bool stationaryTargetDetected();
 		uint16_t stationaryTargetDistance();
@@ -145,29 +151,72 @@ class ld2410	{
 		bool movingTargetDetected();
 		uint16_t movingTargetDistance();
 		uint8_t movingTargetEnergy();
-		uint16_t detectionDistance();									//Last reported detection distance in cm (Table 12, last field)
-		uint8_t movingEnergyAtGate(uint8_t gate);						//Per-gate motion energy from engineering frames (Table 14)
-		uint8_t stationaryEnergyAtGate(uint8_t gate);				//Per-gate stationary energy from engineering frames (Table 14)
-		bool engineeringRetrieved();								//True once at least one engineering-mode data frame has been parsed
-		bool requestFirmwareVersion();									//Request the firmware version
-		uint8_t firmware_major_version = 0;								//Reported major version
-		uint8_t firmware_minor_version = 0;								//Reported minor version
-		uint32_t firmware_bugfix_version = 0;							//Reported bugfix version (coded as hex)
-		bool requestCurrentConfiguration();								//Request current configuration
+		uint16_t detectionDistance();
+		uint8_t movingEnergyAtGate(uint8_t gate);
+		uint8_t stationaryEnergyAtGate(uint8_t gate);
+		bool engineeringRetrieved();
+
+		// ---- Firmware version ---------------------------------------------
+		// 0xA0 §2.2.8 (base/C) / 0x00 §2.2.2 (S) — read firmware version.
+		// All three variants expose the capability; the .cpp currently
+		// hardcodes 0xA0 so on S it returns false until roadmap §8.
+		// See docs/method-coverage.md Table 1 row 0xA0/0x00.
+		bool requestFirmwareVersion();
+		uint8_t firmware_major_version = 0;
+		uint8_t firmware_minor_version = 0;
+		uint32_t firmware_bugfix_version = 0;
+
+#ifdef LD2410_HAS_READ_PARAMS
+		// 0x61 §2.2.4 — read current configuration. base/C only.
+		// (S uses 0x71 generic-params; see docs/method-coverage.md
+		// Table 1 rows 0x61 and 0x71. To be added in roadmap §11d.)
+		bool requestCurrentConfiguration();
 		uint8_t max_gate = 0;
 		uint8_t max_moving_gate = 0;
 		uint8_t max_stationary_gate = 0;
 		uint16_t sensor_idle_time = 0;
 		uint8_t motion_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
 		uint8_t stationary_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
+#endif
+
+#ifdef LD2410_HAS_RESTART
+		// 0xA3 §2.2.11 — restart module. base/C only.
+		// (S has no restart command.) See docs/method-coverage.md Table 1.
 		bool requestRestart();
+#endif
+
+#ifdef LD2410_HAS_FACTORY_RESET
+		// 0xA2 §2.2.10 — factory reset. base/C only.
+		// (S has no factory-reset command.) See docs/method-coverage.md Table 1.
 		bool requestFactoryReset();
+#endif
+
+#ifdef LD2410_HAS_ENGINEERING_MODE
+		// 0x62 §2.2.5 / 0x63 §2.2.6 — enable / close engineering mode.
+		// base/C only. (S standard frame already includes per-gate energies
+		// inline; toggle is unnecessary.) See docs/method-coverage.md Table 1.
 		bool requestStartEngineeringMode();
 		bool requestEndEngineeringMode();
-		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
+#endif
+
+#ifdef LD2410_HAS_MAX_VALUES
+		// 0x60 §2.2.3 — set max gate + unmanned delay. base/C only.
+		// (S uses 0x70 with different parameter words; see roadmap §11d.)
+		// See docs/method-coverage.md Table 1 row 0x60.
+		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);
+#endif
+
+#ifdef LD2410_HAS_GATE_SENSITIVITY
+		// 0x64 §2.2.7 — gate sensitivity (motion + stationary in one shot).
+		// base/C only. (S splits into trigger threshold 0x72 and hold
+		// threshold 0x76; see roadmap §11d.)
+		// See docs/method-coverage.md Table 1 row 0x64.
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
+#endif
+
+		// ---- Snapshot + auto-read task ------------------------------------
     	FrameData getFrameData() const;
-		bool isAutoReadTaskRunning();									//True iff autoReadTask() succeeded and the task hasn't been stopped (always false on non-ESP32)
+		bool isAutoReadTaskRunning();
 #if defined(ESP32)
 		bool autoReadTask(uint32_t stack = 4096, UBaseType_t priority = 1, BaseType_t core = tskNO_AFFINITY);
 		void stopAutoReadTask();

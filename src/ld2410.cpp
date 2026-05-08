@@ -655,6 +655,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
+#ifdef LD2410_HAS_MAX_VALUES
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x60)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
@@ -683,6 +684,8 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
+#endif
+#ifdef LD2410_HAS_READ_PARAMS
 	else if(intra_frame_data_length_ == 28 && latest_ack_ == 0x61)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
@@ -763,6 +766,8 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
+#endif
+#ifdef LD2410_HAS_GATE_SENSITIVITY
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x64)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
@@ -791,6 +796,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
+#endif
 	else if(intra_frame_data_length_ == 12 && latest_ack_ == 0xA0)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
@@ -825,6 +831,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
+#ifdef LD2410_HAS_FACTORY_RESET
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xA2)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
@@ -853,6 +860,8 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
+#endif
+#ifdef LD2410_HAS_RESTART
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xA3)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
@@ -881,6 +890,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
+#endif
 	else
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
@@ -945,6 +955,7 @@ bool ld2410::leave_configuration_mode_()
 	return wait_for_ack_(0xFE, radar_uart_command_timeout_);
 }
 
+#ifdef LD2410_HAS_ENGINEERING_MODE
 bool ld2410::requestStartEngineeringMode()
 {
 	// Per protocol §2.4.1, every config command must be issued inside an
@@ -971,7 +982,9 @@ bool ld2410::requestStartEngineeringMode()
 	leave_configuration_mode_();
 	return false;
 }
+#endif
 
+#ifdef LD2410_HAS_ENGINEERING_MODE
 bool ld2410::requestEndEngineeringMode()
 {
 	if(enter_configuration_mode_())
@@ -993,7 +1006,9 @@ bool ld2410::requestEndEngineeringMode()
 	leave_configuration_mode_();
 	return false;
 }
+#endif
 
+#ifdef LD2410_HAS_READ_PARAMS
 bool ld2410::requestCurrentConfiguration()
 {
 	if(enter_configuration_mode_())
@@ -1015,6 +1030,7 @@ bool ld2410::requestCurrentConfiguration()
 	leave_configuration_mode_();
 	return false;
 }
+#endif
 
 bool ld2410::requestFirmwareVersion()
 {
@@ -1040,6 +1056,7 @@ bool ld2410::requestFirmwareVersion()
 
 
 
+#ifdef LD2410_HAS_RESTART
 bool ld2410::requestRestart()
 {
 	if(enter_configuration_mode_())
@@ -1094,7 +1111,9 @@ bool ld2410::requestRestart()
 	leave_configuration_mode_();
 	return false;
 }
+#endif
 
+#ifdef LD2410_HAS_FACTORY_RESET
 bool ld2410::requestFactoryReset()
 {
 	if(enter_configuration_mode_())
@@ -1116,7 +1135,9 @@ bool ld2410::requestFactoryReset()
 	leave_configuration_mode_();
 	return false;
 }
+#endif
 
+#ifdef LD2410_HAS_MAX_VALUES
 bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer)
 {
 	if(enter_configuration_mode_())
@@ -1156,7 +1177,9 @@ bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactiv
 	leave_configuration_mode_();
 	return false;
 }
+#endif
 
+#ifdef LD2410_HAS_GATE_SENSITIVITY
 bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary)
 {
 	if(enter_configuration_mode_())
@@ -1196,6 +1219,7 @@ bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t s
 	leave_configuration_mode_();
 	return false;
 }
+#endif
 
 FrameData ld2410::getFrameData() const {
     // Usa last_valid_frame_length come lunghezza iniziale
