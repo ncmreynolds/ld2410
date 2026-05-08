@@ -379,20 +379,56 @@ bool ld2410::read_frame_() {
     while (read_from_buffer(byte_read)) {
         const uint8_t pos = radar_data_frame_position_;
 
-        // Stage A: locate the magic header (positions 0..3).
+        // Stage A: locate the magic header at pos == 0.
+        // Three possible heads:
+        //   F4 → standard data frame (4-byte header, intra+length+body+4-byte tail)
+        //   FD → command frame (4-byte header)
+        //   6E → S minimal frame (1-byte header, S-only, fixed 5-byte total)
         if (pos == 0) {
             if (byte_read == LD2410_DATA_FRAME_HEAD[0]) {
                 radar_data_frame_[0] = byte_read;
                 radar_data_frame_position_ = 1;
                 ack_frame_ = false;
+#if defined(LD2410_VARIANT_S)
+                minimal_frame_ = false;
+#endif
             } else if (byte_read == LD2410_CMD_FRAME_HEAD[0]) {
                 radar_data_frame_[0] = byte_read;
                 radar_data_frame_position_ = 1;
                 ack_frame_ = true;
+#if defined(LD2410_VARIANT_S)
+                minimal_frame_ = false;
+#endif
+#if defined(LD2410_VARIANT_S)
+            } else if (byte_read == LD2410_MINIMAL_FRAME_HEAD) {
+                // S-only minimal frame (HLK-LD2410S §2.1 Table 2-1).
+                // Fixed 5 bytes total: 6E + state + dist_lo + dist_hi + 62.
+                // Activated by the user via setOutputMode(0x7A).
+                radar_data_frame_[0] = byte_read;
+                radar_data_frame_position_ = 1;
+                ack_frame_ = false;
+                minimal_frame_ = true;
+#endif
             }
             // else: drop byte, keep scanning
             continue;
         }
+
+#if defined(LD2410_VARIANT_S)
+        // Minimal-frame fast path: 5 bytes total.
+        // [0]=0x6E (validated above), [1]=state, [2-3]=dist LE, [4] must be 0x62.
+        if (minimal_frame_) {
+            radar_data_frame_[pos] = byte_read;
+            radar_data_frame_position_ = pos + 1;
+            if (pos == 4) {
+                const bool ok = (byte_read == LD2410_MINIMAL_FRAME_TAIL) && parse_minimal_frame_();
+                radar_data_frame_position_ = 0;
+                minimal_frame_ = false;
+                if (ok) return true;
+            }
+            continue;
+        }
+#endif
 
         if (pos < 4) {
             const uint8_t expected = (ack_frame_ ? LD2410_CMD_FRAME_HEAD : LD2410_DATA_FRAME_HEAD)[pos];
@@ -403,10 +439,22 @@ bool ld2410::read_frame_() {
                 radar_data_frame_[0] = byte_read;
                 radar_data_frame_position_ = 1;
                 ack_frame_ = false;
+#if defined(LD2410_VARIANT_S)
+                minimal_frame_ = false;
+#endif
             } else if (byte_read == LD2410_CMD_FRAME_HEAD[0]) {
                 radar_data_frame_[0] = byte_read;
                 radar_data_frame_position_ = 1;
                 ack_frame_ = true;
+#if defined(LD2410_VARIANT_S)
+                minimal_frame_ = false;
+            } else if (byte_read == LD2410_MINIMAL_FRAME_HEAD) {
+                // Resync into a minimal-frame start byte mid-header.
+                radar_data_frame_[0] = byte_read;
+                radar_data_frame_position_ = 1;
+                ack_frame_ = false;
+                minimal_frame_ = true;
+#endif
             } else {
                 radar_data_frame_position_ = 0;
             }
@@ -445,6 +493,36 @@ bool ld2410::read_frame_() {
     }
     return false;
 }
+
+#if defined(LD2410_VARIANT_S)
+// Decode the 5-byte minimal frame (HLK-LD2410S §2.1 Table 2-1):
+//   [0] = 0x6E (validated by read_frame_'s Stage A)
+//   [1] = target state (0/1 = no one, 2/3 = present)
+//   [2..3] = object distance (cm, LE)
+//   [4] = 0x62 (validated by caller before invocation)
+//
+// The minimal frame carries no per-gate data, so engineering arrays are
+// NOT cleared here — the user keeps whatever was last reported via a
+// standard frame. base/C-only fields are zeroed for consistency with the
+// standard-frame S decode path (see parse_data_frame_).
+bool ld2410::parse_minimal_frame_() {
+#if defined(ESP32)
+    portENTER_CRITICAL(&data_mux_);
+#endif
+    target_type_        = radar_data_frame_[1];
+    detection_distance_ = (uint16_t)radar_data_frame_[2] | ((uint16_t)radar_data_frame_[3] << 8);
+    moving_target_distance_     = 0;
+    moving_target_energy_       = 0;
+    stationary_target_distance_ = 0;
+    stationary_target_energy_   = 0;
+    last_valid_frame_length     = 5;
+    radar_uart_last_packet_     = millis();
+#if defined(ESP32)
+    portEXIT_CRITICAL(&data_mux_);
+#endif
+    return true;
+}
+#endif
 
 bool ld2410::parse_data_frame_() {
     uint16_t intra_frame_data_length = radar_data_frame_[4] | (radar_data_frame_[5] << 8);

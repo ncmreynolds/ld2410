@@ -737,6 +737,98 @@ static void test_s_auto_threshold_rejects_wrong_length() {
     CHECK_EQ((int)r.autoThresholdProgress(), 0);
     std::printf("ok\n");
 }
+
+// ---------------------------------------------------------------------------
+// S Test 5: minimal data frame (HLK-LD2410S §2.1 Table 2-1).
+// Layout (5 bytes total): 6E | state (1B) | distance LE (2B) | 62
+// Selected at runtime via setOutputMode(0x7A); the standard envelope
+// (F4F3F2F1 / F8F7F6F5) does NOT apply.
+// ---------------------------------------------------------------------------
+static void test_s_minimal_frame() {
+    std::printf("test_s_minimal_frame ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+
+    // Inject a present minimal frame: state=2, distance=200 cm.
+    s.inject({ 0x6E, 0x02, 0xC8, 0x00, 0x62 });
+    drain(r, s);
+    CHECK(r.presenceDetected());
+    CHECK_EQ((int)r.detectionDistance(), 200);
+    CHECK_EQ((int)r.movingTargetDistance(), 0);   // base/C-only fields cleared
+    CHECK_EQ((int)r.stationaryTargetDistance(), 0);
+
+    std::printf("ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// S Test 6: minimal frame with wrong tail must be rejected; the parser must
+// resync and accept the next valid frame in the same stream.
+// ---------------------------------------------------------------------------
+static void test_s_minimal_rejects_wrong_tail() {
+    std::printf("test_s_minimal_rejects_wrong_tail ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+
+    s.inject({
+        // bad: tail is 0x99 instead of 0x62 — frame discarded
+        0x6E, 0x02, 0xFF, 0xFF, 0x99,
+        // good: distance=42 cm, state=3 (present)
+        0x6E, 0x03, 0x2A, 0x00, 0x62
+    });
+    drain(r, s);
+    CHECK_EQ((int)r.detectionDistance(), 42);
+    CHECK(r.presenceDetected());
+
+    std::printf("ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// S Test 7: minimal and standard frames can interleave. The parser must
+// recognise both envelopes in the same stream without losing sync.
+// ---------------------------------------------------------------------------
+static void test_s_minimal_interleaved_with_standard() {
+    std::printf("test_s_minimal_interleaved_with_standard ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+
+    // Frame 1: minimal, distance=10, state=2.
+    s.inject({ 0x6E, 0x02, 0x0A, 0x00, 0x62 });
+    drain(r, s);
+    CHECK_EQ((int)r.detectionDistance(), 10);
+
+    // Frame 2: standard with distance=99, motion[0]=0x77, stationary[0]=0xCC.
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x46, 0x00,                                 // intra=70
+        0x01, 0x02,                                 // STANDARD, state=2
+        0x63, 0x00,                                 // dist=99
+        0x00, 0x00,
+        0x77, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,         // motion gates 0..15 (gate0=0x77)
+        0xCC, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,         // stationary gates 0..15 (gate0=0xCC)
+        // remaining 32 bytes of the documented 64 B per-gate block
+        0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+    CHECK_EQ((int)r.detectionDistance(), 99);
+    CHECK_EQ((int)r.movingEnergyAtGate(0), 0x77);
+    CHECK_EQ((int)r.stationaryEnergyAtGate(0), 0xCC);
+
+    // Frame 3: minimal again, distance=55. Standard-frame fields must
+    // get the new state but the per-gate energies stay (minimal carries
+    // no per-gate data — see parse_minimal_frame_ comment).
+    s.inject({ 0x6E, 0x03, 0x37, 0x00, 0x62 });
+    drain(r, s);
+    CHECK_EQ((int)r.detectionDistance(), 55);
+    CHECK_EQ((int)r.movingEnergyAtGate(0), 0x77);   // unchanged
+    CHECK_EQ((int)r.stationaryEnergyAtGate(0), 0xCC); // unchanged
+
+    std::printf("ok\n");
+}
 #endif   // LD2410_VARIANT_S
 
 int main() {
@@ -759,6 +851,9 @@ int main() {
     test_s_rejects_basec_engineering_length();
     test_s_auto_threshold_progress();
     test_s_auto_threshold_rejects_wrong_length();
+    test_s_minimal_frame();
+    test_s_minimal_rejects_wrong_tail();
+    test_s_minimal_interleaved_with_standard();
 #endif
 
     if (failures == 0) {

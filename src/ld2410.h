@@ -287,6 +287,9 @@ class ld2410	{
 #ifdef LD2410_HAS_AUTO_THRESHOLD
 		uint16_t auto_threshold_progress_ = 0;                          // populated by parse_data_frame_ on 0x03 frames
 		bool     auto_threshold_received_ = false;                      // sticky flag — true once any 0x03 frame parsed
+#if defined(LD2410_VARIANT_S)
+		bool     minimal_frame_ = false;                                // true while read_frame_ is parsing a 6E…62 frame
+#endif
 #endif
 		uint8_t cmd_seq_ = 0;											//Monotonic counter; bumped before each command issue
 		uint8_t cmd_ack_seq_ = 0;										//Mirrored by parser when an ACK matches expected_ack_opcode_
@@ -309,6 +312,9 @@ class ld2410	{
 		bool read_frame_();		
 		bool parse_data_frame_();										//Is the current data frame valid?
 		bool parse_command_frame_();									//Is the current command frame valid?
+#if defined(LD2410_VARIANT_S)
+		bool parse_minimal_frame_();						//Decode 5-byte 6E…62 minimal frame (HLK-LD2410S §2.1)
+#endif
 		void begin_command_(uint8_t expected_op);						//Bump cmd_seq_, reset stale state, set expected ACK opcode
 		bool wait_for_ack_(uint8_t expected_op, uint32_t timeout_ms);	//Block until matching ACK arrives or timeout
 		bool lock_command_(uint32_t timeout_ms);				//Acquire cmd_mutex_ on ESP32; always-true stub on other platforms

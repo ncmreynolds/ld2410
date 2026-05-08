@@ -66,7 +66,7 @@ Legend:
 | Engineering frame (data type `0x01`, per-gate appended, 9 gates) | §2.3.2 base/C | ✅ | ✅ | — | `parse_data_frame_()` populates `engineering_motion_energy_[9]` and `engineering_stationary_energy_[9]` from offsets `[19..27]` and `[28..36]` |
 | Standard frame (data type `0x01`, per-gate INLINE 64 B, 16 gates) | §2.1 S | — | — | ❌ | parser loop is `gate < 9`, doesn't read 16 gates; offsets are wrong — see roadmap §6.10 |
 | Auto-threshold progress frame (data type `0x03`) | §2.1, §2.2.9 S | — | — | ✅ | `parse_data_frame_` decodes 2-byte LE progress; exposed via `autoThresholdProgress()` and `autoThresholdReceived()` |
-| Minimal frame (`6E … 62`, 4 bytes total) | §2.1 S | — | — | ❌ | parser only matches `F4 F3 F2 F1` header, doesn't recognise `0x6E` — see roadmap §6.10 |
+| Minimal frame (`6E … 62`, 5 bytes total) | §2.1 S | — | — | ✅ | `read_frame_` recognises `0x6E` as a third header start; `parse_minimal_frame_` decodes target state + 2-byte object distance. Resync supported (a stray `0x6E` mid-stream restarts a minimal-frame attempt). |
 
 ---
 
@@ -135,7 +135,7 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | **9** | **Refactor `parse_command_frame_` ACK branches with macros + variant-aware FW version handling** | ✅ done (this commit) |
 | 10-min | Refactor `parse_data_frame_` + `check_frame_end_` + `read_frame_` to use frame.h constants; engineering arrays sized via `LD2410_GATE_COUNT`; S `data type 0x01` (standard) decode | ✅ done (this commit) |
 | 10b | Add S auto-threshold-progress (`data type 0x03`) parsing + `autoThresholdProgress()`/`autoThresholdReceived()` accessors | ✅ done (this commit) |
-| 10c | Add S minimal frame (`6E … 62`) parsing | pending |
+| 10c | Add S minimal frame (`6E … 62`) parsing — `read_frame_` recognises 3 header types; new `parse_minimal_frame_` private method | ✅ done (this commit) |
 | 11a | Add `setBaudRate()` for base/C (regression fix) | pending |
 | 11b | Add `setBluetooth/getMACAddress/setDistanceResolution/getDistanceResolution` for C (regression fixes) | pending |
 | 11c | Add `setBluetoothPassword/obtainBluetoothPermissions` for C | pending (low priority) |
