@@ -53,9 +53,32 @@
 #endif
 
 
-#define LD2410_MAX_FRAME_LENGTH 64
+// ---- Buffer sizing --------------------------------------------------------
+// LD2410_MAX_FRAME_LENGTH covers the largest single frame the radar emits
+// (worst case = data frame including all per-gate energies). Variant-aware
+// because S inflates the per-gate block from 18..22 B (base/C dynamic) to
+// a fixed 64 B inline:
+//   base/C engineering frame: 35 B intra + 10 B envelope = 45 B (max ~38 B
+//                              for the longest ACK 0x61) — 64 B is generous
+//   S standard frame:         70 B intra + 10 B envelope = 80 B           — bump to 96 (≈ +20%)
+//
+// LD2410_BUFFER_SIZE is the circular buffer that absorbs UART bytes between
+// the read path and the parser. Sized 4× LD2410_MAX_FRAME_LENGTH so it can
+// hold several frames in flight (autoReadTask scenario, momentary pauses
+// in user-space drain, etc.).
+//
+// Both are #ifndef-guarded so the user can override either independently
+// before #include <ld2410.h>.
+#ifndef LD2410_MAX_FRAME_LENGTH
+#  if defined(LD2410_VARIANT_S)
+#    define LD2410_MAX_FRAME_LENGTH 96
+#  else
+#    define LD2410_MAX_FRAME_LENGTH 64
+#  endif
+#endif
+
 #ifndef LD2410_BUFFER_SIZE
-#define LD2410_BUFFER_SIZE 256
+#  define LD2410_BUFFER_SIZE (4 * LD2410_MAX_FRAME_LENGTH)
 #endif
 //#define LD2410_DEBUG_DATA
 #define LD2410_DEBUG_COMMANDS
