@@ -35,7 +35,7 @@ Legend:
 | `0x62` | §2.2.5 base/C | Enable engineering mode | ✅ | ✅ | — | `requestStartEngineeringMode()` | `LD2410_HAS_ENGINEERING_MODE` |
 | `0x63` | §2.2.6 base/C | Close engineering mode | ✅ | ✅ | — | `requestEndEngineeringMode()` | `LD2410_HAS_ENGINEERING_MODE` |
 | `0x64` | §2.2.7 base/C | Range gate sensitivity | ✅ | ✅ | — | `setGateSensitivityThreshold(gate, moving, stationary)` | `LD2410_HAS_GATE_SENSITIVITY` |
-| `0xA0` (base/C) / `0x00` (S) | §2.2.8 base/C, §2.2.2 S | Read firmware version | ✅ | ✅ | 🟡 | `requestFirmwareVersion()` (currently hardcodes 0xA0; on S returns false until variant dispatch lands — see roadmap §6.8) | `LD2410_HAS_FIRMWARE_VERSION` |
+| `0xA0` (base/C) / `0x00` (S) | §2.2.8 base/C, §2.2.2 S | Read firmware version | ✅ | ✅ | ✅ | `requestFirmwareVersion()` — variant-aware send opcode (step 8) and variant-aware ACK length/offsets (step 9). On S, major/minor 16-bit values are stored as their LE low byte into the existing uint8_t fields; patch is stored full-width 16-bit in firmware_bugfix_version. | `LD2410_HAS_FIRMWARE_VERSION` |
 | `0xA1` | §2.2.9 base/C | Set serial port baud rate | ❌ | ❌ | — | *missing* (regression vs v0.1.3, upstream issue #39) | `LD2410_HAS_BAUD_RATE` |
 | `0xA2` | §2.2.10 base/C | Factory reset | ✅ | ✅ | — | `requestFactoryReset()` | `LD2410_HAS_FACTORY_RESET` |
 | `0xA3` | §2.2.11 base/C | Restart module | ✅ | ✅ | — | `requestRestart()` (with 800 ms reboot blackout for ESP32 autoReadTask) | `LD2410_HAS_RESTART` |
@@ -130,8 +130,9 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 5b | Debug flags made opt-in | ✅ done (commit `ccc9800`) |
 | 6 | Apply `LD2410_HAS_*` gates to existing `class ld2410` methods + .cpp definitions + parse_command_frame_ branches | ✅ done (commit `95e22dd`) |
 | 7 | `CommandTransaction` lock for concurrency safety across `request*/set*` calls | ✅ done (commit `f7f9089`) |
-| **8** | **Refactor `request*/set*` to use `LD2410_OP_*` macros + use `frame.h` helpers in send_command_preamble_/postamble_** | 🚧 in progress |
-| 9 | Refactor `parse_command_frame_` to use opcode macros + drop dead branches per variant | pending |
+| 8 | Refactor `request*/set*` to use `LD2410_OP_*` macros + use `frame.h` helpers in send_command_preamble_/postamble_ | ✅ done (commit `95605bb`) |
+| 8b | Use `LD2410_PARAM_*` for parameter words in setMaxValues / setGateSensitivityThreshold (+ ld2410_write_le16/le32 helpers) | ✅ done (commit `e12610d`) |
+| **9** | **Refactor `parse_command_frame_` ACK branches with macros + variant-aware FW version handling** | ✅ done (this commit) |
 | 10 | Refactor `parse_data_frame_` for variant-aware gates: 16-gate inline (S), data type `0x03`, minimal frame `6E…62` | pending — blocking for S support |
 | 11a | Add `setBaudRate()` for base/C (regression fix) | pending |
 | 11b | Add `setBluetooth/getMACAddress/setDistanceResolution/getDistanceResolution` for C (regression fixes) | pending |

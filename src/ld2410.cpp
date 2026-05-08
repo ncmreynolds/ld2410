@@ -630,7 +630,7 @@ bool ld2410::parse_command_frame_()
 #if defined(ESP32)
 	portEXIT_CRITICAL(&data_mux_);
 #endif
-	if(intra_frame_data_length_ == 8 && latest_ack_ == 0xFF)
+	if(intra_frame_data_length_ == 8 && latest_ack_ == LD2410_OP_ENABLE_CFG)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -658,7 +658,7 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xFE)
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_END_CFG)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -687,7 +687,7 @@ bool ld2410::parse_command_frame_()
 		}
 	}
 #ifdef LD2410_HAS_MAX_VALUES
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x60)
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_SET_MAX_VALUES)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -717,7 +717,7 @@ bool ld2410::parse_command_frame_()
 	}
 #endif
 #ifdef LD2410_HAS_READ_PARAMS
-	else if(intra_frame_data_length_ == 28 && latest_ack_ == 0x61)
+	else if(intra_frame_data_length_ == 28 && latest_ack_ == LD2410_OP_READ_PARAMS)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -799,7 +799,7 @@ bool ld2410::parse_command_frame_()
 	}
 #endif
 #ifdef LD2410_HAS_GATE_SENSITIVITY
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0x64)
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_GATE_SENSITIVITY)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -828,7 +828,44 @@ bool ld2410::parse_command_frame_()
 		}
 	}
 #endif
-	else if(intra_frame_data_length_ == 12 && latest_ack_ == 0xA0)
+#if defined(LD2410_VARIANT_S)
+	// HLK-LD2410S §2.2.2 — FW version ACK has 8-byte intra-frame data
+	// directly containing cmd-word + major + minor + patch (each 2 B LE);
+	// there is NO status field, so latest_command_success_ (computed at
+	// the top of this function from bytes [8-9] — which here are the
+	// major version) cannot be trusted for this opcode. Accept any
+	// well-framed ACK at the documented length.
+	else if(intra_frame_data_length_ == 8 && latest_ack_ == LD2410_OP_FIRMWARE_VERSION)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for firmware version (S): "));
+		}
+		#endif
+		// firmware_major/minor_version are uint8_t (base/C semantics);
+		// store the LE low byte of each S 16-bit field. Typical S
+		// firmwares fit in 8 bits (e.g. major=0x0001, minor=0x0000).
+		firmware_major_version = radar_data_frame_[8];
+		firmware_minor_version = radar_data_frame_[10];
+		// firmware_bugfix_version is uint32_t — store the full 16-bit
+		// S patch value zero-extended.
+		firmware_bugfix_version = radar_data_frame_[12] | (radar_data_frame_[13] << 8);
+		radar_uart_last_packet_ = millis();
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("OK"));
+		}
+		#endif
+		return true;
+	}
+#else
+	// HLK-LD2410C §2.2.8 — FW version ACK is 12-byte intra-frame data:
+	// cmd-word + status + firmware-type + 2-byte major.minor + 4-byte bugfix.
+	// (Note: byte [13] holds major, byte [12] holds minor — the protocol
+	// document calls this "2 bytes major version number" displayed as Vmajor.minor.)
+	else if(intra_frame_data_length_ == 12 && latest_ack_ == LD2410_OP_FIRMWARE_VERSION)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -862,8 +899,9 @@ bool ld2410::parse_command_frame_()
 			return false;
 		}
 	}
+#endif
 #ifdef LD2410_HAS_FACTORY_RESET
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xA2)
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_FACTORY_RESET)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
@@ -893,7 +931,7 @@ bool ld2410::parse_command_frame_()
 	}
 #endif
 #ifdef LD2410_HAS_RESTART
-	else if(intra_frame_data_length_ == 4 && latest_ack_ == 0xA3)
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_RESTART)
 	{
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr)
