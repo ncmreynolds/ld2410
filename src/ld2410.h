@@ -18,6 +18,41 @@
 #include <freertos/task.h>
 #endif
 
+// ---- Variant selection ----------------------------------------------------
+// Pick exactly one of:
+//   LD2410_VARIANT_BASE   (default — original LD2410, default UART 57600)
+//   LD2410_VARIANT_C      (LD2410C — adds Bluetooth/MAC/distance-resolution,
+//                          default UART 256000)
+//   LD2410_VARIANT_S      (LD2410S — separate protocol, default UART 115200,
+//                          16 gates; see ld2410_variants/ld2410_s.h for the
+//                          UNVERIFIED-ON-HARDWARE caveat)
+//
+// Define the macro before #include <ld2410.h>, e.g.:
+//     #define LD2410_VARIANT_C
+//     #include <ld2410.h>
+//
+// Or via the toolchain:
+//     PlatformIO   build_flags = -DLD2410_VARIANT_C
+//     arduino-cli  --build-property "build.extra_flags=-DLD2410_VARIANT_C"
+//
+// Defaulting to BASE preserves historical behaviour: this fork has always
+// targeted the LD2410 / LD2410C shared core, and base.h covers it.
+#if (defined(LD2410_VARIANT_BASE) + defined(LD2410_VARIANT_C) + defined(LD2410_VARIANT_S)) > 1
+#error "Define exactly one of LD2410_VARIANT_BASE / LD2410_VARIANT_C / LD2410_VARIANT_S"
+#endif
+#if !defined(LD2410_VARIANT_BASE) && !defined(LD2410_VARIANT_C) && !defined(LD2410_VARIANT_S)
+#define LD2410_VARIANT_BASE
+#endif
+
+#if defined(LD2410_VARIANT_S)
+#include "ld2410_variants/ld2410_s.h"
+#elif defined(LD2410_VARIANT_C)
+#include "ld2410_variants/ld2410_c.h"
+#else
+#include "ld2410_variants/ld2410_base.h"
+#endif
+
+
 #define LD2410_MAX_FRAME_LENGTH 64
 #ifndef LD2410_BUFFER_SIZE
 #define LD2410_BUFFER_SIZE 256
