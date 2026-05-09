@@ -1,4 +1,12 @@
 # LD2410
+
+> 📚 **Full documentation lives in [`docs/`](docs/)** — start with
+> [`docs/README.md`](docs/README.md) for the index, or jump straight to
+> [getting started](docs/01-getting-started.md),
+> the [variant comparison](docs/02-variants.md), the
+> [API reference](docs/04-api-core.md), or
+> [troubleshooting](docs/09-troubleshooting.md).
+
 ## Introduction
 
 An Arduino library for the Hi-Link LD2410 24Ghz FMCW radar sensor. This sensor is a Frequency Modulated Continuous Wave radar, which makes it good for presence detection and its sensitivity at different ranges to both static and moving targets can be configured.
