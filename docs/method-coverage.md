@@ -50,10 +50,10 @@ Legend:
 | `0x11` | §2.2.6 S | Read serial number | — | — | ❌ | *missing* | `LD2410_HAS_SERIAL_NUMBER` |
 | `0x70` | §2.2.7 S | Write generic parameters | — | — | ✅ | `writeGenericParameters(farthest, nearest, delay_s, status_freq, distance_freq, speed)` — UNVERIFIED on hardware | `LD2410_HAS_GENERIC_PARAMS` |
 | `0x71` | §2.2.8 S | Read generic parameters | — | — | ✅ | `requestGenericParameters()` → populates 6 public fields — UNVERIFIED on hardware | `LD2410_HAS_GENERIC_PARAMS` |
-| `0x72` | §2.2.10 S | Write trigger threshold | — | — | ❌ | *missing* | `LD2410_HAS_TRIGGER_THRESHOLD` |
-| `0x73` | §2.2.11 S | Read trigger threshold | — | — | ❌ | *missing* | `LD2410_HAS_TRIGGER_THRESHOLD` |
-| `0x76` | §2.2.12 S | Write hold threshold | — | — | ❌ | *missing* | `LD2410_HAS_HOLD_THRESHOLD` |
-| `0x77` | §2.2.13 S | Read hold threshold | — | — | ❌ | *missing* | `LD2410_HAS_HOLD_THRESHOLD` |
+| `0x72` | §2.2.10 S | Write trigger threshold | — | — | ✅ | `writeTriggerThresholds(uint8_t[16])` — UNVERIFIED on hardware | `LD2410_HAS_TRIGGER_THRESHOLD` |
+| `0x73` | §2.2.11 S | Read trigger threshold | — | — | ✅ | `requestTriggerThresholds()` → populates `trigger_thresholds[16]` — UNVERIFIED on hardware | `LD2410_HAS_TRIGGER_THRESHOLD` |
+| `0x76` | §2.2.12 S | Write hold threshold | — | — | ✅ | `writeHoldThresholds(uint8_t[16])` — UNVERIFIED on hardware | `LD2410_HAS_HOLD_THRESHOLD` |
+| `0x77` | §2.2.13 S | Read hold threshold | — | — | ✅ | `requestHoldThresholds()` → populates `hold_thresholds[16]` — UNVERIFIED on hardware | `LD2410_HAS_HOLD_THRESHOLD` |
 | `0x7A` | §2.2.1 S | Switch output mode (standard / minimal) | — | — | ✅ | `setOutputMode(bool standard)` — UNVERIFIED on hardware | `LD2410_HAS_OUTPUT_MODE` |
 
 ---
@@ -93,10 +93,10 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | ~~`setOutputMode(standard / minimal)`~~ | ~~`0x7A`~~ | ✅ done step 11d.1 |
 | ~~`writeGenericParameters()` (S equivalent of setMaxValues)~~ | ~~`0x70`~~ | ✅ done step 11d.2 |
 | ~~`requestGenericParameters()` (S equivalent of requestCurrentConfiguration)~~ | ~~`0x71`~~ | ✅ done step 11d.2 |
-| `writeTriggerThreshold()` (S equivalent of setGateSensitivityThreshold, motion half) | `0x72` | never exposed |
-| `readTriggerThreshold()` | `0x73` | never exposed |
-| `writeHoldThreshold()` (S equivalent of setGateSensitivityThreshold, hold half) | `0x76` | never exposed |
-| `readHoldThreshold()` | `0x77` | never exposed |
+| ~~`writeTriggerThresholds()` (S equivalent of setGateSensitivityThreshold, motion half)~~ | ~~`0x72`~~ | ✅ done step 11d.3 |
+| ~~`requestTriggerThresholds()`~~ | ~~`0x73`~~ | ✅ done step 11d.3 |
+| ~~`writeHoldThresholds()` (S equivalent of setGateSensitivityThreshold, hold half)~~ | ~~`0x76`~~ | ✅ done step 11d.3 |
+| ~~`requestHoldThresholds()`~~ | ~~`0x77`~~ | ✅ done step 11d.3 |
 | `autoUpdateThreshold()` | `0x09` | never exposed |
 | `writeSerialNumber()` | `0x10` | never exposed |
 | `readSerialNumber()` | `0x11` | never exposed |
@@ -131,7 +131,7 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 11c | Add `obtainBluetoothPermissions/setBluetoothPassword` for C (never exposed before) | ✅ done (this commit) |
 | 11d.1 | S — `setOutputMode` (0x7A) | ✅ done (this commit) |
 | 11d.2 | S — `writeGenericParameters` / `requestGenericParameters` (0x70/0x71) | ✅ done (this commit) |
-| 11d.3 | S — `write/readTriggerThreshold` (0x72/0x73) + `write/readHoldThreshold` (0x76/0x77) | pending |
+| 11d.3 | S — `write/requestTriggerThresholds` (0x72/0x73) + `write/requestHoldThresholds` (0x76/0x77) | ✅ done (this commit) |
 | 11d.4 | S — `autoUpdateThreshold` (0x09) | pending |
 | 11d.5 | S — `write/readSerialNumber` (0x10/0x11) | pending |
 | 12 | End-to-end verification: tests + arduino-cli compile across all 3 variants × 3 boards | continuous |

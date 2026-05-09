@@ -1091,6 +1091,104 @@ static void test_s_request_generic_parameters() {
     CHECK_EQ((int)r.response_speed,        5);
     std::printf("ok\n");
 }
+
+// ---------------------------------------------------------------------------
+// S Test: writeTriggerThresholds — 0x72 ACK is standard 4-byte envelope.
+// ---------------------------------------------------------------------------
+static void test_s_write_trigger_thresholds() {
+    std::printf("test_s_write_trigger_thresholds ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0x72, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    // §2.2.10 example values
+    const uint8_t trig[16] = {50,46,34,32,32,32,32,32, 50,46,34,32,32,32,32,32};
+    CHECK(r.writeTriggerThresholds(trig));
+    std::printf("ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// S Test: requestTriggerThresholds — 0x73 ACK is intra=68 with 16 LE 4B values.
+// Uses the §2.2.11 documented payload.
+// ---------------------------------------------------------------------------
+static void test_s_request_trigger_thresholds() {
+    std::printf("test_s_request_trigger_thresholds ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    std::vector<uint8_t> ack = {
+        0xFD, 0xFC, 0xFB, 0xFA,
+        0x44, 0x00,                  // intra = 68
+        0x73, 0x01,                  // cmd-word ACK
+        0x00, 0x00,                  // status: success
+    };
+    const uint8_t expected[16] = {0x32,0x2E,0x22,0x20,0x20,0x20,0x20,0x20,
+                                  0x32,0x2E,0x22,0x20,0x20,0x20,0x20,0x20};
+    for (int g = 0; g < 16; g++) {
+        ack.push_back(expected[g]); ack.push_back(0x00);
+        ack.push_back(0x00);        ack.push_back(0x00);
+    }
+    ack.push_back(0x04); ack.push_back(0x03); ack.push_back(0x02); ack.push_back(0x01);
+    s.inject_response(ack);
+    s.inject_response(make_short_ack(0xFE, 4));
+
+    CHECK(r.requestTriggerThresholds());
+    for (int g = 0; g < 16; g++) {
+        CHECK_EQ((int)r.trigger_thresholds[g], (int)expected[g]);
+    }
+    std::printf("ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// S Test: writeHoldThresholds — 0x76 ACK is standard 4-byte envelope.
+// ---------------------------------------------------------------------------
+static void test_s_write_hold_thresholds() {
+    std::printf("test_s_write_hold_thresholds ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0x76, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    const uint8_t hold[16] = {15,15,15,15,15,15,15,15, 9,9,9,9,9,9,9,9};
+    CHECK(r.writeHoldThresholds(hold));
+    std::printf("ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// S Test: requestHoldThresholds — 0x77 ACK intra=68; uses §2.2.13 example.
+// ---------------------------------------------------------------------------
+static void test_s_request_hold_thresholds() {
+    std::printf("test_s_request_hold_thresholds ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    std::vector<uint8_t> ack = {
+        0xFD, 0xFC, 0xFB, 0xFA,
+        0x44, 0x00,
+        0x77, 0x01,
+        0x00, 0x00,
+    };
+    const uint8_t expected[16] = {0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,
+                                  0x09,0x09,0x09,0x09,0x09,0x09,0x09,0x09};
+    for (int g = 0; g < 16; g++) {
+        ack.push_back(expected[g]); ack.push_back(0x00);
+        ack.push_back(0x00);        ack.push_back(0x00);
+    }
+    ack.push_back(0x04); ack.push_back(0x03); ack.push_back(0x02); ack.push_back(0x01);
+    s.inject_response(ack);
+    s.inject_response(make_short_ack(0xFE, 4));
+
+    CHECK(r.requestHoldThresholds());
+    for (int g = 0; g < 16; g++) {
+        CHECK_EQ((int)r.hold_thresholds[g], (int)expected[g]);
+    }
+    std::printf("ok\n");
+}
 #endif   // LD2410_VARIANT_S
 
 int main() {
@@ -1134,6 +1232,10 @@ int main() {
     test_s_set_output_mode_minimal();
     test_s_write_generic_parameters();
     test_s_request_generic_parameters();
+    test_s_write_trigger_thresholds();
+    test_s_request_trigger_thresholds();
+    test_s_write_hold_thresholds();
+    test_s_request_hold_thresholds();
 #endif
 
     if (failures == 0) {

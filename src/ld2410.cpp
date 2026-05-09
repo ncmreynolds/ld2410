@@ -1098,6 +1098,84 @@ bool ld2410::parse_command_frame_()
 		}
 	}
 #endif
+#ifdef LD2410_HAS_TRIGGER_THRESHOLD
+	// HLK-LD2410S §2.2.10 — write-trigger-thresholds ACK is the standard
+	// 4-byte success/fail envelope.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_WRITE_TRIGGER_THRESH)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for write trigger thresholds: "));
+		#endif
+		if(latest_command_success_) {
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
+			#endif
+			return true;
+		}
+		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
+		return false;
+	}
+	// HLK-LD2410S §2.2.11 — read-trigger-thresholds ACK: intra=68 = 4 +
+	// 16 × 4. 16 LE 4-byte values starting at offset [10]; only the low
+	// byte of each is kept (matches API doc).
+	else if(intra_frame_data_length_ == 68 && latest_ack_ == LD2410_OP_READ_TRIGGER_THRESH)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for read trigger thresholds: "));
+		#endif
+		if(latest_command_success_) {
+			for (uint8_t g = 0; g < 16; g++) {
+				trigger_thresholds[g] = radar_data_frame_[10 + 4 * g];
+			}
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
+			#endif
+			return true;
+		}
+		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
+		return false;
+	}
+#endif
+#ifdef LD2410_HAS_HOLD_THRESHOLD
+	// HLK-LD2410S §2.2.12 — write-hold-thresholds ACK is the standard
+	// 4-byte success/fail envelope.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_WRITE_HOLD_THRESH)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for write hold thresholds: "));
+		#endif
+		if(latest_command_success_) {
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
+			#endif
+			return true;
+		}
+		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
+		return false;
+	}
+	// HLK-LD2410S §2.2.13 — read-hold-thresholds ACK: intra=68 = 4 + 16×4.
+	else if(intra_frame_data_length_ == 68 && latest_ack_ == LD2410_OP_READ_HOLD_THRESH)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for read hold thresholds: "));
+		#endif
+		if(latest_command_success_) {
+			for (uint8_t g = 0; g < 16; g++) {
+				hold_thresholds[g] = radar_data_frame_[10 + 4 * g];
+			}
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
+			#endif
+			return true;
+		}
+		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
+		return false;
+	}
+#endif
 #ifdef LD2410_HAS_GENERIC_PARAMS
 	// HLK-LD2410S §2.2.7 — write-generic-parameters ACK is the standard
 	// 4-byte success/fail envelope.
@@ -1742,6 +1820,104 @@ bool ld2410::setBluetooth(bool on)
 	delay(50);
 	leave_configuration_mode_();
 	return false;
+}
+#endif
+
+#if defined(LD2410_HAS_TRIGGER_THRESHOLD) || defined(LD2410_HAS_HOLD_THRESHOLD)
+// Shared body for the 0x72 (trigger) / 0x76 (hold) write-thresholds
+// commands. Both share the same envelope: cmd-word + 16 × (2-byte gate
+// word LE + 4-byte value LE) = 98 byte intra (= 0x62). Only the opcode
+// differs. Each gate's value is widened from uint8_t (the documented
+// range) to uint32_t for the wire.
+// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+bool ld2410::write_per_gate_thresholds_(uint8_t opcode, const uint8_t thresholds[16])
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(opcode);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0062);                              // intra-frame data length (98 bytes)
+		ld2410_write_le16(radar_uart_, opcode);                              // command word (LE)
+		for (uint8_t g = 0; g < 16; g++) {
+			ld2410_write_le16(radar_uart_, g);                               // gate index (LE)
+			ld2410_write_le32(radar_uart_, thresholds[g]);                   // threshold (LE 4B, low byte = value)
+		}
+		send_command_postamble_();
+		bool ok = wait_for_ack_(opcode, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+
+// Shared body for the 0x73 (trigger) / 0x77 (hold) read-thresholds
+// commands. Send envelope: cmd-word + 16 × 2-byte gate index = 34 byte
+// intra (= 0x22). ACK is decoded in parse_command_frame_'s 0x73/0x77
+// branches into trigger_thresholds[] / hold_thresholds[] respectively.
+// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+bool ld2410::request_per_gate_thresholds_(uint8_t opcode)
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(opcode);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0022);                              // intra-frame data length (34 bytes)
+		ld2410_write_le16(radar_uart_, opcode);                              // command word (LE)
+		for (uint8_t g = 0; g < 16; g++) {
+			ld2410_write_le16(radar_uart_, g);                               // gate index (LE)
+		}
+		send_command_postamble_();
+		bool ok = wait_for_ack_(opcode, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_TRIGGER_THRESHOLD
+// 0x72 §2.2.10 (S only) — write per-gate motion (trigger) thresholds.
+// See docs/method-coverage.md Table 1 row 0x72.
+bool ld2410::writeTriggerThresholds(const uint8_t thresholds[16])
+{
+	return write_per_gate_thresholds_(LD2410_OP_WRITE_TRIGGER_THRESH, thresholds);
+}
+
+// 0x73 §2.2.11 (S only) — read per-gate motion (trigger) thresholds.
+// On success the 16 values land in trigger_thresholds[].
+// See docs/method-coverage.md Table 1 row 0x73.
+bool ld2410::requestTriggerThresholds()
+{
+	return request_per_gate_thresholds_(LD2410_OP_READ_TRIGGER_THRESH);
+}
+#endif
+
+#ifdef LD2410_HAS_HOLD_THRESHOLD
+// 0x76 §2.2.12 (S only) — write per-gate stationary (hold) thresholds.
+// See docs/method-coverage.md Table 1 row 0x76.
+bool ld2410::writeHoldThresholds(const uint8_t thresholds[16])
+{
+	return write_per_gate_thresholds_(LD2410_OP_WRITE_HOLD_THRESH, thresholds);
+}
+
+// 0x77 §2.2.13 (S only) — read per-gate stationary (hold) thresholds.
+// On success the 16 values land in hold_thresholds[].
+// See docs/method-coverage.md Table 1 row 0x77.
+bool ld2410::requestHoldThresholds()
+{
+	return request_per_gate_thresholds_(LD2410_OP_READ_HOLD_THRESH);
 }
 #endif
 

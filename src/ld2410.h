@@ -215,6 +215,33 @@ class ld2410	{
 		bool setBaudRate(uint16_t baud_index);
 #endif
 
+#ifdef LD2410_HAS_TRIGGER_THRESHOLD
+		// 0x72 / 0x73 §2.2.10-11 (S only) — write / read the per-gate
+		// MOTION (trigger) thresholds. S splits what base/C sends as a
+		// single 0x64 sensitivity command into two: 0x72 = motion-side
+		// (trigger), 0x76 = stationary-side (hold).
+		// All 16 gates are written / read in one shot. The radar accepts
+		// 4-byte values per gate but the documented examples only ever
+		// use the low byte, so the API stores them as uint8_t.
+		// requestTriggerThresholds() populates trigger_thresholds[16].
+		// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+		// See docs/method-coverage.md Table 1 rows 0x72 / 0x73.
+		bool writeTriggerThresholds(const uint8_t thresholds[16]);
+		bool requestTriggerThresholds();
+		uint8_t trigger_thresholds[16] = {};
+#endif
+
+#ifdef LD2410_HAS_HOLD_THRESHOLD
+		// 0x76 / 0x77 §2.2.12-13 (S only) — write / read the per-gate
+		// STATIONARY (hold) thresholds. Mirror image of 0x72/0x73 above.
+		// requestHoldThresholds() populates hold_thresholds[16].
+		// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+		// See docs/method-coverage.md Table 1 rows 0x76 / 0x77.
+		bool writeHoldThresholds(const uint8_t thresholds[16]);
+		bool requestHoldThresholds();
+		uint8_t hold_thresholds[16] = {};
+#endif
+
 #ifdef LD2410_HAS_GENERIC_PARAMS
 		// 0x70 / 0x71 §2.2.7-8 (S only) — write / read the six "generic"
 		// configuration parameters (HLK Table 2-2):
@@ -426,6 +453,14 @@ class ld2410	{
 		void send_command_postamble_();									//Commands have the same postamble
 		bool enter_configuration_mode_();								//Necessary before sending any command
 		bool leave_configuration_mode_();								//Will not read values without leaving command mode
+#if defined(LD2410_HAS_TRIGGER_THRESHOLD) || defined(LD2410_HAS_HOLD_THRESHOLD)
+		// Shared body for the 0x72/0x76 write commands (trigger / hold).
+		// Both build the same 98-byte intra payload (cmd-word + 16 ×
+		// (gate-word LE + value LE 4B)); only the opcode differs.
+		bool write_per_gate_thresholds_(uint8_t opcode, const uint8_t thresholds[16]);
+		// Shared body for the 0x73/0x77 read commands (trigger / hold).
+		bool request_per_gate_thresholds_(uint8_t opcode);
+#endif
 #if defined(ESP32)
 		static void taskFunction(void* param);
 #endif
