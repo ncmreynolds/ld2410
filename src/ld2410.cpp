@@ -638,12 +638,18 @@ bool ld2410::parse_data_frame_() {
     //   [12-13] stationary target distance (cm, LE)
     //   [14]   stationary target energy
     //   [15-16] detection distance (cm, LE)
+    // The 16-bit fields land at odd byte offsets, so a `*(uint16_t*)`
+    // cast is double-UB: strict-aliasing violation AND unaligned access
+    // (HardFault on Cortex-M0/M0+, trap on Xtensa with odd offset).
+    // memcpy is the portable form; on LE hosts with optimisation gcc
+    // emits a single half-word load identical to a hypothetical safe
+    // unaligned access — no perf cost, full portability.
     target_type_                = radar_data_frame_[8];
-    moving_target_distance_     = *(uint16_t*)(&radar_data_frame_[9]);
+    memcpy(&moving_target_distance_,     &radar_data_frame_[9],  2);
     moving_target_energy_       = radar_data_frame_[11];
-    stationary_target_distance_ = *(uint16_t*)(&radar_data_frame_[12]);
+    memcpy(&stationary_target_distance_, &radar_data_frame_[12], 2);
     stationary_target_energy_   = radar_data_frame_[14];
-    detection_distance_         = *(uint16_t*)(&radar_data_frame_[15]);
+    memcpy(&detection_distance_,         &radar_data_frame_[15], 2);
 
     // Engineering frame extras (HLK Table 14):
     //   [17]    max moving gate N (redundant with max_moving_gate from 0x61 ACK)
