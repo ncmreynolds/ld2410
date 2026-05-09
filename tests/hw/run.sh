@@ -25,7 +25,9 @@ SKETCH_DIR="$HERE/$SKETCH_NAME"
 if [[ ! -d "$SKETCH_DIR" ]]; then
   echo "ERROR: sketch dir not found: $SKETCH_DIR" >&2
   echo "Available sketches under tests/hw:" >&2
-  ls -1 "$HERE" | grep -v '^run' >&2
+  # `|| true` prevents `set -euo pipefail` from masking the original
+  # "sketch dir not found" error if grep happens to drop everything.
+  (ls -1 "$HERE" | grep -v '^run' || true) >&2
   exit 1
 fi
 
@@ -34,11 +36,14 @@ FQBN="${2:-esp32:esp32:esp32}"
 # Default monitor baud is 115200 (matches ld2410c_full_test). The
 # modes-switch sketch runs the monitor at 57600 instead — see the
 # "MONITOR_BAUD" comment in that .ino for the rationale (CP2102
-# clone clock skew). Caller can override via env var.
-MONITOR_BAUD="${MONITOR_BAUD:-115200}"
-case "$SKETCH_NAME" in
-  ld2410c_modes_switch) MONITOR_BAUD="${MONITOR_BAUD_OVERRIDE:-57600}";;
-esac
+# clone clock skew). Caller can always override the per-sketch
+# default by exporting MONITOR_BAUD before running this script.
+if [[ -z "${MONITOR_BAUD:-}" ]]; then
+  case "$SKETCH_NAME" in
+    ld2410c_modes_switch) MONITOR_BAUD=57600 ;;
+    *)                    MONITOR_BAUD=115200 ;;
+  esac
+fi
 
 echo "=== $SKETCH_NAME ==="
 echo "  port  : $PORT"
