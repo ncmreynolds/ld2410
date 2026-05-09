@@ -1653,6 +1653,22 @@ void ld2410::send_command_postamble_()
 	ld2410_write_cmd_frame_tail(radar_uart_);
 }
 
+// All "trivial" no-arg commands share the same on-the-wire body:
+//   intra-length 02 00, opcode OP, padding 00.
+// Helper bumps cmd_seq_, emits the full command envelope, and returns.
+// Caller follows up with wait_for_ack_(opcode, timeout). Saves ~4 vcalls
+// per command and removes ~8 lines of identical boilerplate from each
+// of 9 callers (-200 B flash on AVR; on ESP32/ESP8266 the win is mainly
+// code clarity).
+void ld2410::send_simple_command_(uint8_t opcode)
+{
+	begin_command_(opcode);
+	send_command_preamble_();
+	const uint8_t cmd[4] = { 0x02, 0x00, opcode, 0x00 };
+	radar_uart_->write(cmd, sizeof(cmd));
+	send_command_postamble_();
+}
+
 bool ld2410::enter_configuration_mode_()
 {
 	begin_command_(LD2410_OP_ENABLE_CFG);
@@ -1669,13 +1685,7 @@ bool ld2410::enter_configuration_mode_()
 
 bool ld2410::leave_configuration_mode_()
 {
-	begin_command_(LD2410_OP_END_CFG);
-	send_command_preamble_();
-	radar_uart_->write((byte) 0x02);	//Command is two bytes long
-	radar_uart_->write((byte) 0x00);
-	radar_uart_->write((byte) LD2410_OP_END_CFG);	//Request leave command mode
-	radar_uart_->write((byte) 0x00);
-	send_command_postamble_();
+	send_simple_command_(LD2410_OP_END_CFG);
 	return wait_for_ack_(LD2410_OP_END_CFG, radar_uart_command_timeout_);
 }
 
@@ -1692,13 +1702,7 @@ bool ld2410::requestStartEngineeringMode()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(LD2410_OP_START_ENGINEERING);
-		send_command_preamble_();
-		radar_uart_->write((byte) 0x02);	//Command is two bytes long
-		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) LD2410_OP_START_ENGINEERING);	//Request enter engineering mode
-		radar_uart_->write((byte) 0x00);
-		send_command_postamble_();
+		send_simple_command_(LD2410_OP_START_ENGINEERING);
 		bool ok = wait_for_ack_(LD2410_OP_START_ENGINEERING, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
@@ -1718,13 +1722,7 @@ bool ld2410::requestEndEngineeringMode()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(LD2410_OP_END_ENGINEERING);
-		send_command_preamble_();
-		radar_uart_->write((byte) 0x02);	//Command is two bytes long
-		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) LD2410_OP_END_ENGINEERING);	//Request leave engineering mode
-		radar_uart_->write((byte) 0x00);
-		send_command_postamble_();
+		send_simple_command_(LD2410_OP_END_ENGINEERING);
 		bool ok = wait_for_ack_(LD2410_OP_END_ENGINEERING, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
@@ -1744,13 +1742,7 @@ bool ld2410::requestCurrentConfiguration()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(LD2410_OP_READ_PARAMS);
-		send_command_preamble_();
-		radar_uart_->write((byte) 0x02);	//Command is two bytes long
-		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) LD2410_OP_READ_PARAMS);	//Request current configuration
-		radar_uart_->write((byte) 0x00);
-		send_command_postamble_();
+		send_simple_command_(LD2410_OP_READ_PARAMS);
 		bool ok = wait_for_ack_(LD2410_OP_READ_PARAMS, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
@@ -1769,13 +1761,7 @@ bool ld2410::requestFirmwareVersion()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(LD2410_OP_FIRMWARE_VERSION);
-		send_command_preamble_();
-		radar_uart_->write((byte) 0x02);	//Command is two bytes long
-		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) LD2410_OP_FIRMWARE_VERSION);	//Request firmware version
-		radar_uart_->write((byte) 0x00);
-		send_command_postamble_();
+		send_simple_command_(LD2410_OP_FIRMWARE_VERSION);
 		bool ok = wait_for_ack_(LD2410_OP_FIRMWARE_VERSION, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
@@ -1796,13 +1782,7 @@ bool ld2410::requestRestart()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(LD2410_OP_RESTART);
-		send_command_preamble_();
-		radar_uart_->write((byte) 0x02);	//Command is two bytes long
-		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) LD2410_OP_RESTART);	//Request restart
-		radar_uart_->write((byte) 0x00);
-		send_command_postamble_();
+		send_simple_command_(LD2410_OP_RESTART);
 		bool ok = wait_for_ack_(LD2410_OP_RESTART, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
@@ -1855,13 +1835,7 @@ bool ld2410::requestFactoryReset()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(LD2410_OP_FACTORY_RESET);
-		send_command_preamble_();
-		radar_uart_->write((byte) 0x02);	//Command is two bytes long
-		radar_uart_->write((byte) 0x00);
-		radar_uart_->write((byte) LD2410_OP_FACTORY_RESET);	//Request factory reset
-		radar_uart_->write((byte) 0x00);
-		send_command_postamble_();
+		send_simple_command_(LD2410_OP_FACTORY_RESET);
 		bool ok = wait_for_ack_(LD2410_OP_FACTORY_RESET, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
@@ -1978,11 +1952,7 @@ bool ld2410::requestSerialNumber()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(LD2410_OP_READ_SN);
-		send_command_preamble_();
-		ld2410_write_le16(radar_uart_, 0x0002);                              // intra-frame data length (2 bytes — cmd-word only)
-		ld2410_write_le16(radar_uart_, LD2410_OP_READ_SN);                   // command word (LE)
-		send_command_postamble_();
+		send_simple_command_(LD2410_OP_READ_SN);
 		bool ok = wait_for_ack_(LD2410_OP_READ_SN, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
@@ -2384,11 +2354,7 @@ bool ld2410::requestDistanceResolution()
 	if(enter_configuration_mode_())
 	{
 		delay(50);
-		begin_command_(LD2410_OP_DISTANCE_RESOLUTION_GET);
-		send_command_preamble_();
-		ld2410_write_le16(radar_uart_, 0x0002);                              // intra-frame data length (2 bytes — cmd-word only)
-		ld2410_write_le16(radar_uart_, LD2410_OP_DISTANCE_RESOLUTION_GET);   // command word (LE)
-		send_command_postamble_();
+		send_simple_command_(LD2410_OP_DISTANCE_RESOLUTION_GET);
 		bool ok = wait_for_ack_(LD2410_OP_DISTANCE_RESOLUTION_GET, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();

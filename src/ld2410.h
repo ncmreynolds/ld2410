@@ -525,6 +525,13 @@ class ld2410	{
 		void print_frame_();											//Print the frame for debugging
 		void send_command_preamble_();									//Commands have the same preamble
 		void send_command_postamble_();									//Commands have the same postamble
+		// 7+ commands ("trivial" no-arg: leave-cfg, start/end engineering,
+		// read-params, fw-version, restart, factory-reset, read-SN, query-
+		// distance-resolution) share the exact same 4-byte payload
+		// `02 00 OP 00`. Helper bumps cmd_seq_ via begin_command_(opcode),
+		// emits the full envelope (preamble + 4-byte body + postamble),
+		// and returns. Caller is responsible for the wait_for_ack_().
+		void send_simple_command_(uint8_t opcode);
 		bool enter_configuration_mode_();								//Necessary before sending any command
 		bool leave_configuration_mode_();								//Will not read values without leaving command mode
 #if defined(LD2410_HAS_TRIGGER_THRESHOLD) || defined(LD2410_HAS_HOLD_THRESHOLD)
