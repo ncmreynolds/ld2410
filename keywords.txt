@@ -43,6 +43,8 @@ detectionDistance	KEYWORD2
 movingEnergyAtGate	KEYWORD2
 stationaryEnergyAtGate	KEYWORD2
 engineeringRetrieved	KEYWORD2
+snapshotEngineeringMotionEnergies	KEYWORD2
+snapshotEngineeringStationaryEnergies	KEYWORD2
 autoReadTask	KEYWORD2
 stopAutoReadTask	KEYWORD2
 isAutoReadTaskRunning	KEYWORD2

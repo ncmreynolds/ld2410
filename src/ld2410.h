@@ -156,6 +156,18 @@ class ld2410	{
 		uint8_t stationaryEnergyAtGate(uint8_t gate);
 		bool engineeringRetrieved();
 
+		// Atomic snapshot of the per-gate engineering arrays. Use these
+		// when iterating all LD2410_GATE_COUNT gates from a context that
+		// may run concurrently with autoReadTask: the array is memcpy'd
+		// under portENTER_CRITICAL(data_mux_) on ESP32 so the snapshot
+		// is a self-consistent picture of one frame instead of nine
+		// independent reads that the task may interleave its own writes
+		// between. On non-ESP32 platforms the lock degenerates to a
+		// plain memcpy (single-thread assumption — no FreeRTOS).
+		// `out` MUST be at least LD2410_GATE_COUNT bytes wide.
+		void snapshotEngineeringMotionEnergies(uint8_t out[LD2410_GATE_COUNT]) const;
+		void snapshotEngineeringStationaryEnergies(uint8_t out[LD2410_GATE_COUNT]) const;
+
 #ifdef LD2410_HAS_AUTO_THRESHOLD
 		// 0x03 data type §2.2.9 — auto-threshold tuning progress, reported
 		// by the radar while the 0x09 autoUpdateThreshold() command is
@@ -459,7 +471,7 @@ class ld2410	{
 		uint8_t expected_ack_opcode_ = 0;								//Set by command issuer; checked by parse_command_frame_
 #if defined(ESP32)
 		TaskHandle_t taskHandle_ = nullptr;
-		portMUX_TYPE data_mux_ = portMUX_INITIALIZER_UNLOCKED;
+		mutable portMUX_TYPE data_mux_ = portMUX_INITIALIZER_UNLOCKED;   // mutable so const snapshot* methods can acquire it
 		SemaphoreHandle_t cmd_mutex_ = nullptr;		//Serializes request*/set* on ESP32 (created in begin(), destroyed in dtor)
 #endif
 

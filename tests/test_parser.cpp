@@ -296,6 +296,17 @@ static void test_sequential_frames() {
     CHECK_EQ((int)r.movingTargetEnergy(), 20);
     CHECK_EQ((int)r.movingEnergyAtGate(5), 42);
     CHECK(r.engineeringRetrieved());
+
+    // Atomic snapshot accessors: must return the same per-gate values
+    // as the per-gate getters (host has no FreeRTOS, so the lock
+    // degenerates to a plain memcpy; equality is the only check).
+    uint8_t mot[9], sta[9];
+    r.snapshotEngineeringMotionEnergies(mot);
+    r.snapshotEngineeringStationaryEnergies(sta);
+    for (int g = 0; g < 9; g++) {
+        CHECK_EQ((int)mot[g], (int)r.movingEnergyAtGate(g));
+        CHECK_EQ((int)sta[g], (int)r.stationaryEnergyAtGate(g));
+    }
     std::printf("ok\n");
 }
 

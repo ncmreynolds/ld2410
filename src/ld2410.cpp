@@ -311,6 +311,31 @@ bool ld2410::engineeringRetrieved() {
     return engineering_data_received_;
 }
 
+// Atomic snapshot of engineering_motion_energy_[]. On ESP32 the copy is
+// performed under portENTER_CRITICAL(data_mux_) so the LD2410_GATE_COUNT
+// bytes belong to ONE frame — guaranteed not to interleave with the
+// concurrent writes done by parse_data_frame_() running inside
+// autoReadTask. On other platforms the lock degenerates to a plain memcpy.
+void ld2410::snapshotEngineeringMotionEnergies(uint8_t out[LD2410_GATE_COUNT]) const {
+#if defined(ESP32)
+    portENTER_CRITICAL(&data_mux_);
+#endif
+    memcpy(out, engineering_motion_energy_, LD2410_GATE_COUNT);
+#if defined(ESP32)
+    portEXIT_CRITICAL(&data_mux_);
+#endif
+}
+
+void ld2410::snapshotEngineeringStationaryEnergies(uint8_t out[LD2410_GATE_COUNT]) const {
+#if defined(ESP32)
+    portENTER_CRITICAL(&data_mux_);
+#endif
+    memcpy(out, engineering_stationary_energy_, LD2410_GATE_COUNT);
+#if defined(ESP32)
+    portEXIT_CRITICAL(&data_mux_);
+#endif
+}
+
 #ifdef LD2410_HAS_AUTO_THRESHOLD
 uint16_t ld2410::autoThresholdProgress() { return auto_threshold_progress_; }
 bool     ld2410::autoThresholdReceived() { return auto_threshold_received_; }

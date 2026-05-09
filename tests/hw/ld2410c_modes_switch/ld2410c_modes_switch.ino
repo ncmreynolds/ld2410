@@ -162,15 +162,26 @@ static void print_status() {
 
   if (is_engineering(current_mode)) {
     if (radar.engineeringRetrieved()) {
+      // Take an atomic snapshot of both per-gate arrays before
+      // formatting. In SYNC mode this is unnecessary (single thread,
+      // no race), but doing it unconditionally keeps the print path
+      // identical between modes — which is exactly what we need to
+      // tell whether a misformatted line is a Serial.print artifact
+      // or something else. If the snapshot version still shows
+      // garbled lines the bug is NOT in the print interleaving.
+      uint8_t mot[LD2410_GATE_COUNT], sta[LD2410_GATE_COUNT];
+      radar.snapshotEngineeringMotionEnergies(mot);
+      radar.snapshotEngineeringStationaryEnergies(sta);
+
       MONITOR_SERIAL.print(F("\n  m=["));
       for (uint8_t g = 0; g < LD2410_GATE_COUNT; g++) {
         if (g) MONITOR_SERIAL.print(',');
-        MONITOR_SERIAL.print(radar.movingEnergyAtGate(g));
+        MONITOR_SERIAL.print(mot[g]);
       }
       MONITOR_SERIAL.print(F("]  s=["));
       for (uint8_t g = 0; g < LD2410_GATE_COUNT; g++) {
         if (g) MONITOR_SERIAL.print(',');
-        MONITOR_SERIAL.print(radar.stationaryEnergyAtGate(g));
+        MONITOR_SERIAL.print(sta[g]);
       }
       MONITOR_SERIAL.print(']');
     } else {
