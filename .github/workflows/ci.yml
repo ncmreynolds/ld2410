@@ -24,9 +24,11 @@ jobs:
 
       - name: Install arduino-cli
         run: |
+          # arduino-cli's install.sh refuses to run if BINDIR doesn't
+          # already exist, so create it BEFORE piping into sh.
+          mkdir -p "$HOME/.local/bin"
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh \
             | BINDIR="$HOME/.local/bin" sh
-          mkdir -p "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Add board package URLs
