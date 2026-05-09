@@ -50,7 +50,7 @@ uint32_t lastConfigPoll = 0;
 void setup() {
   MONITOR_SERIAL.begin(115200);
   // radar.debug(MONITOR_SERIAL);  // Uncomment for verbose library debug output
-  RADAR_SERIAL.begin(256000, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
+  RADAR_SERIAL.begin(LD2410_DEFAULT_BAUD, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
   delay(500);
 
   MONITOR_SERIAL.print(F("\nConnect LD2410 radar TX to GPIO:"));

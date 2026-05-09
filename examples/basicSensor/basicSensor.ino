@@ -73,9 +73,9 @@ void setup(void)
   MONITOR_SERIAL.begin(115200); //Feedback over Serial Monitor
   //radar.debug(MONITOR_SERIAL); //Uncomment to show debug information from the library on the Serial Monitor. By default this does not show sensor reads as they are very frequent.
   #if defined(ESP32)
-    RADAR_SERIAL.begin(256000, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN); //UART for monitoring the radar
+    RADAR_SERIAL.begin(LD2410_DEFAULT_BAUD, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN); //UART for monitoring the radar
   #elif defined(__AVR_ATmega32U4__)
-    RADAR_SERIAL.begin(256000); //UART for monitoring the radar
+    RADAR_SERIAL.begin(LD2410_DEFAULT_BAUD); //UART for monitoring the radar
   #endif
   delay(500);
   MONITOR_SERIAL.print(F("\nConnect LD2410 radar TX to GPIO:"));

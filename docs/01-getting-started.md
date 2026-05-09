@@ -55,7 +55,7 @@ ld2410 radar;
 
 void setup() {
   Serial.begin(115200);                                      // monitor
-  Serial1.begin(256000, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
+  Serial1.begin(LD2410_DEFAULT_BAUD, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
   if (!radar.begin(Serial1)) {                               // sync first frame
     Serial.println("radar.begin: FAIL");
     while (true) delay(1000);

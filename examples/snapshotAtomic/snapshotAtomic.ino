@@ -56,7 +56,7 @@ uint32_t lastPrint = 0;
 void setup() {
   MONITOR_SERIAL.begin(115200);
   delay(500);
-  RADAR_SERIAL.begin(256000, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
+  RADAR_SERIAL.begin(LD2410_DEFAULT_BAUD, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
   delay(500);
 
   MONITOR_SERIAL.println(F("\nLD2410 snapshotAtomic example (ESP32 dual-core)"));
