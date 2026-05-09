@@ -262,6 +262,20 @@ class ld2410	{
 		uint8_t hold_thresholds[16] = {};
 #endif
 
+#ifdef LD2410_HAS_SERIAL_NUMBER
+		// 0x10 / 0x11 §2.2.5-6 (S only) — write / read the 8-byte sensor
+		// serial number. The HLK PDF examples always use SN length = 8
+		// bytes (e.g. ASCII "12345678"); the protocol defines a 2-byte
+		// length prefix but no firmware ships with a different length,
+		// so the API uses a fixed 8-byte buffer for simplicity.
+		// requestSerialNumber() populates serial_number[8] in wire order.
+		// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+		// See docs/method-coverage.md Table 1 rows 0x10 / 0x11.
+		bool writeSerialNumber(const uint8_t sn[8]);
+		bool requestSerialNumber();
+		uint8_t serial_number[8] = {0,0,0,0,0,0,0,0};
+#endif
+
 #ifdef LD2410_HAS_GENERIC_PARAMS
 		// 0x70 / 0x71 §2.2.7-8 (S only) — write / read the six "generic"
 		// configuration parameters (HLK Table 2-2):

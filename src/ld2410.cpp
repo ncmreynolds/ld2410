@@ -1098,6 +1098,46 @@ bool ld2410::parse_command_frame_()
 		}
 	}
 #endif
+#ifdef LD2410_HAS_SERIAL_NUMBER
+	// HLK-LD2410S §2.2.5 — write-SN ACK is the standard 4-byte envelope.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_WRITE_SN)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for write serial number: "));
+		#endif
+		if(latest_command_success_) {
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
+			#endif
+			return true;
+		}
+		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
+		return false;
+	}
+	// HLK-LD2410S §2.2.6 — read-SN ACK is intra=14 = 2 (cmd) + 2 (status)
+	// + 2 (length, always 8) + 8 (SN bytes). Frame offsets:
+	//   [10][11] = SN length (LE; expected 0x0008)
+	//   [12..19] = SN bytes
+	else if(intra_frame_data_length_ == 14 && latest_ack_ == LD2410_OP_READ_SN)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for read serial number: "));
+		#endif
+		if(latest_command_success_) {
+			for (uint8_t i = 0; i < 8; i++) {
+				serial_number[i] = radar_data_frame_[12 + i];
+			}
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
+			#endif
+			return true;
+		}
+		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
+		return false;
+	}
+#endif
 #ifdef LD2410_HAS_AUTO_THRESHOLD
 	// HLK-LD2410S §2.2.9 — autoUpdateThreshold has no documented
 	// command-channel ACK; the radar reports progress via the data-type
@@ -1834,6 +1874,65 @@ bool ld2410::setBluetooth(bool on)
 		ld2410_write_le16(radar_uart_, on ? LD2410_BLUETOOTH_ON : LD2410_BLUETOOTH_OFF);
 		send_command_postamble_();
 		bool ok = wait_for_ack_(LD2410_OP_BLUETOOTH, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_SERIAL_NUMBER
+// 0x10 §2.2.5 (S only) — write the 8-byte sensor serial number. Send:
+// cmd-word + 2-byte length (always 8) + 8 SN bytes in wire order;
+// intra=12. ACK is the standard 4-byte success/fail envelope.
+// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+// See docs/method-coverage.md Table 1 row 0x10.
+bool ld2410::writeSerialNumber(const uint8_t sn[8])
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_WRITE_SN);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x000C);                              // intra-frame data length (12 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_WRITE_SN);                  // command word (LE)
+		ld2410_write_le16(radar_uart_, 0x0008);                              // SN length (always 8)
+		radar_uart_->write(sn, 8);                                           // SN bytes in wire order
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_WRITE_SN, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+
+// 0x11 §2.2.6 (S only) — read the 8-byte sensor serial number. Send:
+// cmd-word only, intra=2. ACK envelope: cmd-word + 2-byte status +
+// 2-byte length + 8 SN bytes (intra=14). Decoded by parse_command_frame_'s
+// 0x11 branch into serial_number[8].
+// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+// See docs/method-coverage.md Table 1 row 0x11.
+bool ld2410::requestSerialNumber()
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_READ_SN);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0002);                              // intra-frame data length (2 bytes — cmd-word only)
+		ld2410_write_le16(radar_uart_, LD2410_OP_READ_SN);                   // command word (LE)
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_READ_SN, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;

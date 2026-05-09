@@ -1233,6 +1233,50 @@ static void test_s_auto_update_threshold_no_ack() {
     CHECK_EQ((int)r.autoThresholdProgress(), 5000);
     std::printf("ok\n");
 }
+
+// ---------------------------------------------------------------------------
+// S Test: writeSerialNumber — 0x10 ACK is standard 4-byte envelope.
+// ---------------------------------------------------------------------------
+static void test_s_write_serial_number() {
+    std::printf("test_s_write_serial_number ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0x10, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    const uint8_t sn[8] = {'1','2','3','4','5','6','7','8'};   // §2.2.5 example
+    CHECK(r.writeSerialNumber(sn));
+    std::printf("ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// S Test: requestSerialNumber — 0x11 ACK intra=14 (cmd+status+length+8 SN bytes).
+// ---------------------------------------------------------------------------
+static void test_s_request_serial_number() {
+    std::printf("test_s_request_serial_number ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    std::vector<uint8_t> ack = {
+        0xFD, 0xFC, 0xFB, 0xFA,
+        0x0E, 0x00,                               // intra = 14
+        0x11, 0x01,                               // cmd-word ACK
+        0x00, 0x00,                               // status: success
+        0x08, 0x00,                               // SN length = 8
+        '1','2','3','4','5','6','7','8',          // SN bytes (§2.2.6 example)
+        0x04, 0x03, 0x02, 0x01
+    };
+    s.inject_response(ack);
+    s.inject_response(make_short_ack(0xFE, 4));
+
+    CHECK(r.requestSerialNumber());
+    for (int i = 0; i < 8; i++) {
+        CHECK_EQ((int)r.serial_number[i], (int)('1' + i));
+    }
+    std::printf("ok\n");
+}
 #endif   // LD2410_VARIANT_S
 
 int main() {
@@ -1282,6 +1326,8 @@ int main() {
     test_s_request_hold_thresholds();
     test_s_auto_update_threshold_with_ack();
     test_s_auto_update_threshold_no_ack();
+    test_s_write_serial_number();
+    test_s_request_serial_number();
 #endif
 
     if (failures == 0) {

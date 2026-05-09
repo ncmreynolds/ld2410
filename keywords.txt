@@ -36,6 +36,8 @@ requestHoldThresholds	KEYWORD2
 autoUpdateThreshold	KEYWORD2
 autoThresholdProgress	KEYWORD2
 autoThresholdReceived	KEYWORD2
+writeSerialNumber	KEYWORD2
+requestSerialNumber	KEYWORD2
 getFrameData	KEYWORD2
 detectionDistance	KEYWORD2
 movingEnergyAtGate	KEYWORD2
@@ -58,3 +60,4 @@ distance_report_freq	LITERAL1
 response_speed	LITERAL1
 trigger_thresholds	LITERAL1
 hold_thresholds	LITERAL1
+serial_number	LITERAL1

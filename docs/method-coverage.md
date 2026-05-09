@@ -46,8 +46,8 @@ Legend:
 | `0xAA` | §2.2.16 C | Set distance resolution (0.75 / 0.2 m) | — | ✅ | — | `setDistanceResolution(LD2410_DISTANCE_RESOLUTION_*)` — non-volatile, takes effect after restart | `LD2410_HAS_DISTANCE_RESOLUTION` |
 | `0xAB` | §2.2.17 C | Query distance resolution | — | ✅ | — | `requestDistanceResolution()` → populates `distance_resolution` (LE index) | `LD2410_HAS_DISTANCE_RESOLUTION` |
 | `0x09` | §2.2.9 S | Auto-update threshold | — | — | ✅ | `autoUpdateThreshold(trigger=2, retention=1, scan_s=120)` — return value is best-effort (HLK does not document an ACK); use `autoThresholdProgress()` for real progress. UNVERIFIED on hardware | `LD2410_HAS_AUTO_THRESHOLD` |
-| `0x10` | §2.2.5 S | Write serial number | — | — | ❌ | *missing* | `LD2410_HAS_SERIAL_NUMBER` |
-| `0x11` | §2.2.6 S | Read serial number | — | — | ❌ | *missing* | `LD2410_HAS_SERIAL_NUMBER` |
+| `0x10` | §2.2.5 S | Write serial number | — | — | ✅ | `writeSerialNumber(uint8_t sn[8])` — UNVERIFIED on hardware | `LD2410_HAS_SERIAL_NUMBER` |
+| `0x11` | §2.2.6 S | Read serial number | — | — | ✅ | `requestSerialNumber()` → populates `serial_number[8]` — UNVERIFIED on hardware | `LD2410_HAS_SERIAL_NUMBER` |
 | `0x70` | §2.2.7 S | Write generic parameters | — | — | ✅ | `writeGenericParameters(farthest, nearest, delay_s, status_freq, distance_freq, speed)` — UNVERIFIED on hardware | `LD2410_HAS_GENERIC_PARAMS` |
 | `0x71` | §2.2.8 S | Read generic parameters | — | — | ✅ | `requestGenericParameters()` → populates 6 public fields — UNVERIFIED on hardware | `LD2410_HAS_GENERIC_PARAMS` |
 | `0x72` | §2.2.10 S | Write trigger threshold | — | — | ✅ | `writeTriggerThresholds(uint8_t[16])` — UNVERIFIED on hardware | `LD2410_HAS_TRIGGER_THRESHOLD` |
@@ -83,28 +83,11 @@ Legend:
 → **0 capabilities missing**.
 
 ### LD2410S
-Almost everything is missing — only enter/leave configuration currently
-work because they share opcodes with base/C. `requestFirmwareVersion()`
-is exposed but uses the wrong opcode (0xA0 instead of 0x00).
+*All documented commands now exposed; all three parser modes implemented.*
 
-| Missing | Opcode / scope | Severity |
-|---|---|---|
-| Fix `requestFirmwareVersion()` to dispatch 0xA0 (base/C) vs 0x00 (S) | command opcode | blocking |
-| ~~`setOutputMode(standard / minimal)`~~ | ~~`0x7A`~~ | ✅ done step 11d.1 |
-| ~~`writeGenericParameters()` (S equivalent of setMaxValues)~~ | ~~`0x70`~~ | ✅ done step 11d.2 |
-| ~~`requestGenericParameters()` (S equivalent of requestCurrentConfiguration)~~ | ~~`0x71`~~ | ✅ done step 11d.2 |
-| ~~`writeTriggerThresholds()` (S equivalent of setGateSensitivityThreshold, motion half)~~ | ~~`0x72`~~ | ✅ done step 11d.3 |
-| ~~`requestTriggerThresholds()`~~ | ~~`0x73`~~ | ✅ done step 11d.3 |
-| ~~`writeHoldThresholds()` (S equivalent of setGateSensitivityThreshold, hold half)~~ | ~~`0x76`~~ | ✅ done step 11d.3 |
-| ~~`requestHoldThresholds()`~~ | ~~`0x77`~~ | ✅ done step 11d.3 |
-| ~~`autoUpdateThreshold()`~~ | ~~`0x09`~~ | ✅ done step 11d.4 |
-| `writeSerialNumber()` | `0x10` | never exposed |
-| `readSerialNumber()` | `0x11` | never exposed |
-| Standard frame parser (16 gates inline) | data type `0x01` (S meaning) | blocking |
-| Auto-threshold progress parser | data type `0x03` | blocking for `0x09` |
-| Minimal frame parser (`6E … 62`) | — | blocking for `0x7A` minimal mode |
-
-→ **11 commands + 3 parser modes missing**.
+→ **0 capabilities missing**, but **all S code is UNVERIFIED on hardware**
+(see banner in `src/ld2410_variants/ld2410_s.h`). Bench validation against
+a real LD2410S sample is the next gating step before declaring S production-ready.
 
 ---
 
@@ -133,5 +116,5 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 11d.2 | S — `writeGenericParameters` / `requestGenericParameters` (0x70/0x71) | ✅ done (this commit) |
 | 11d.3 | S — `write/requestTriggerThresholds` (0x72/0x73) + `write/requestHoldThresholds` (0x76/0x77) | ✅ done (this commit) |
 | 11d.4 | S — `autoUpdateThreshold` (0x09) | ✅ done (this commit) |
-| 11d.5 | S — `write/readSerialNumber` (0x10/0x11) | pending |
+| 11d.5 | S — `write/requestSerialNumber` (0x10/0x11) | ✅ done (this commit) |
 | 12 | End-to-end verification: tests + arduino-cli compile across all 3 variants × 3 boards | continuous |
