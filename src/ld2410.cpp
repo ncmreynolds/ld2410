@@ -1098,6 +1098,79 @@ bool ld2410::parse_command_frame_()
 		}
 	}
 #endif
+#ifdef LD2410_HAS_GENERIC_PARAMS
+	// HLK-LD2410S §2.2.7 — write-generic-parameters ACK is the standard
+	// 4-byte success/fail envelope.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_WRITE_GENERIC_PARAMS)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for write generic parameters: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+	// HLK-LD2410S §2.2.8 — read-generic-parameters ACK: intra=28 (= 4 +
+	// 6×4), with 6 LE 4-byte values starting at offset [10]. Order matches
+	// the request order: farthest, nearest, unmanned-delay, status-freq,
+	// distance-freq, response-speed.
+	// (PDF prints intra as 0x1A=26 but the documented payload sums to 0x1C=28
+	// — typo in PDF; the math is authoritative.)
+	else if(intra_frame_data_length_ == 28 && latest_ack_ == LD2410_OP_READ_GENERIC_PARAMS)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for read generic parameters: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			detect_farthest_gate = (uint8_t)radar_data_frame_[10];
+			detect_nearest_gate  = (uint8_t)radar_data_frame_[14];
+			unmanned_delay_s     = (uint16_t)radar_data_frame_[18]
+			                     | ((uint16_t)radar_data_frame_[19] << 8);
+			status_report_freq   = (uint8_t)radar_data_frame_[22];
+			distance_report_freq = (uint8_t)radar_data_frame_[26];
+			response_speed       = (uint8_t)radar_data_frame_[30];
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+#endif
 #ifdef LD2410_HAS_OUTPUT_MODE
 	// HLK-LD2410S §2.2.1 — switch-output-mode ACK is the standard
 	// 4-byte success/fail envelope.
@@ -1662,6 +1735,88 @@ bool ld2410::setBluetooth(bool on)
 		ld2410_write_le16(radar_uart_, on ? LD2410_BLUETOOTH_ON : LD2410_BLUETOOTH_OFF);
 		send_command_postamble_();
 		bool ok = wait_for_ack_(LD2410_OP_BLUETOOTH, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_GENERIC_PARAMS
+// 0x70 §2.2.7 (S only) — write all six generic parameters in one shot.
+// Send envelope: cmd-word + 6 × (param-word LE 2B + value LE 4B) = 38 B intra
+// (= 0x26). ACK is the standard 4-byte success/fail envelope.
+// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+// See docs/method-coverage.md Table 1 row 0x70.
+bool ld2410::writeGenericParameters(uint8_t detect_farthest_gate_in,
+                                    uint8_t detect_nearest_gate_in,
+                                    uint16_t unmanned_delay_s_in,
+                                    uint8_t status_report_freq_in,
+                                    uint8_t distance_report_freq_in,
+                                    uint8_t response_speed_in)
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_WRITE_GENERIC_PARAMS);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0026);                              // intra-frame data length (38 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_WRITE_GENERIC_PARAMS);      // command word (LE)
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_FARTHEST_GATE);
+		ld2410_write_le32(radar_uart_, detect_farthest_gate_in);
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_NEAREST_GATE);
+		ld2410_write_le32(radar_uart_, detect_nearest_gate_in);
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_UNMANNED_DELAY);
+		ld2410_write_le32(radar_uart_, unmanned_delay_s_in);
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_STATUS_FREQ);
+		ld2410_write_le32(radar_uart_, status_report_freq_in);
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_DISTANCE_FREQ);
+		ld2410_write_le32(radar_uart_, distance_report_freq_in);
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_RESPONSE_SPEED);
+		ld2410_write_le32(radar_uart_, response_speed_in);
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_WRITE_GENERIC_PARAMS, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+
+// 0x71 §2.2.8 (S only) — read all six generic parameters in one shot.
+// Send envelope: cmd-word + 6 × (param-word LE 2B) = 14 B intra (= 0x0E).
+// ACK envelope: cmd-word + 2-byte status + 6 × (4-byte LE value) = 28 B intra
+// (= 0x1C). The HLK PDF prints the ACK length as 0x1A (= 26) but the actual
+// payload table sums to 28 — typo in the PDF; the math (4 + 6×4) is
+// authoritative. ACK is decoded by parse_command_frame_'s 0x71 branch.
+// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+// See docs/method-coverage.md Table 1 row 0x71.
+bool ld2410::requestGenericParameters()
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_READ_GENERIC_PARAMS);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x000E);                              // intra-frame data length (14 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_READ_GENERIC_PARAMS);       // command word (LE)
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_FARTHEST_GATE);
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_NEAREST_GATE);
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_UNMANNED_DELAY);
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_STATUS_FREQ);
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_DISTANCE_FREQ);
+		ld2410_write_le16(radar_uart_, LD2410_PARAM_RESPONSE_SPEED);
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_READ_GENERIC_PARAMS, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;

@@ -215,6 +215,35 @@ class ld2410	{
 		bool setBaudRate(uint16_t baud_index);
 #endif
 
+#ifdef LD2410_HAS_GENERIC_PARAMS
+		// 0x70 / 0x71 §2.2.7-8 (S only) — write / read the six "generic"
+		// configuration parameters (HLK Table 2-2):
+		//   detect_farthest_gate  (1..16)        — LD2410_PARAM_FARTHEST_GATE  0x05
+		//   detect_nearest_gate   (0..16)        — LD2410_PARAM_NEAREST_GATE   0x0A
+		//   unmanned_delay_s      (10..120)      — LD2410_PARAM_UNMANNED_DELAY 0x06
+		//   status_report_freq    (Hz×10, 5..80) — LD2410_PARAM_STATUS_FREQ    0x02
+		//   distance_report_freq  (Hz×10, 5..80) — LD2410_PARAM_DISTANCE_FREQ  0x0C
+		//   response_speed        (5 normal / 10 fast) — LD2410_PARAM_RESPONSE_SPEED 0x0B
+		// All six are sent in one shot (write) or queried in one shot (read);
+		// the partial-write API can be added later if needed.
+		// requestGenericParameters() populates the matching fields below.
+		// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+		// See docs/method-coverage.md Table 1 rows 0x70 / 0x71.
+		bool writeGenericParameters(uint8_t detect_farthest_gate,
+		                            uint8_t detect_nearest_gate,
+		                            uint16_t unmanned_delay_s,
+		                            uint8_t status_report_freq,
+		                            uint8_t distance_report_freq,
+		                            uint8_t response_speed);
+		bool requestGenericParameters();
+		uint8_t  detect_farthest_gate  = 0;
+		uint8_t  detect_nearest_gate   = 0;
+		uint16_t unmanned_delay_s      = 0;
+		uint8_t  status_report_freq    = 0;
+		uint8_t  distance_report_freq  = 0;
+		uint8_t  response_speed        = 0;
+#endif
+
 #ifdef LD2410_HAS_OUTPUT_MODE
 		// 0x7A §2.2.1 (S only) — switch the radar between minimal-frame
 		// (6E…62, 5 bytes total) and standard-frame (F4F3F2F1 / data type

@@ -48,8 +48,8 @@ Legend:
 | `0x09` | §2.2.9 S | Auto-update threshold | — | — | ❌ | *missing* | `LD2410_HAS_AUTO_THRESHOLD` |
 | `0x10` | §2.2.5 S | Write serial number | — | — | ❌ | *missing* | `LD2410_HAS_SERIAL_NUMBER` |
 | `0x11` | §2.2.6 S | Read serial number | — | — | ❌ | *missing* | `LD2410_HAS_SERIAL_NUMBER` |
-| `0x70` | §2.2.7 S | Write generic parameters | — | — | ❌ | *missing* | `LD2410_HAS_GENERIC_PARAMS` |
-| `0x71` | §2.2.8 S | Read generic parameters | — | — | ❌ | *missing* | `LD2410_HAS_GENERIC_PARAMS` |
+| `0x70` | §2.2.7 S | Write generic parameters | — | — | ✅ | `writeGenericParameters(farthest, nearest, delay_s, status_freq, distance_freq, speed)` — UNVERIFIED on hardware | `LD2410_HAS_GENERIC_PARAMS` |
+| `0x71` | §2.2.8 S | Read generic parameters | — | — | ✅ | `requestGenericParameters()` → populates 6 public fields — UNVERIFIED on hardware | `LD2410_HAS_GENERIC_PARAMS` |
 | `0x72` | §2.2.10 S | Write trigger threshold | — | — | ❌ | *missing* | `LD2410_HAS_TRIGGER_THRESHOLD` |
 | `0x73` | §2.2.11 S | Read trigger threshold | — | — | ❌ | *missing* | `LD2410_HAS_TRIGGER_THRESHOLD` |
 | `0x76` | §2.2.12 S | Write hold threshold | — | — | ❌ | *missing* | `LD2410_HAS_HOLD_THRESHOLD` |
@@ -91,8 +91,8 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 |---|---|---|
 | Fix `requestFirmwareVersion()` to dispatch 0xA0 (base/C) vs 0x00 (S) | command opcode | blocking |
 | ~~`setOutputMode(standard / minimal)`~~ | ~~`0x7A`~~ | ✅ done step 11d.1 |
-| `writeGenericParams()` (S equivalent of setMaxValues) | `0x70` | never exposed |
-| `readGenericParams()` (S equivalent of requestCurrentConfiguration) | `0x71` | never exposed |
+| ~~`writeGenericParameters()` (S equivalent of setMaxValues)~~ | ~~`0x70`~~ | ✅ done step 11d.2 |
+| ~~`requestGenericParameters()` (S equivalent of requestCurrentConfiguration)~~ | ~~`0x71`~~ | ✅ done step 11d.2 |
 | `writeTriggerThreshold()` (S equivalent of setGateSensitivityThreshold, motion half) | `0x72` | never exposed |
 | `readTriggerThreshold()` | `0x73` | never exposed |
 | `writeHoldThreshold()` (S equivalent of setGateSensitivityThreshold, hold half) | `0x76` | never exposed |
@@ -130,7 +130,7 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 11b | Add `setBluetooth/requestMACAddress/setDistanceResolution/requestDistanceResolution` for C (regression fixes vs v0.1.3) | ✅ done (this commit) |
 | 11c | Add `obtainBluetoothPermissions/setBluetoothPassword` for C (never exposed before) | ✅ done (this commit) |
 | 11d.1 | S — `setOutputMode` (0x7A) | ✅ done (this commit) |
-| 11d.2 | S — `write/readGenericParams` (0x70/0x71) | pending |
+| 11d.2 | S — `writeGenericParameters` / `requestGenericParameters` (0x70/0x71) | ✅ done (this commit) |
 | 11d.3 | S — `write/readTriggerThreshold` (0x72/0x73) + `write/readHoldThreshold` (0x76/0x77) | pending |
 | 11d.4 | S — `autoUpdateThreshold` (0x09) | pending |
 | 11d.5 | S — `write/readSerialNumber` (0x10/0x11) | pending |

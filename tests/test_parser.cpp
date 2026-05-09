@@ -1037,6 +1037,60 @@ static void test_s_set_output_mode_minimal() {
     CHECK(r.setOutputMode(/*standard=*/false));
     std::printf("ok\n");
 }
+
+// ---------------------------------------------------------------------------
+// S Test: writeGenericParameters — 0x70 ACK is standard 4-byte envelope.
+// ---------------------------------------------------------------------------
+static void test_s_write_generic_parameters() {
+    std::printf("test_s_write_generic_parameters ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0x70, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    // Use the §2.2.7 example values: farthest=12, nearest=0, delay=40s,
+    // status=5 (0.5 Hz), distance=5 (0.5 Hz), speed=5 (normal).
+    CHECK(r.writeGenericParameters(12, 0, 40, 5, 5, 5));
+    std::printf("ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// S Test: requestGenericParameters — 0x71 ACK is intra=28 with 6 LE 4-byte
+// values; uses the §2.2.8 documented example payload.
+// ---------------------------------------------------------------------------
+static void test_s_request_generic_parameters() {
+    std::printf("test_s_request_generic_parameters ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+
+    std::vector<uint8_t> ack = {
+        0xFD, 0xFC, 0xFB, 0xFA,
+        0x1C, 0x00,                      // intra = 28
+        0x71, 0x01,                      // cmd-word ACK
+        0x00, 0x00,                      // status: success
+        0x0C, 0x00, 0x00, 0x00,          // farthest = 12
+        0x00, 0x00, 0x00, 0x00,          // nearest  = 0
+        0x28, 0x00, 0x00, 0x00,          // unmanned delay = 40 s
+        0x05, 0x00, 0x00, 0x00,          // status freq    = 5  (0.5 Hz)
+        0x05, 0x00, 0x00, 0x00,          // distance freq  = 5  (0.5 Hz)
+        0x05, 0x00, 0x00, 0x00,          // response speed = 5  (normal)
+        0x04, 0x03, 0x02, 0x01
+    };
+    s.inject_response(ack);
+    s.inject_response(make_short_ack(0xFE, 4));
+
+    CHECK(r.requestGenericParameters());
+    CHECK_EQ((int)r.detect_farthest_gate, 12);
+    CHECK_EQ((int)r.detect_nearest_gate,   0);
+    CHECK_EQ((int)r.unmanned_delay_s,     40);
+    CHECK_EQ((int)r.status_report_freq,    5);
+    CHECK_EQ((int)r.distance_report_freq,  5);
+    CHECK_EQ((int)r.response_speed,        5);
+    std::printf("ok\n");
+}
 #endif   // LD2410_VARIANT_S
 
 int main() {
@@ -1078,6 +1132,8 @@ int main() {
     test_s_minimal_interleaved_with_standard();
     test_s_set_output_mode_standard();
     test_s_set_output_mode_minimal();
+    test_s_write_generic_parameters();
+    test_s_request_generic_parameters();
 #endif
 
     if (failures == 0) {
