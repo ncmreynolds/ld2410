@@ -644,10 +644,8 @@ bool ld2410::parse_data_frame_() {
         // = 32 bytes consumed; the remaining 32 bytes of the documented
         // 64-byte block are left unread pending HW verification. See the
         // STATUS block at the top of src/ld2410_variants/ld2410_s.h.
-        for (uint8_t g = 0; g < LD2410_GATE_COUNT; g++) {
-            engineering_motion_energy_[g]     = radar_data_frame_[12 + g];
-            engineering_stationary_energy_[g] = radar_data_frame_[12 + LD2410_GATE_COUNT + g];
-        }
+        memcpy(engineering_motion_energy_,     &radar_data_frame_[12],                         LD2410_GATE_COUNT);
+        memcpy(engineering_stationary_energy_, &radar_data_frame_[12 + LD2410_GATE_COUNT],     LD2410_GATE_COUNT);
         engineering_data_received_ = true;
     }
 #else
@@ -678,10 +676,8 @@ bool ld2410::parse_data_frame_() {
     //   [28..36] stationary energies for gate 0..8
     //   then M reserved bytes + intra tail/check (already validated above).
     if (data_type == LD2410_DATA_TYPE_ENGINEERING && intra_frame_data_length >= 33) {
-        for (uint8_t g = 0; g < LD2410_GATE_COUNT; g++) {
-            engineering_motion_energy_[g]     = radar_data_frame_[19 + g];
-            engineering_stationary_energy_[g] = radar_data_frame_[28 + g];
-        }
+        memcpy(engineering_motion_energy_,     &radar_data_frame_[19], LD2410_GATE_COUNT);
+        memcpy(engineering_stationary_energy_, &radar_data_frame_[28], LD2410_GATE_COUNT);
         engineering_data_received_ = true;
     }
 #endif
@@ -860,24 +856,8 @@ bool ld2410::parse_command_frame_()
 			max_gate = radar_data_frame_[11];
 			max_moving_gate = radar_data_frame_[12];
 			max_stationary_gate = radar_data_frame_[13];
-			motion_sensitivity[0] = radar_data_frame_[14];
-			motion_sensitivity[1] = radar_data_frame_[15];
-			motion_sensitivity[2] = radar_data_frame_[16];
-			motion_sensitivity[3] = radar_data_frame_[17];
-			motion_sensitivity[4] = radar_data_frame_[18];
-			motion_sensitivity[5] = radar_data_frame_[19];
-			motion_sensitivity[6] = radar_data_frame_[20];
-			motion_sensitivity[7] = radar_data_frame_[21];
-			motion_sensitivity[8] = radar_data_frame_[22];
-			stationary_sensitivity[0] = radar_data_frame_[23];
-			stationary_sensitivity[1] = radar_data_frame_[24];
-			stationary_sensitivity[2] = radar_data_frame_[25];
-			stationary_sensitivity[3] = radar_data_frame_[26];
-			stationary_sensitivity[4] = radar_data_frame_[27];
-			stationary_sensitivity[5] = radar_data_frame_[28];
-			stationary_sensitivity[6] = radar_data_frame_[29];
-			stationary_sensitivity[7] = radar_data_frame_[30];
-			stationary_sensitivity[8] = radar_data_frame_[31];
+			memcpy(motion_sensitivity,     &radar_data_frame_[14], 9);
+			memcpy(stationary_sensitivity, &radar_data_frame_[23], 9);
 			sensor_idle_time = radar_data_frame_[32];
 			sensor_idle_time += (radar_data_frame_[33] << 8);
 			#ifdef LD2410_DEBUG_COMMANDS
@@ -1028,9 +1008,7 @@ bool ld2410::parse_command_frame_()
 		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for read serial number: "));
 		#endif
 		if (latest_command_success_) {
-			for (uint8_t i = 0; i < 8; i++) {
-				serial_number[i] = radar_data_frame_[12 + i];
-			}
+			memcpy(serial_number, &radar_data_frame_[12], 8);
 		}
 		return report_command_result_(latest_command_success_);
 	}
@@ -1196,9 +1174,7 @@ bool ld2410::parse_command_frame_()
 		}
 		#endif
 		if (latest_command_success_) {
-			for (uint8_t i = 0; i < 6; i++) {
-				mac_address[i] = radar_data_frame_[10 + i];
-			}
+			memcpy(mac_address, &radar_data_frame_[10], 6);
 		}
 		return report_command_result_(latest_command_success_);
 	}
