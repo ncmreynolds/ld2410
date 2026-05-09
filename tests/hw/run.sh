@@ -1,27 +1,41 @@
 #!/usr/bin/env bash
-# Compile + upload + monitor the LD2410C hardware test sketch.
+# Compile + upload + monitor an LD2410 hardware test sketch.
 #
 # Usage:
 #   bash tests/hw/run.sh [PORT] [FQBN]
 #
 # Defaults:
-#   PORT  = /dev/ttyUSB0
-#   FQBN  = esp32:esp32:esp32
+#   SKETCH = ld2410c_full_test       (override via env: SKETCH=...)
+#   PORT   = /dev/ttyUSB0
+#   FQBN   = esp32:esp32:esp32
+#
+# Examples:
+#   bash tests/hw/run.sh                                  # run the full-API sweep
+#   SKETCH=ld2410c_modes_switch bash tests/hw/run.sh      # run interactive mode-switcher
+#   bash tests/hw/run.sh /dev/ttyUSB1                     # custom port, default sketch
 #
 # The monitor stays attached after upload; press Ctrl-C to detach.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-SKETCH="$HERE/ld2410c_full_test"
+
+SKETCH_NAME="${SKETCH:-ld2410c_full_test}"
+SKETCH_DIR="$HERE/$SKETCH_NAME"
+if [[ ! -d "$SKETCH_DIR" ]]; then
+  echo "ERROR: sketch dir not found: $SKETCH_DIR" >&2
+  echo "Available sketches under tests/hw:" >&2
+  ls -1 "$HERE" | grep -v '^run' >&2
+  exit 1
+fi
 
 PORT="${1:-/dev/ttyUSB0}"
 FQBN="${2:-esp32:esp32:esp32}"
 
-echo "=== ld2410c_full_test ==="
+echo "=== $SKETCH_NAME ==="
 echo "  port  : $PORT"
 echo "  fqbn  : $FQBN"
-echo "  sketch: $SKETCH"
+echo "  sketch: $SKETCH_DIR"
 echo
 
 echo "[1/3] compile"
@@ -29,14 +43,14 @@ arduino-cli compile \
   --fqbn "$FQBN" \
   --library "$ROOT" \
   --build-property "compiler.cpp.extra_flags=-DLD2410_VARIANT_C" \
-  "$SKETCH"
+  "$SKETCH_DIR"
 
 echo
 echo "[2/3] upload"
 arduino-cli upload \
   --fqbn "$FQBN" \
   --port "$PORT" \
-  "$SKETCH"
+  "$SKETCH_DIR"
 
 echo
 echo "[3/3] monitor (Ctrl-C to detach)"
