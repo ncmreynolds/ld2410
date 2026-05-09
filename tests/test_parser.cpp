@@ -299,18 +299,18 @@ static void test_sequential_frames() {
     std::printf("ok\n");
 }
 
+#endif // !LD2410_VARIANT_S
+
 // ===========================================================================
-// Command-side tests (added by refactor/task-safe-commands).
-// These exercise the wait_for_ack_ + cmd_seq_ machinery via the public
-// request* API. Hardware is not available; we simulate the radar's ACK by
-// pre-loading the MockSerial with the bytes the real radar would send.
-//
-// On the host autoReadTask is not active (no FreeRTOS available), so all
-// commands take the polling branch of wait_for_ack_, which drains UART ->
-// circular buffer -> read_frame_() -> parse_command_frame_() inline.
+// Command-side test helpers — used by both base/C and S suites, so they
+// live OUTSIDE the variant guards. They synthesise ACK frames the way a
+// real radar would send them, with the LE intra-length, the cmd-word ACK
+// (op | 0x0100), and the canonical envelope.
 // ===========================================================================
 
+#if !defined(LD2410_VARIANT_S)
 // Build a 0xA0 (firmware version) ACK frame with major=1, minor=7, bugfix=0x22091516.
+// Only used by the base/C firmware test (S has its own FW layout, see step 9).
 static std::vector<uint8_t> make_firmware_ack(uint8_t major, uint8_t minor,
                                               uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3) {
     return {
@@ -324,6 +324,7 @@ static std::vector<uint8_t> make_firmware_ack(uint8_t major, uint8_t minor,
         0x04, 0x03, 0x02, 0x01    // footer
     };
 }
+#endif
 
 // Build a generic short ACK (4-byte payload, status=success) for opcode `op`.
 // Used by enter_configuration_mode_'s ACK (0xFF) and most other commands.
@@ -340,6 +341,18 @@ static std::vector<uint8_t> make_short_ack(uint8_t op, uint16_t intra_len = 4) {
     v.push_back(0x04); v.push_back(0x03); v.push_back(0x02); v.push_back(0x01);
     return v;
 }
+
+#if !defined(LD2410_VARIANT_S)
+// ===========================================================================
+// Command-side tests (added by refactor/task-safe-commands).
+// These exercise the wait_for_ack_ + cmd_seq_ machinery via the public
+// request* API. Hardware is not available; we simulate the radar's ACK by
+// pre-loading the MockSerial with the bytes the real radar would send.
+//
+// On the host autoReadTask is not active (no FreeRTOS available), so all
+// commands take the polling branch of wait_for_ack_, which drains UART ->
+// circular buffer -> read_frame_() -> parse_command_frame_() inline.
+// ===========================================================================
 
 // Test: requestFirmwareVersion full flow.
 // Inject ACKs in the order the real radar would send: enter-config (0xFF),
@@ -996,6 +1009,34 @@ static void test_s_minimal_interleaved_with_standard() {
 
     std::printf("ok\n");
 }
+
+// ---------------------------------------------------------------------------
+// S Test 8: setOutputMode(true) — switch to standard frame envelope.
+// 0x7A §2.2.1, send intra=8 (cmd-word + 6-byte payload), 4-byte ACK.
+// ---------------------------------------------------------------------------
+static void test_s_set_output_mode_standard() {
+    std::printf("test_s_set_output_mode_standard ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0x7A, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    CHECK(r.setOutputMode(/*standard=*/true));
+    std::printf("ok\n");
+}
+
+static void test_s_set_output_mode_minimal() {
+    std::printf("test_s_set_output_mode_minimal ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0x7A, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    CHECK(r.setOutputMode(/*standard=*/false));
+    std::printf("ok\n");
+}
 #endif   // LD2410_VARIANT_S
 
 int main() {
@@ -1035,6 +1076,8 @@ int main() {
     test_s_minimal_frame();
     test_s_minimal_rejects_wrong_tail();
     test_s_minimal_interleaved_with_standard();
+    test_s_set_output_mode_standard();
+    test_s_set_output_mode_minimal();
 #endif
 
     if (failures == 0) {

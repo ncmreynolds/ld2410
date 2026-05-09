@@ -215,6 +215,19 @@ class ld2410	{
 		bool setBaudRate(uint16_t baud_index);
 #endif
 
+#ifdef LD2410_HAS_OUTPUT_MODE
+		// 0x7A §2.2.1 (S only) — switch the radar between minimal-frame
+		// (6E…62, 5 bytes total) and standard-frame (F4F3F2F1 / data type
+		// 0x01) reporting. Send envelope is intra=8: cmd-word + 6-byte
+		// LD2410_OUTPUT_MODE_*_PAYLOAD. ACK is the standard 4-byte
+		// success/fail envelope.
+		// Setting is non-volatile (per HLK PDF) and takes effect immediately
+		// — host parser already handles both envelopes (see steps 10 / 10c).
+		// UNVERIFIED ON HARDWARE: see ld2410_s.h banner.
+		// See docs/method-coverage.md Table 1 row 0x7A.
+		bool setOutputMode(bool standard);
+#endif
+
 #ifdef LD2410_HAS_BLUETOOTH
 		// 0xA4 §2.2.12 (C only) — enable / disable the on-board BLE radio.
 		// Setting is non-volatile and takes effect after the next restart.

@@ -1098,6 +1098,38 @@ bool ld2410::parse_command_frame_()
 		}
 	}
 #endif
+#ifdef LD2410_HAS_OUTPUT_MODE
+	// HLK-LD2410S §2.2.1 — switch-output-mode ACK is the standard
+	// 4-byte success/fail envelope.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_OUTPUT_MODE)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for switch output mode: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+#endif
 #ifdef LD2410_HAS_BLUETOOTH
 	// HLK-LD2410C §2.2.14 — obtainBluetoothPermissions ACK is the standard
 	// 4-byte success/fail envelope. NOTE: the PDF says the radar replies
@@ -1630,6 +1662,49 @@ bool ld2410::setBluetooth(bool on)
 		ld2410_write_le16(radar_uart_, on ? LD2410_BLUETOOTH_ON : LD2410_BLUETOOTH_OFF);
 		send_command_postamble_();
 		bool ok = wait_for_ack_(LD2410_OP_BLUETOOTH, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_OUTPUT_MODE
+// 0x7A §2.2.1 (S only) — switch reporting envelope between standard
+// (F4F3F2F1 / data type 0x01) and minimal (6E…62). Send: cmd-word +
+// 6-byte payload (intra=8); ACK is standard 4-byte. The 6-byte payload
+// is variant-defined in ld2410_s.h as constexpr arrays (the value does
+// not fit a single uintN_t).
+//
+// Note on PDF discrepancy: HLK §2.2.1 prints the "standard" payload as
+// "00 00 00 01 00 00" in the Command-value text but "00 00 01 00 00 00"
+// in the Send-data table. The two differ in the position of the lone
+// 0x01 byte. ld2410_s.h follows the Command-value text (offset 3); the
+// Send-data table is treated as a documentation typo. If the wrong
+// variant turns out to be active on real hardware, swap the constants
+// in ld2410_s.h rather than editing this method.
+//
+// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+// See docs/method-coverage.md Table 1 row 0x7A.
+bool ld2410::setOutputMode(bool standard)
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_OUTPUT_MODE);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0008);                              // intra-frame data length (8 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_OUTPUT_MODE);               // command word (LE)
+		const uint8_t* payload = standard ? LD2410_OUTPUT_MODE_STANDARD_PAYLOAD
+		                                  : LD2410_OUTPUT_MODE_MINIMAL_PAYLOAD;
+		radar_uart_->write(payload, 6);                                      // 6-byte mode payload (wire order)
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_OUTPUT_MODE, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;

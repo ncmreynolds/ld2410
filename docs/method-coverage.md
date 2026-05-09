@@ -54,7 +54,7 @@ Legend:
 | `0x73` | §2.2.11 S | Read trigger threshold | — | — | ❌ | *missing* | `LD2410_HAS_TRIGGER_THRESHOLD` |
 | `0x76` | §2.2.12 S | Write hold threshold | — | — | ❌ | *missing* | `LD2410_HAS_HOLD_THRESHOLD` |
 | `0x77` | §2.2.13 S | Read hold threshold | — | — | ❌ | *missing* | `LD2410_HAS_HOLD_THRESHOLD` |
-| `0x7A` | §2.2.1 S | Switch output mode (standard / minimal) | — | — | ❌ | *missing* | `LD2410_HAS_OUTPUT_MODE` |
+| `0x7A` | §2.2.1 S | Switch output mode (standard / minimal) | — | — | ✅ | `setOutputMode(bool standard)` — UNVERIFIED on hardware | `LD2410_HAS_OUTPUT_MODE` |
 
 ---
 
@@ -90,7 +90,7 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | Missing | Opcode / scope | Severity |
 |---|---|---|
 | Fix `requestFirmwareVersion()` to dispatch 0xA0 (base/C) vs 0x00 (S) | command opcode | blocking |
-| `setOutputMode(standard / minimal)` | `0x7A` | never exposed |
+| ~~`setOutputMode(standard / minimal)`~~ | ~~`0x7A`~~ | ✅ done step 11d.1 |
 | `writeGenericParams()` (S equivalent of setMaxValues) | `0x70` | never exposed |
 | `readGenericParams()` (S equivalent of requestCurrentConfiguration) | `0x71` | never exposed |
 | `writeTriggerThreshold()` (S equivalent of setGateSensitivityThreshold, motion half) | `0x72` | never exposed |
@@ -129,5 +129,9 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 11a | Add `setBaudRate()` for base/C (regression fix, upstream issue #39) | ✅ done (this commit) |
 | 11b | Add `setBluetooth/requestMACAddress/setDistanceResolution/requestDistanceResolution` for C (regression fixes vs v0.1.3) | ✅ done (this commit) |
 | 11c | Add `obtainBluetoothPermissions/setBluetoothPassword` for C (never exposed before) | ✅ done (this commit) |
-| 11d | Add 11 S commands (`setOutputMode`, `write/readTriggerThreshold`, `write/readHoldThreshold`, `autoUpdateThreshold`, `write/readSerialNumber`, `write/readGenericParams`) | pending — blocking for S support |
+| 11d.1 | S — `setOutputMode` (0x7A) | ✅ done (this commit) |
+| 11d.2 | S — `write/readGenericParams` (0x70/0x71) | pending |
+| 11d.3 | S — `write/readTriggerThreshold` (0x72/0x73) + `write/readHoldThreshold` (0x76/0x77) | pending |
+| 11d.4 | S — `autoUpdateThreshold` (0x09) | pending |
+| 11d.5 | S — `write/readSerialNumber` (0x10/0x11) | pending |
 | 12 | End-to-end verification: tests + arduino-cli compile across all 3 variants × 3 boards | continuous |

@@ -26,6 +26,7 @@ setBluetoothPassword	KEYWORD2
 requestMACAddress	KEYWORD2
 setDistanceResolution	KEYWORD2
 requestDistanceResolution	KEYWORD2
+setOutputMode	KEYWORD2
 getFrameData	KEYWORD2
 detectionDistance	KEYWORD2
 movingEnergyAtGate	KEYWORD2
