@@ -146,6 +146,51 @@ static void test_basic_frame() {
     std::printf("ok\n");
 }
 
+// snapshotTargetState() must return a coherent picture of the same six
+// fields the individual getters expose. On host (single-thread) this
+// simply confirms the field-copy semantics; on ESP32 dual-core the same
+// call additionally guarantees inter-field atomicity against a
+// concurrent autoReadTask write — that property is not testable from
+// the host suite but the API contract is identical.
+static void test_snapshot_target_state() {
+    std::printf("test_snapshot_target_state ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x0D, 0x00,
+        0x02, 0xAA,
+        0x03,                               // both moving + stationary
+        0x96, 0x00,                         // moving distance = 150
+        0x42,                               // moving energy = 66
+        0xC8, 0x00,                         // stationary distance = 200
+        0x55,                               // stationary energy = 85
+        0xFA, 0x00,                         // detection distance = 250
+        0x55, 0x00,
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+
+    LD2410TargetState snap;
+    r.snapshotTargetState(snap);
+    CHECK_EQ((int)snap.target_type,         0x03);
+    CHECK_EQ((int)snap.moving_distance,     150);
+    CHECK_EQ((int)snap.moving_energy,       66);
+    CHECK_EQ((int)snap.stationary_distance, 200);
+    CHECK_EQ((int)snap.stationary_energy,   85);
+    CHECK_EQ((int)snap.detection_distance,  250);
+
+    // snapshot must agree field-by-field with the individual getters
+    // (otherwise we'd have a coherency bug between the two paths).
+    CHECK_EQ((int)snap.moving_distance,     (int)r.movingTargetDistance());
+    CHECK_EQ((int)snap.moving_energy,       (int)r.movingTargetEnergy());
+    CHECK_EQ((int)snap.stationary_distance, (int)r.stationaryTargetDistance());
+    CHECK_EQ((int)snap.stationary_energy,   (int)r.stationaryTargetEnergy());
+    CHECK_EQ((int)snap.detection_distance,  (int)r.detectionDistance());
+    std::printf("ok\n");
+}
+
 // ---------------------------------------------------------------------------
 // Test 2: engineering frame from protocol §2.3.2 (Table 14 example).
 //   F4 F3 F2 F1 | 23 00 | 01 AA 03 1E 00 3C 00 00 39 00 00
@@ -1293,6 +1338,7 @@ static void test_s_request_serial_number() {
 int main() {
 #if !defined(LD2410_VARIANT_S)
     test_basic_frame();
+    test_snapshot_target_state();
     test_engineering_frame();
     test_invalid_data_type();
     test_invalid_trailer();

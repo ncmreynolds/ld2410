@@ -129,6 +129,20 @@ struct FrameData {
     uint16_t length;
 };
 
+// Atomic snapshot of the per-frame target state. Use snapshotTargetState()
+// to fill this in one critical section, instead of calling the individual
+// movingTarget*/stationaryTarget*/detectionDistance() getters separately
+// — those return one field at a time and are not coherent against a
+// concurrent autoReadTask write on ESP32 dual-core.
+struct LD2410TargetState {
+    uint8_t  target_type;
+    uint16_t moving_distance;
+    uint8_t  moving_energy;
+    uint16_t stationary_distance;
+    uint8_t  stationary_energy;
+    uint16_t detection_distance;
+};
+
 class ld2410	{
 
 	public:
@@ -167,6 +181,20 @@ class ld2410	{
 		// `out` MUST be at least LD2410_GATE_COUNT bytes wide.
 		void snapshotEngineeringMotionEnergies(uint8_t out[LD2410_GATE_COUNT]) const;
 		void snapshotEngineeringStationaryEnergies(uint8_t out[LD2410_GATE_COUNT]) const;
+
+		// Atomic snapshot of the basic target-state block (target_type,
+		// moving distance/energy, stationary distance/energy, detection
+		// distance). On ESP32 these six fields are updated as a group by
+		// parse_data_frame_() running on the autoReadTask core; calling
+		// the individual getters from the user loop core can observe a
+		// torn state where target_type already reflects the new frame
+		// but the distance/energy fields still hold values from the
+		// previous frame. Reading via snapshotTargetState() is the only
+		// way to get a self-consistent picture under FreeRTOS — the copy
+		// happens entirely inside portENTER_CRITICAL(data_mux_).
+		// On non-ESP32 platforms (single-thread assumption) this just
+		// degenerates to six field reads with no lock cost.
+		void snapshotTargetState(LD2410TargetState& out) const;
 
 #ifdef LD2410_HAS_AUTO_THRESHOLD
 		// 0x03 data type §2.2.9 — auto-threshold tuning progress, reported

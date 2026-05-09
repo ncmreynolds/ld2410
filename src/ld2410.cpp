@@ -336,6 +336,21 @@ void ld2410::snapshotEngineeringStationaryEnergies(uint8_t out[LD2410_GATE_COUNT
 #endif
 }
 
+void ld2410::snapshotTargetState(LD2410TargetState& out) const {
+#if defined(ESP32)
+    portENTER_CRITICAL(&data_mux_);
+#endif
+    out.target_type         = target_type_;
+    out.moving_distance     = moving_target_distance_;
+    out.moving_energy       = moving_target_energy_;
+    out.stationary_distance = stationary_target_distance_;
+    out.stationary_energy   = stationary_target_energy_;
+    out.detection_distance  = detection_distance_;
+#if defined(ESP32)
+    portEXIT_CRITICAL(&data_mux_);
+#endif
+}
+
 #ifdef LD2410_HAS_AUTO_THRESHOLD
 uint16_t ld2410::autoThresholdProgress() { return auto_threshold_progress_; }
 bool     ld2410::autoThresholdReceived() { return auto_threshold_received_; }
