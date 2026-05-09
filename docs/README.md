@@ -1,6 +1,8 @@
 # LD2410 library — documentation index
 
-User-facing reference for the `adapt-to-it/ld2410` Arduino library.
+User-facing reference for the `ld2410` Arduino library — see
+[`../library.properties`](../library.properties) for the canonical
+project URL and version.
 
 This index is the jumping-off point. Every page below is self-contained
 and cross-links to its peers; you don't need to read them in order.
@@ -63,4 +65,4 @@ example sketch that exercises the relevant functions.
 
 - [`../README.md`](../README.md) — top-level project README.
 - [`../CLAUDE.md`](../CLAUDE.md) — contribution rules (PR-only, no direct push to `main`).
-- Release history: see the [GitHub releases page](https://github.com/adapt-to-it/ld2410/releases) and [`../library.properties`](../library.properties) for the current Arduino-IDE version.
+- Release history: see the GitHub releases page of the upstream repo (URL in [`../library.properties`](../library.properties), key `url=`).

@@ -114,9 +114,11 @@ Example: [`../examples/basicSensor/basicSensor.ino`](../examples/basicSensor/bas
 ESP32-only. Spawns a FreeRTOS task that drains UART + parses frames
 in the background, so you never need to call `read()` from `loop()`.
 Returns `true` if the task was created (or is already running).
-On non-ESP32 platforms the symbol exists at compile time only when
-`LD2410_HAS_ASYNC_TASK` is defined; calling it produces a clean
-linker error otherwise.
+On non-ESP32 platforms the method declaration is hidden behind
+`#if defined(ESP32)` in `src/ld2410.h` — calling it produces a
+**compile error** ("`autoReadTask` is not a member of `ld2410`").
+Wrap your usage in `#if defined(ESP32)` (or check `defined(ESP32)`
+at the top of your sketch) if you need to share code across cores.
 
 ```cpp
 // 1. Default — let FreeRTOS pick a core

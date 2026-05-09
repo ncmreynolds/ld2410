@@ -64,7 +64,7 @@ Legend:
 |---|---|---|---|---|---|
 | Basic frame (data type `0x02`, 4-byte envelope) | §2.3.1-2 base/C | ✅ | ✅ | — | `parse_data_frame_()` decodes Tabella 12 fields |
 | Engineering frame (data type `0x01`, per-gate appended, 9 gates) | §2.3.2 base/C | ✅ | ✅ | — | `parse_data_frame_()` populates `engineering_motion_energy_[9]` and `engineering_stationary_energy_[9]` from offsets `[19..27]` and `[28..36]` |
-| Standard frame (data type `0x01`, per-gate INLINE 64 B, 16 gates) | §2.1 S | — | — | ❌ | parser loop is `gate < 9`, doesn't read 16 gates; offsets are wrong — see roadmap §6.10 |
+| Standard frame (data type `0x01`, per-gate INLINE 64 B, 16 gates) | §2.1 S | — | — | ✅ | `parse_data_frame_()` decodes target state + per-gate energies for the S branch under `LD2410_VARIANT_S`. Per-gate uses `LD2410_GATE_COUNT == 16` from `src/ld2410_variants/ld2410_s.h`. Offsets `[12..27]` motion + `[12+GATE_COUNT..]` stationary. **UNVERIFIED on hardware** — the V1.00 PDF specifies 64 bytes total for the per-gate block but does not detail the per-gate breakdown; the assumption is the same 1-byte-per-energy convention as base/C. |
 | Auto-threshold progress frame (data type `0x03`) | §2.1, §2.2.9 S | — | — | ✅ | `parse_data_frame_` decodes 2-byte LE progress; exposed via `autoThresholdProgress()` and `autoThresholdReceived()` |
 | Minimal frame (`6E … 62`, 5 bytes total) | §2.1 S | — | — | ✅ | `read_frame_` recognises `0x6E` as a third header start; `parse_minimal_frame_` decodes target state + 2-byte object distance. Resync supported (a stray `0x6E` mid-stream restarts a minimal-frame attempt). |
 
@@ -126,7 +126,9 @@ makes it permanent and reproducible:
 
 - **`tests/run.sh`** — host parser test suite, compiled THREE ways
   (default base / `-DLD2410_VARIANT_C` / `-DLD2410_VARIANT_S`).
-  55 tests total (15 base + 21 C + 19 S).
+  57 tests total across the three binaries — count includes the
+  `test_snapshot_target_state` checks added with the atomic-snapshot
+  API.
 - **`tests/compile_matrix.sh`** — orchestrates `arduino-cli compile`
   across the cross-product of (esp32, esp8266, rp2040) × (default, C, S).
   Reports a per-cell pass/fail line and exits non-zero on any failure.

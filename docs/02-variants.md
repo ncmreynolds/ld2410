@@ -30,7 +30,7 @@ edge, it's the C.
 | Supply voltage | 5 V | 5 V | **3.3 V** (3.0–3.6 V) |
 | Min current | > 200 mA | > 200 mA | ultra-low (battery target) |
 | Default UART baud | 57600 | 256000 | 115200 |
-| Max gates / range | 9 × 0.75 m = 6.75 m | 9 × 0.75 m or 9 × 0.20 m = 6.75 / 1.80 m | 16 × 0.75 m = 12 m |
+| Max gates / range | 9 × 0.75 m = 6.75 m | 9 × 0.75 m or 9 × 0.20 m = 6.75 / 1.80 m | 16 gates (width not specified by HLK V1.00; use `detectionDistance()` for absolute distance) |
 | Distance resolution | fixed 0.75 m | switchable 0.75 / 0.20 m | fixed 0.75 m |
 | OUT pin position | pin **1** | pin **3** | pin **5 (J2)** |
 

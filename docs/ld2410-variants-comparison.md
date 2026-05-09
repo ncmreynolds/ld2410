@@ -275,21 +275,28 @@ opcodes only on S:              00 00, 09 00, 10 00, 11 00, 70 00,
 
 ---
 
-## 8. Practical compatibility notes for `ld2410.cpp`
+## 8. How the library handles the differences
 
-1. **`requestFirmwareVersion()`** uses opcode `0x00A0`. On S the call will time out with no ACK — the S opcode is `0x0000`. For multi-variant support the library would need a probe (try `0x00A0`, on timeout try `0x0000`).
+> ⚠️ **Historical note.** Earlier revisions of this section described
+> the library *before* the variant-aware refactor (when `requestFirmwareVersion`
+> on S would time out, when the parser hard-coded base/C engineering
+> offsets, and when several C-only commands had regressed out of v0.1.4).
+> Those issues are no longer current. The list below describes how the
+> library handles the documented protocol differences **today**.
 
-2. **Engineering-mode toggles (`0x0062` / `0x0063`)** are silently ignored by S. The library currently wraps these in enter/leave configuration (PR #7 fix on the fork). On S this will succeed at the configuration layer but the toggles do nothing — the per-gate energies are already inline once the output mode is `standard` (`0x007A` with `00 00 01 00 00 00`).
+1. **`requestFirmwareVersion()`** sends opcode `0xA0` on base/C and `0x00` on S. The ACK envelope is variant-aware: 12-byte intra on base/C with a 4-byte bugfix at `[14..17]`, 8-byte intra on S where the 16-bit major/minor/patch fields are stored as their LE low byte into the existing `firmware_*` fields.
 
-3. **Frame parser**: the existing length-driven state machine (PR #6 on the fork) reads exactly `intra_len + 10` bytes, so it will tolerate the extended S "standard" frame as long as the per-gate accessors interpret offsets `19..27` and `28..36` correctly. **Currently those offsets assume the base/C engineering-frame layout (Table 14)**, which is structurally similar to the S standard frame — but the S frame fixes 16 gates, so any reader that loops to `N` derived from the current configuration must be re-pointed to a fixed 16-gate constant, or it will under-read.
+2. **Engineering-mode toggles (`0x62` / `0x63`)** are gated behind `LD2410_HAS_ENGINEERING_MODE`, defined for base/C only. On S the per-gate energies arrive in the standard frame automatically; calling the toggles would be a compile error.
 
-4. **Stationary distance width**: the C variant uses **2 bytes** while the base PDF says 1 byte. The library implements 2 bytes (PR #2 + tests aligned with the C layout) — agrees with C and with most observed base firmwares.
+3. **Frame parser**: the length-driven state machine reads `intra_len + 10` bytes regardless of variant. Per-gate decoding uses `LD2410_GATE_COUNT` (9 on base/C, 16 on S) and per-variant offsets — base/C `[19..27]` motion + `[28..36]` stationary, S `[12..27]` motion + `[12+GATE_COUNT..]` stationary. The S layout is **UNVERIFIED on hardware** because the V1.00 PDF specifies the 64-byte block size but not its per-gate breakdown.
 
-5. **Default baud**: the existing `examples/basicSensor.ino` calls `RADAR_SERIAL.begin(256000, …)` which works for **C** and for base **only after** rebauding via `0x00A1` (the base default is 57600). For S, `115200` is required. There is no existing example for S; opening one would need new wiring (3.3 V supply, J2 layout, OT2 = presence flag instead of OUT-on-pin-1-or-3).
+4. **Stationary distance width**: the C variant uses **2 bytes** while the base PDF says 1 byte. The library implements 2 bytes — agrees with C and with most observed base firmwares.
 
-6. **`requestRestart()`** wraps the radar reboot blackout with `vTaskSuspend` — this only matters on the C/base because S has no `0x00A3`. Calling `requestRestart()` on S is a no-op that will time out.
+5. **Default baud** resolves at compile time via `LD2410_DEFAULT_BAUD` (57600 base / 256000 C / 115200 S). All `examples/*` sketches use this constant — no hard-coded value to mis-edit.
 
-7. **Bluetooth + distance resolution helpers** (regression noted in upstream issue #39: "readresolution / setresolution / disablebluetooth / enablebluetooth / getMAC" present in v0.1.3 but not in v0.1.4) are **C-only** at the protocol level. Re-adding them is meaningful for the C; on base they would always fail with no ACK; on S they are not part of the protocol.
+6. **`requestRestart()`** wraps the radar reboot blackout with `vTaskSuspend` on ESP32 (so `autoReadTask` is paused for the ~800 ms boot window). The opcode (`0xA3`) is gated behind `LD2410_HAS_RESTART`, defined for base/C only — calling it on S would be a compile error.
+
+7. **Bluetooth + distance resolution helpers** (the regression noted in upstream issue #39) are gated behind `LD2410_HAS_BLUETOOTH` / `LD2410_HAS_DISTANCE_RESOLUTION`, both C-only. Building for `LD2410_VARIANT_C` exposes them; on base / S they are hidden and any usage produces a clean compile error pointing at the missing flag.
 
 ---
 

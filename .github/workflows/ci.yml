@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build & run dual-binary host test suite
+      - name: Build & run host test suite (BASE + C + S)
         run: bash tests/run.sh
 
   # 9-cell compile matrix: 3 boards × 3 variants. Each cell installs

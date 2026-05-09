@@ -22,9 +22,16 @@ see [`06-api-ld2410c.md`](06-api-ld2410c.md).
 
 ### `bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer)`
 
-Set the maximum gate index for moving and stationary detection (each
-0..LD2410_GATE_COUNT−1) and the inactivity timer in seconds (after
-which the radar reports "no presence" once both tracks go quiet).
+Set the maximum gate **value** for moving and stationary detection
+(each in `1..LD2410_GATE_COUNT-1`, i.e. `1..8` on base/C — the radar
+**rejects 0 with an ACK failure**, see the comment in
+`src/ld2410_variants/ld2410_base.h`) and the inactivity timer in
+seconds (after which the radar reports "no presence" once both tracks
+go quiet).
+
+Note: this is a *value range* (1..8), not a *gate-index range* (0..8).
+The configured value caps which gate IDs the radar will report on, but
+the radar's per-gate reporting itself indexes from gate 0.
 
 Non-volatile — persists across reboots. Returns `true` on ACK.
 
@@ -32,7 +39,7 @@ Non-volatile — persists across reboots. Returns `true` on ACK.
 // 1. Standard config: full range, 5 s timeout
 radar.setMaxValues(8, 8, 5);
 
-// 2. Restrict to close range only (gates 0..3)
+// 2. Restrict to close range only (max gate 3 = gates 0..3)
 radar.setMaxValues(3, 3, 2);
 
 // 3. Long timeout for "should-stay-on" applications

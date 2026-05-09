@@ -18,7 +18,7 @@ Arduino library for the Hi-Link **LD2410**, **LD2410C** and **LD2410S**
 |---|---|---|---|---|
 | **LD2410** (base) | ✅ Supported | 57600 | 9 × 0.75 m | Original — minimal command set |
 | **LD2410C** | ✅ Supported, HW-validated | 256000 | 9 × 0.75 m or 9 × 0.20 m | Bluetooth, MAC, runtime baud, switchable distance resolution |
-| **LD2410S** | ⚠ Supported, **UNVERIFIED on hardware** | 115200 | 16 × 0.75 m | 3.3 V, auto-threshold tuning, generic-parameter set, minimal output frame |
+| **LD2410S** | ⚠ Supported, **UNVERIFIED on hardware** | 115200 | 16 (width not specified by HLK V1.00 — use `detectionDistance()` for absolute distance) | 3.3 V, auto-threshold tuning, generic-parameter set, minimal output frame |
 
 Pick the target at compile time by defining one of `LD2410_VARIANT_BASE`
 (default), `LD2410_VARIANT_C`, or `LD2410_VARIANT_S` before
