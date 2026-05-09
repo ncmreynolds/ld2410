@@ -1098,6 +1098,27 @@ bool ld2410::parse_command_frame_()
 		}
 	}
 #endif
+#ifdef LD2410_HAS_AUTO_THRESHOLD
+	// HLK-LD2410S §2.2.9 — autoUpdateThreshold has no documented
+	// command-channel ACK; the radar reports progress via the data-type
+	// 0x03 frame instead. Tolerate firmwares that DO send a 4-byte ACK
+	// matching the standard envelope.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_AUTO_THRESHOLD)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for auto-threshold start: "));
+		#endif
+		if(latest_command_success_) {
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
+			#endif
+			return true;
+		}
+		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
+		return false;
+	}
+#endif
 #ifdef LD2410_HAS_TRIGGER_THRESHOLD
 	// HLK-LD2410S §2.2.10 — write-trigger-thresholds ACK is the standard
 	// 4-byte success/fail envelope.
@@ -1813,6 +1834,44 @@ bool ld2410::setBluetooth(bool on)
 		ld2410_write_le16(radar_uart_, on ? LD2410_BLUETOOTH_ON : LD2410_BLUETOOTH_OFF);
 		send_command_postamble_();
 		bool ok = wait_for_ack_(LD2410_OP_BLUETOOTH, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_AUTO_THRESHOLD
+// 0x09 §2.2.9 (S only) — start automatic threshold tuning sweep.
+// Send envelope: cmd-word + 3 × 2-byte LE values, intra=8. The HLK PDF
+// does not document a command-channel ACK — the radar instead emits
+// data-type 0x03 progress frames on the data channel (already parsed
+// by step 10b). We still call wait_for_ack_ with a short timeout so
+// firmwares that happen to ACK report success; if no ACK arrives the
+// method returns false but the sweep may still be running.
+// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+// See docs/method-coverage.md Table 1 row 0x09.
+bool ld2410::autoUpdateThreshold(uint16_t trigger_factor,
+                                 uint16_t retention_factor,
+                                 uint16_t scanning_time_s)
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_AUTO_THRESHOLD);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0008);                              // intra-frame data length (8 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_AUTO_THRESHOLD);            // command word (LE)
+		ld2410_write_le16(radar_uart_, trigger_factor);                      // trigger factor (LE)
+		ld2410_write_le16(radar_uart_, retention_factor);                    // retention factor (LE)
+		ld2410_write_le16(radar_uart_, scanning_time_s);                     // scanning time (s, LE)
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_AUTO_THRESHOLD, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;

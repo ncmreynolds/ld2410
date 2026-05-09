@@ -33,6 +33,9 @@ writeTriggerThresholds	KEYWORD2
 requestTriggerThresholds	KEYWORD2
 writeHoldThresholds	KEYWORD2
 requestHoldThresholds	KEYWORD2
+autoUpdateThreshold	KEYWORD2
+autoThresholdProgress	KEYWORD2
+autoThresholdReceived	KEYWORD2
 getFrameData	KEYWORD2
 detectionDistance	KEYWORD2
 movingEnergyAtGate	KEYWORD2

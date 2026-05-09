@@ -1189,6 +1189,50 @@ static void test_s_request_hold_thresholds() {
     }
     std::printf("ok\n");
 }
+
+// ---------------------------------------------------------------------------
+// S Test: autoUpdateThreshold — firmwares that emit a 4-byte ACK on 0x09.
+// ---------------------------------------------------------------------------
+static void test_s_auto_update_threshold_with_ack() {
+    std::printf("test_s_auto_update_threshold_with_ack ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0x09, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    CHECK(r.autoUpdateThreshold());           // defaults from ld2410_s.h
+    std::printf("ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// S Test: autoUpdateThreshold — firmwares that do NOT ACK on 0x09 (per HLK).
+// Method must return false (no ACK), but the call should complete cleanly
+// without corrupting state. Also exercises that explicit factor/scan args
+// compile through the default-arguments signature.
+// ---------------------------------------------------------------------------
+static void test_s_auto_update_threshold_no_ack() {
+    std::printf("test_s_auto_update_threshold_no_ack ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    // No 0x09 ACK injected; only enter/leave-config respond.
+    s.inject_response(make_short_ack(0xFE, 4));
+    CHECK(!r.autoUpdateThreshold(/*trigger=*/3, /*retention=*/2, /*scan_time_s=*/60));
+    // Receiving a 0x03 progress frame after the call must still update
+    // the field — verifies state is intact post-call.
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x03, 0x00,
+        0x03,
+        0x88, 0x13,                       // 5000 = 50.00%
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+    CHECK_EQ((int)r.autoThresholdProgress(), 5000);
+    std::printf("ok\n");
+}
 #endif   // LD2410_VARIANT_S
 
 int main() {
@@ -1236,6 +1280,8 @@ int main() {
     test_s_request_trigger_thresholds();
     test_s_write_hold_thresholds();
     test_s_request_hold_thresholds();
+    test_s_auto_update_threshold_with_ack();
+    test_s_auto_update_threshold_no_ack();
 #endif
 
     if (failures == 0) {

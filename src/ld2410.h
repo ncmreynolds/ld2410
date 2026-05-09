@@ -166,6 +166,26 @@ class ld2410	{
 		// See docs/method-coverage.md Table 2 row "Auto-threshold progress".
 		uint16_t autoThresholdProgress();
 		bool     autoThresholdReceived();
+
+		// 0x09 §2.2.9 (S only) — kick off the automatic threshold tuning
+		// sweep. Send: cmd-word + 3 × 2-byte LE values (trigger factor,
+		// retention factor, scanning time in seconds); intra=8.
+		//
+		// HLK PDF does NOT document a command-channel ACK — the radar
+		// instead reports progress via the data-type 0x03 frame
+		// (autoThresholdProgress()). The implementation issues a
+		// short wait_for_ack_ and returns its result so firmwares that
+		// happen to ACK still report success here, but a `false` return
+		// does NOT necessarily mean the sweep failed: monitor
+		// autoThresholdProgress() until it reaches 10000 (= 100.00%) for
+		// a definitive answer.
+		//
+		// Defaults (2 / 1 / 120) come from the §2.2.9 PDF example.
+		// UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
+		// See docs/method-coverage.md Table 1 row 0x09.
+		bool autoUpdateThreshold(uint16_t trigger_factor   = LD2410_AUTO_THRESH_TRIGGER_DEFAULT,
+		                         uint16_t retention_factor = LD2410_AUTO_THRESH_RETENTION_DEFAULT,
+		                         uint16_t scanning_time_s  = LD2410_AUTO_THRESH_SCANTIME_DEFAULT);
 #endif
 
 		// ---- Firmware version ---------------------------------------------

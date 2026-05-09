@@ -45,7 +45,7 @@ Legend:
 | `0xA9` | §2.2.15 C | Set Bluetooth password | — | ✅ | — | `setBluetoothPassword(uint8_t pwd[6])` — 4-byte ACK on UART | `LD2410_HAS_BLUETOOTH` |
 | `0xAA` | §2.2.16 C | Set distance resolution (0.75 / 0.2 m) | — | ✅ | — | `setDistanceResolution(LD2410_DISTANCE_RESOLUTION_*)` — non-volatile, takes effect after restart | `LD2410_HAS_DISTANCE_RESOLUTION` |
 | `0xAB` | §2.2.17 C | Query distance resolution | — | ✅ | — | `requestDistanceResolution()` → populates `distance_resolution` (LE index) | `LD2410_HAS_DISTANCE_RESOLUTION` |
-| `0x09` | §2.2.9 S | Auto-update threshold | — | — | ❌ | *missing* | `LD2410_HAS_AUTO_THRESHOLD` |
+| `0x09` | §2.2.9 S | Auto-update threshold | — | — | ✅ | `autoUpdateThreshold(trigger=2, retention=1, scan_s=120)` — return value is best-effort (HLK does not document an ACK); use `autoThresholdProgress()` for real progress. UNVERIFIED on hardware | `LD2410_HAS_AUTO_THRESHOLD` |
 | `0x10` | §2.2.5 S | Write serial number | — | — | ❌ | *missing* | `LD2410_HAS_SERIAL_NUMBER` |
 | `0x11` | §2.2.6 S | Read serial number | — | — | ❌ | *missing* | `LD2410_HAS_SERIAL_NUMBER` |
 | `0x70` | §2.2.7 S | Write generic parameters | — | — | ✅ | `writeGenericParameters(farthest, nearest, delay_s, status_freq, distance_freq, speed)` — UNVERIFIED on hardware | `LD2410_HAS_GENERIC_PARAMS` |
@@ -97,7 +97,7 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | ~~`requestTriggerThresholds()`~~ | ~~`0x73`~~ | ✅ done step 11d.3 |
 | ~~`writeHoldThresholds()` (S equivalent of setGateSensitivityThreshold, hold half)~~ | ~~`0x76`~~ | ✅ done step 11d.3 |
 | ~~`requestHoldThresholds()`~~ | ~~`0x77`~~ | ✅ done step 11d.3 |
-| `autoUpdateThreshold()` | `0x09` | never exposed |
+| ~~`autoUpdateThreshold()`~~ | ~~`0x09`~~ | ✅ done step 11d.4 |
 | `writeSerialNumber()` | `0x10` | never exposed |
 | `readSerialNumber()` | `0x11` | never exposed |
 | Standard frame parser (16 gates inline) | data type `0x01` (S meaning) | blocking |
@@ -132,6 +132,6 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 11d.1 | S — `setOutputMode` (0x7A) | ✅ done (this commit) |
 | 11d.2 | S — `writeGenericParameters` / `requestGenericParameters` (0x70/0x71) | ✅ done (this commit) |
 | 11d.3 | S — `write/requestTriggerThresholds` (0x72/0x73) + `write/requestHoldThresholds` (0x76/0x77) | ✅ done (this commit) |
-| 11d.4 | S — `autoUpdateThreshold` (0x09) | pending |
+| 11d.4 | S — `autoUpdateThreshold` (0x09) | ✅ done (this commit) |
 | 11d.5 | S — `write/readSerialNumber` (0x10/0x11) | pending |
 | 12 | End-to-end verification: tests + arduino-cli compile across all 3 variants × 3 boards | continuous |
