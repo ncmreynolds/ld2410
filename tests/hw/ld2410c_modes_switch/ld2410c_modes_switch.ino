@@ -28,6 +28,15 @@
 #define RADAR_RX_PIN   16
 #define RADAR_TX_PIN   17
 
+// Monitor baud — 57600 instead of 115200. CP2102 USB-UART clones
+// frequently have a crystal tolerance of ±2-3 % which produces
+// sporadic single-byte framing errors at 115200 (the symptom is
+// "missing comma" inside the per-gate array, e.g. "100,67" rendered
+// as "10067"). At 57600 the error budget per bit halves so the
+// dropped-byte rate effectively goes to zero. Has no impact on the
+// radar's 256000-baud link.
+#define MONITOR_BAUD   57600
+
 ld2410 radar;
 
 // ---- Mode state ----------------------------------------------------
@@ -173,7 +182,11 @@ static void print_status() {
       radar.snapshotEngineeringMotionEnergies(mot);
       radar.snapshotEngineeringStationaryEnergies(sta);
 
-      MONITOR_SERIAL.print(F("\n  m=["));
+      // Use \r\n explicitly: arduino-cli monitor adds an implicit CR
+      // for a bare \n, picocom and raw `cat` do not — without the CR
+      // the cursor stays at the previous status line's end column and
+      // the "m=" / "s=" arrays render visually indented.
+      MONITOR_SERIAL.print(F("\r\n  m=["));
       for (uint8_t g = 0; g < LD2410_GATE_COUNT; g++) {
         if (g) MONITOR_SERIAL.print(',');
         MONITOR_SERIAL.print(mot[g]);
@@ -193,7 +206,12 @@ static void print_status() {
 
 // =====================================================================
 void setup() {
-  MONITOR_SERIAL.begin(115200);
+  // Bigger TX buffer so a full ENG status line (~250 B) fits in one
+  // shot and HardwareSerial does not have to chunk it across multiple
+  // uart_write_bytes() calls — fewer chances for a clock-skew
+  // framing error to land between bytes.
+  MONITOR_SERIAL.setTxBufferSize(1024);
+  MONITOR_SERIAL.begin(MONITOR_BAUD);
   delay(500);
   MONITOR_SERIAL.println();
   MONITOR_SERIAL.println(F("========================================================"));

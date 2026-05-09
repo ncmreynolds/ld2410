@@ -31,6 +31,14 @@ fi
 
 PORT="${1:-/dev/ttyUSB0}"
 FQBN="${2:-esp32:esp32:esp32}"
+# Default monitor baud is 115200 (matches ld2410c_full_test). The
+# modes-switch sketch runs the monitor at 57600 instead — see the
+# "MONITOR_BAUD" comment in that .ino for the rationale (CP2102
+# clone clock skew). Caller can override via env var.
+MONITOR_BAUD="${MONITOR_BAUD:-115200}"
+case "$SKETCH_NAME" in
+  ld2410c_modes_switch) MONITOR_BAUD="${MONITOR_BAUD_OVERRIDE:-57600}";;
+esac
 
 echo "=== $SKETCH_NAME ==="
 echo "  port  : $PORT"
@@ -53,8 +61,8 @@ arduino-cli upload \
   "$SKETCH_DIR"
 
 echo
-echo "[3/3] monitor (Ctrl-C to detach)"
+echo "[3/3] monitor (Ctrl-C to detach) — baud $MONITOR_BAUD"
 arduino-cli monitor \
   --fqbn "$FQBN" \
   --port "$PORT" \
-  --config baudrate=115200
+  --config "baudrate=$MONITOR_BAUD"
