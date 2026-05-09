@@ -29,26 +29,31 @@ ld2410::~ld2410()	//Destructor function
 #endif
 }
 
+// LD2410_BUFFER_SIZE is 4 * LD2410_MAX_FRAME_LENGTH — 256 on base/C
+// (power of 2, gcc folds % to AND) and 384 on S (NOT a power of 2, so
+// % becomes a real division on AVR/Cortex-M0/ESP8266 and a Xtensa DIVU
+// instruction on ESP32). Replacing the modulo with a single equality
+// check + reset is identity-functional for any size and avoids the
+// division on the variants where it is not free. Increment is always
+// by 1 between checks so the simple ++/== form is sufficient (no need
+// for "if (head >= SIZE) head -= SIZE").
 void ld2410::add_to_buffer(uint8_t byte) {
-    // Inserisce il byte nel buffer circolare
     circular_buffer[buffer_head] = byte;
-    buffer_head = (buffer_head + 1) % LD2410_BUFFER_SIZE;
+    if (++buffer_head == LD2410_BUFFER_SIZE) buffer_head = 0;
 
-    // Gestione del caso in cui il buffer si riempia
     if (buffer_head == buffer_tail) {
-        buffer_tail = (buffer_tail + 1) % LD2410_BUFFER_SIZE;  // Sovrascrive i dati più vecchi
+        // Buffer full: overwrite the oldest byte by advancing tail.
+        if (++buffer_tail == LD2410_BUFFER_SIZE) buffer_tail = 0;
     }
 }
 
-// Funzione per leggere il buffer
 bool ld2410::read_from_buffer(uint8_t &byte) {
     if (buffer_head == buffer_tail) {
-        return false;  // Buffer vuoto
-    } else {
-        byte = circular_buffer[buffer_tail];
-        buffer_tail = (buffer_tail + 1) % LD2410_BUFFER_SIZE;
-        return true;
+        return false;
     }
+    byte = circular_buffer[buffer_tail];
+    if (++buffer_tail == LD2410_BUFFER_SIZE) buffer_tail = 0;
+    return true;
 }
 
 bool ld2410::begin(Stream &radarStream, bool waitForRadar) {
