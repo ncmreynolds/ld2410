@@ -7,7 +7,7 @@ LD2410C variant; for LD2410S see the variant-specific notes in
 
 ## What this library does
 
-`adapt-to-it/ld2410` is an Arduino library that talks the HLK serial
+`ld2410` is an Arduino library that talks the HLK serial
 protocol used by the LD2410 / LD2410C / LD2410S 24 GHz mmWave presence
 radars. The radar streams target detection data continuously over UART
 at 256000 baud (C) / 57600 baud (base) / 115200 baud (S); this library
