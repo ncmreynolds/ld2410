@@ -21,6 +21,8 @@ setMaxValues	KEYWORD2
 setGateSensitivityThreshold	KEYWORD2
 setBaudRate	KEYWORD2
 setBluetooth	KEYWORD2
+obtainBluetoothPermissions	KEYWORD2
+setBluetoothPassword	KEYWORD2
 requestMACAddress	KEYWORD2
 setDistanceResolution	KEYWORD2
 requestDistanceResolution	KEYWORD2

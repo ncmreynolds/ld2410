@@ -45,6 +45,15 @@
 #define LD2410_OP_DISTANCE_RESOLUTION_SET 0xAA  // §2.2.16 set distance resolution
 #define LD2410_OP_DISTANCE_RESOLUTION_GET 0xAB  // §2.2.17 query distance resolution
 
+// ---- 0xA8 / 0xA9 (Bluetooth password) ------------------------------------
+// HLK §2.2.14 / §2.2.15: both commands take a 6-byte password value sent
+// byte-by-byte in wire order (the PDF describes it as "6 bytes of password
+// value (every 2 bytes in little-endian order)", but the §2.2.14 example
+// shows the ASCII string "HiLink" → bytes 48 69 4C 69 6E 6B emitted left to
+// right on the wire). Factory default password is "HiLink".
+#define LD2410_BLUETOOTH_PASSWORD_LENGTH  6
+#define LD2410_BLUETOOTH_PASSWORD_DEFAULT "HiLink"
+
 // ---- 0xA4 (Bluetooth on/off) parameter values ----------------------------
 // HLK PDF §2.2.12 prints the value as "0x0100 turn on bluetooth", but the
 // example send payload right next to it is `A4 00 | 01 00` — i.e. the

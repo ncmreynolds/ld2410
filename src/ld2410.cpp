@@ -1098,6 +1098,70 @@ bool ld2410::parse_command_frame_()
 		}
 	}
 #endif
+#ifdef LD2410_HAS_BLUETOOTH
+	// HLK-LD2410C §2.2.14 — obtainBluetoothPermissions ACK is the standard
+	// 4-byte success/fail envelope. NOTE: the PDF says the radar replies
+	// only over BLE, not UART — so this branch typically never fires
+	// on the host side. Kept for protocol completeness in case some
+	// firmware revisions mirror the ACK to UART.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_BLUETOOTH_PERMS)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for Bluetooth permissions: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+	// HLK-LD2410C §2.2.15 — setBluetoothPassword ACK is 4-byte standard.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_BLUETOOTH_PASSWORD)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for set Bluetooth password: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+#endif
 #ifdef LD2410_HAS_MAC_ADDRESS
 	// HLK-LD2410C §2.2.13 — MAC address ACK is 10-byte intra: cmd-word +
 	// 2-byte status + 6 bytes MAC in WIRE / network order (big-endian as
@@ -1566,6 +1630,66 @@ bool ld2410::setBluetooth(bool on)
 		ld2410_write_le16(radar_uart_, on ? LD2410_BLUETOOTH_ON : LD2410_BLUETOOTH_OFF);
 		send_command_postamble_();
 		bool ok = wait_for_ack_(LD2410_OP_BLUETOOTH, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_BLUETOOTH
+// 0xA8 §2.2.14 (C only) — unlock BLE control APIs by presenting a 6-byte
+// password (factory default = "HiLink"). Send: cmd-word + 6 password bytes
+// in wire order (intra=8). The HLK PDF notes that the ACK is delivered
+// "only over Bluetooth, not the serial port" — wait_for_ack_ on UART
+// will therefore typically time out and this method returns false.
+// Implemented for protocol completeness; the BLE-side flow is out of
+// scope for the UART driver.
+// See docs/method-coverage.md Table 1 row 0xA8.
+bool ld2410::obtainBluetoothPermissions(const uint8_t password[LD2410_BLUETOOTH_PASSWORD_LENGTH])
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_BLUETOOTH_PERMS);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0008);                              // intra-frame data length (8 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_BLUETOOTH_PERMS);           // command word (LE)
+		radar_uart_->write(password, LD2410_BLUETOOTH_PASSWORD_LENGTH);      // 6 password bytes in wire order
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_BLUETOOTH_PERMS, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+
+// 0xA9 §2.2.15 (C only) — set the 6-byte BLE control password. Send: cmd-word
+// + 6 password bytes in wire order (intra=8). ACK is the standard 4-byte
+// success/fail envelope, delivered on UART.
+// See docs/method-coverage.md Table 1 row 0xA9.
+bool ld2410::setBluetoothPassword(const uint8_t password[LD2410_BLUETOOTH_PASSWORD_LENGTH])
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_BLUETOOTH_PASSWORD);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0008);                              // intra-frame data length (8 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_BLUETOOTH_PASSWORD);        // command word (LE)
+		radar_uart_->write(password, LD2410_BLUETOOTH_PASSWORD_LENGTH);      // 6 password bytes in wire order
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_BLUETOOTH_PASSWORD, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;

@@ -41,8 +41,8 @@ Legend:
 | `0xA3` | §2.2.11 base/C | Restart module | ✅ | ✅ | — | `requestRestart()` (with 800 ms reboot blackout for ESP32 autoReadTask) | `LD2410_HAS_RESTART` |
 | `0xA4` | §2.2.12 C | Bluetooth on/off | — | ✅ | — | `setBluetooth(bool on)` — non-volatile, takes effect after restart | `LD2410_HAS_BLUETOOTH` |
 | `0xA5` | §2.2.13 C | Get MAC address | — | ✅ | — | `requestMACAddress()` → populates `mac_address[6]` (wire/big-endian order) | `LD2410_HAS_MAC_ADDRESS` |
-| `0xA8` | §2.2.14 C | Obtain Bluetooth permissions | — | ❌ | — | *missing* (never exposed) | `LD2410_HAS_BLUETOOTH` |
-| `0xA9` | §2.2.15 C | Set Bluetooth password | — | ❌ | — | *missing* (never exposed) | `LD2410_HAS_BLUETOOTH` |
+| `0xA8` | §2.2.14 C | Obtain Bluetooth permissions | — | ✅ | — | `obtainBluetoothPermissions(uint8_t pwd[6])` — note: ACK is delivered over BLE, not UART, so on most firmwares this returns false | `LD2410_HAS_BLUETOOTH` |
+| `0xA9` | §2.2.15 C | Set Bluetooth password | — | ✅ | — | `setBluetoothPassword(uint8_t pwd[6])` — 4-byte ACK on UART | `LD2410_HAS_BLUETOOTH` |
 | `0xAA` | §2.2.16 C | Set distance resolution (0.75 / 0.2 m) | — | ✅ | — | `setDistanceResolution(LD2410_DISTANCE_RESOLUTION_*)` — non-volatile, takes effect after restart | `LD2410_HAS_DISTANCE_RESOLUTION` |
 | `0xAB` | §2.2.17 C | Query distance resolution | — | ✅ | — | `requestDistanceResolution()` → populates `distance_resolution` (LE index) | `LD2410_HAS_DISTANCE_RESOLUTION` |
 | `0x09` | §2.2.9 S | Auto-update threshold | — | — | ❌ | *missing* | `LD2410_HAS_AUTO_THRESHOLD` |
@@ -78,12 +78,9 @@ Legend:
 → **0 capabilities missing**.
 
 ### LD2410C
-| Missing | Opcode | Severity |
-|---|---|---|
-| `obtainBluetoothPermissions()` | `0xA8` | never exposed |
-| `setBluetoothPassword()` | `0xA9` | never exposed |
+*All documented commands now exposed.*
 
-→ **2 capabilities missing** (both never exposed; all v0.1.3 regressions are now fixed).
+→ **0 capabilities missing**.
 
 ### LD2410S
 Almost everything is missing — only enter/leave configuration currently
@@ -131,6 +128,6 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 10c | Add S minimal frame (`6E … 62`) parsing — `read_frame_` recognises 3 header types; new `parse_minimal_frame_` private method | ✅ done (this commit) |
 | 11a | Add `setBaudRate()` for base/C (regression fix, upstream issue #39) | ✅ done (this commit) |
 | 11b | Add `setBluetooth/requestMACAddress/setDistanceResolution/requestDistanceResolution` for C (regression fixes vs v0.1.3) | ✅ done (this commit) |
-| 11c | Add `setBluetoothPassword/obtainBluetoothPermissions` for C | pending (low priority) |
+| 11c | Add `obtainBluetoothPermissions/setBluetoothPassword` for C (never exposed before) | ✅ done (this commit) |
 | 11d | Add 11 S commands (`setOutputMode`, `write/readTriggerThreshold`, `write/readHoldThreshold`, `autoUpdateThreshold`, `write/readSerialNumber`, `write/readGenericParams`) | pending — blocking for S support |
 | 12 | End-to-end verification: tests + arduino-cli compile across all 3 variants × 3 boards | continuous |

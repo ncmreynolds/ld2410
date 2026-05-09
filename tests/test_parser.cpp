@@ -611,6 +611,36 @@ static void test_command_set_bluetooth_on() {
     CHECK(r.setBluetooth(true));
     std::printf("ok\n");
 }
+
+// 0xA8 obtainBluetoothPermissions — the radar mirrors the ACK to UART
+// only on some firmwares; mock pretends it does, so the host parses
+// the 4-byte success envelope and returns true.
+static void test_command_obtain_bluetooth_permissions() {
+    std::printf("test_command_obtain_bluetooth_permissions ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0xA8, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    const uint8_t pwd[6] = {'H','i','L','i','n','k'};
+    CHECK(r.obtainBluetoothPermissions(pwd));
+    std::printf("ok\n");
+}
+
+// 0xA9 setBluetoothPassword — 4-byte success ACK on UART.
+static void test_command_set_bluetooth_password() {
+    std::printf("test_command_set_bluetooth_password ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0xA9, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    const uint8_t pwd[6] = {'H','i','L','i','n','k'};
+    CHECK(r.setBluetoothPassword(pwd));
+    std::printf("ok\n");
+}
 #endif
 
 #ifdef LD2410_HAS_MAC_ADDRESS
@@ -983,6 +1013,8 @@ int main() {
     test_command_set_baud_rate_failure();
 #ifdef LD2410_HAS_BLUETOOTH
     test_command_set_bluetooth_on();
+    test_command_obtain_bluetooth_permissions();
+    test_command_set_bluetooth_password();
 #endif
 #ifdef LD2410_HAS_MAC_ADDRESS
     test_command_request_mac_address();

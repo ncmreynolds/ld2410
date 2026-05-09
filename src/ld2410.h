@@ -221,6 +221,23 @@ class ld2410	{
 		// Closes regression vs v0.1.3 (upstream issue #39).
 		// See docs/method-coverage.md Table 1 row 0xA4.
 		bool setBluetooth(bool on);
+
+		// 0xA8 §2.2.14 (C only) — present the 6-byte password to the radar
+		// in order to unlock the BLE control APIs. Factory default is
+		// "HiLink" (LD2410_BLUETOOTH_PASSWORD_DEFAULT). Note from the HLK
+		// PDF: "this response only answers to Bluetooth, not to the serial
+		// port" — i.e. ACK is delivered over the BLE channel, not UART, so
+		// the host UART will time out even on a successful unlock. The
+		// method still queues + sends the command but should be expected
+		// to return false unless the radar firmware also mirrors the ACK
+		// to UART. See docs/method-coverage.md Table 1 row 0xA8.
+		bool obtainBluetoothPermissions(const uint8_t password[LD2410_BLUETOOTH_PASSWORD_LENGTH]);
+
+		// 0xA9 §2.2.15 (C only) — set the 6-byte BLE control password.
+		// Effect is non-volatile. ACK is the standard 4-byte success/fail
+		// envelope on UART (unlike 0xA8 which only ACKs over BLE).
+		// See docs/method-coverage.md Table 1 row 0xA9.
+		bool setBluetoothPassword(const uint8_t password[LD2410_BLUETOOTH_PASSWORD_LENGTH]);
 #endif
 
 #ifdef LD2410_HAS_MAC_ADDRESS
