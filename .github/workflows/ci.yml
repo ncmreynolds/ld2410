@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**", "refactor/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  host-tests:
+    name: Host parser tests (g++ × 3 variants)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build & run dual-binary host test suite
+        run: bash tests/run.sh
+
+  compile-matrix:
+    name: arduino-cli compile matrix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install arduino-cli
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh \
+            | BINDIR="$HOME/.local/bin" sh
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Add board package URLs
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json \
+            https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json \
+            https://arduino.esp8266.com/stable/package_esp8266com_index.json
+          arduino-cli core update-index
+
+      - name: Install board cores
+        run: |
+          arduino-cli core install esp32:esp32
+          arduino-cli core install esp8266:esp8266
+          arduino-cli core install rp2040:rp2040
+
+      - name: Run compile matrix (3 boards × 3 variants)
+        run: bash tests/compile_matrix.sh

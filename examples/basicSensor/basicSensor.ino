@@ -49,6 +49,16 @@
   #define RADAR_SERIAL Serial1
   #define RADAR_RX_PIN 0
   #define RADAR_TX_PIN 1
+#elif defined(ARDUINO_ARCH_RP2040)
+  // Earle Philhower's arduino-pico core (rp2040:rp2040). Serial1 on
+  // the Pico defaults to UART0 (GP0 TX / GP1 RX), so the radar pins
+  // are 1 (RX) and 0 (TX) on the host side. Note the SDK accepts
+  // RADAR_SERIAL.begin(baud) without a pin override; the user should
+  // call setRX/setTX before begin if they need a different pinout.
+  #define MONITOR_SERIAL Serial
+  #define RADAR_SERIAL Serial1
+  #define RADAR_RX_PIN 1
+  #define RADAR_TX_PIN 0
 #endif
 
 #include <ld2410.h>

@@ -116,5 +116,23 @@ a real LD2410S sample is the next gating step before declaring S production-read
 | 11d.2 | S — `writeGenericParameters` / `requestGenericParameters` (0x70/0x71) | ✅ done (this commit) |
 | 11d.3 | S — `write/requestTriggerThresholds` (0x72/0x73) + `write/requestHoldThresholds` (0x76/0x77) | ✅ done (this commit) |
 | 11d.4 | S — `autoUpdateThreshold` (0x09) | ✅ done (this commit) |
-| 11d.5 | S — `write/requestSerialNumber` (0x10/0x11) | ✅ done (this commit) |
-| 12 | End-to-end verification: tests + arduino-cli compile across all 3 variants × 3 boards | continuous |
+| 11d.5 | S — `write/requestSerialNumber` (0x10/0x11) | ✅ done |
+| 12 | End-to-end verification: dual-binary host suite + 3-variant × 3-board arduino-cli matrix, both wired into CI | ✅ done (this commit) |
+
+### Step 12 details
+
+The verification was previously done by hand after each step. Step 12
+makes it permanent and reproducible:
+
+- **`tests/run.sh`** — host parser test suite, compiled THREE ways
+  (default base / `-DLD2410_VARIANT_C` / `-DLD2410_VARIANT_S`).
+  55 tests total (15 base + 21 C + 19 S).
+- **`tests/compile_matrix.sh`** — orchestrates `arduino-cli compile`
+  across the cross-product of (esp32, esp8266, rp2040) × (default, C, S).
+  Reports a per-cell pass/fail line and exits non-zero on any failure.
+  9 cells; rp2040 uses the now-extended `examples/basicSensor.ino`
+  (a `defined(ARDUINO_ARCH_RP2040)` branch was added in this step).
+- **`.github/workflows/ci.yml`** — GitHub Actions workflow that runs
+  both scripts on every push to `main`/`feat/*`/`fix/*`/`refactor/*`
+  and on every PR targeting `main`. Installs the three board cores
+  via `arduino-cli core install` before the compile matrix.
