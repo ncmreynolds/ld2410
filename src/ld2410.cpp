@@ -823,25 +823,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for entering configuration mode: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_END_CFG)
 	{
@@ -851,25 +833,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for leaving configuration mode: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #ifdef LD2410_HAS_MAX_VALUES
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_SET_MAX_VALUES)
@@ -880,25 +844,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for setting max values: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_READ_PARAMS
@@ -910,15 +856,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for current configuration: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
+		if (latest_command_success_) {
 			max_gate = radar_data_frame_[11];
 			max_moving_gate = radar_data_frame_[12];
 			max_stationary_gate = radar_data_frame_[13];
@@ -971,16 +909,8 @@ bool ld2410::parse_command_frame_()
 				debug_uart_->print('s');
 			}
 			#endif
-			return true;
 		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_GATE_SENSITIVITY
@@ -992,25 +922,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for setting sensitivity values: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #if defined(LD2410_VARIANT_S)
@@ -1058,31 +970,15 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for firmware version: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
+		if (latest_command_success_) {
 			firmware_major_version = radar_data_frame_[13];
 			firmware_minor_version = radar_data_frame_[12];
 			firmware_bugfix_version = radar_data_frame_[14];
 			firmware_bugfix_version += radar_data_frame_[15]<<8;
 			firmware_bugfix_version += radar_data_frame_[16]<<16;
 			firmware_bugfix_version += radar_data_frame_[17]<<24;
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
 		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_BAUD_RATE
@@ -1096,25 +992,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for setting baud rate: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_BLUETOOTH
@@ -1128,25 +1006,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for Bluetooth on/off: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_SERIAL_NUMBER
@@ -1156,15 +1016,7 @@ bool ld2410::parse_command_frame_()
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for write serial number: "));
 		#endif
-		if(latest_command_success_) {
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
-			#endif
-			return true;
-		}
-		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
-		return false;
+		return report_command_result_(latest_command_success_);
 	}
 	// HLK-LD2410S §2.2.6 — read-SN ACK is intra=14 = 2 (cmd) + 2 (status)
 	// + 2 (length, always 8) + 8 (SN bytes). Frame offsets:
@@ -1175,18 +1027,12 @@ bool ld2410::parse_command_frame_()
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for read serial number: "));
 		#endif
-		if(latest_command_success_) {
+		if (latest_command_success_) {
 			for (uint8_t i = 0; i < 8; i++) {
 				serial_number[i] = radar_data_frame_[12 + i];
 			}
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
-			#endif
-			return true;
 		}
-		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
-		return false;
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_AUTO_THRESHOLD
@@ -1199,15 +1045,7 @@ bool ld2410::parse_command_frame_()
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for auto-threshold start: "));
 		#endif
-		if(latest_command_success_) {
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
-			#endif
-			return true;
-		}
-		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
-		return false;
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_TRIGGER_THRESHOLD
@@ -1218,15 +1056,7 @@ bool ld2410::parse_command_frame_()
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for write trigger thresholds: "));
 		#endif
-		if(latest_command_success_) {
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
-			#endif
-			return true;
-		}
-		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
-		return false;
+		return report_command_result_(latest_command_success_);
 	}
 	// HLK-LD2410S §2.2.11 — read-trigger-thresholds ACK: intra=68 = 4 +
 	// 16 × 4. 16 LE 4-byte values starting at offset [10]; only the low
@@ -1236,18 +1066,12 @@ bool ld2410::parse_command_frame_()
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for read trigger thresholds: "));
 		#endif
-		if(latest_command_success_) {
+		if (latest_command_success_) {
 			for (uint8_t g = 0; g < 16; g++) {
 				trigger_thresholds[g] = radar_data_frame_[10 + 4 * g];
 			}
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
-			#endif
-			return true;
 		}
-		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
-		return false;
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_HOLD_THRESHOLD
@@ -1258,15 +1082,7 @@ bool ld2410::parse_command_frame_()
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for write hold thresholds: "));
 		#endif
-		if(latest_command_success_) {
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
-			#endif
-			return true;
-		}
-		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
-		return false;
+		return report_command_result_(latest_command_success_);
 	}
 	// HLK-LD2410S §2.2.13 — read-hold-thresholds ACK: intra=68 = 4 + 16×4.
 	else if(intra_frame_data_length_ == 68 && latest_ack_ == LD2410_OP_READ_HOLD_THRESH)
@@ -1274,18 +1090,12 @@ bool ld2410::parse_command_frame_()
 		#ifdef LD2410_DEBUG_COMMANDS
 		if(debug_uart_ != nullptr) debug_uart_->print(F("\nACK for read hold thresholds: "));
 		#endif
-		if(latest_command_success_) {
+		if (latest_command_success_) {
 			for (uint8_t g = 0; g < 16; g++) {
 				hold_thresholds[g] = radar_data_frame_[10 + 4 * g];
 			}
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr) debug_uart_->print(F("OK"));
-			#endif
-			return true;
 		}
-		if(debug_uart_ != nullptr) debug_uart_->print(F("failed"));
-		return false;
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_GENERIC_PARAMS
@@ -1299,25 +1109,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for write generic parameters: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 	// HLK-LD2410S §2.2.8 — read-generic-parameters ACK: intra=28 (= 4 +
 	// 6×4), with 6 LE 4-byte values starting at offset [10]. Order matches
@@ -1333,8 +1125,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for read generic parameters: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
+		if (latest_command_success_) {
 			detect_farthest_gate = (uint8_t)radar_data_frame_[10];
 			detect_nearest_gate  = (uint8_t)radar_data_frame_[14];
 			unmanned_delay_s     = (uint16_t)radar_data_frame_[18]
@@ -1342,23 +1133,8 @@ bool ld2410::parse_command_frame_()
 			status_report_freq   = (uint8_t)radar_data_frame_[22];
 			distance_report_freq = (uint8_t)radar_data_frame_[26];
 			response_speed       = (uint8_t)radar_data_frame_[30];
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
 		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_OUTPUT_MODE
@@ -1372,25 +1148,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for switch output mode: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_BLUETOOTH
@@ -1407,25 +1165,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for Bluetooth permissions: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 	// HLK-LD2410C §2.2.15 — setBluetoothPassword ACK is 4-byte standard.
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_BLUETOOTH_PASSWORD)
@@ -1436,25 +1176,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for set Bluetooth password: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_MAC_ADDRESS
@@ -1473,28 +1195,12 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for MAC address: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
+		if (latest_command_success_) {
 			for (uint8_t i = 0; i < 6; i++) {
 				mac_address[i] = radar_data_frame_[10 + i];
 			}
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
 		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_DISTANCE_RESOLUTION
@@ -1508,25 +1214,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for set distance resolution: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 	// HLK-LD2410C §2.2.17 — query-distance-resolution ACK is 6-byte intra:
 	// cmd-word + 2-byte status + 2-byte LE index (offsets [10][11]).
@@ -1538,29 +1226,22 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for query distance resolution: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
+		if (latest_command_success_) {
 			distance_resolution = (uint16_t)radar_data_frame_[10]
 			                    | ((uint16_t)radar_data_frame_[11] << 8);
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK ("));
-				debug_uart_->print(distance_resolution);
-				debug_uart_->print(F(")"));
-			}
-			#endif
-			return true;
 		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
+		// Helper prints "OK"; we append " (<val>)" after it to preserve
+		// the original verbose-debug format that included the resolved
+		// distance-resolution value.
+		const bool ok = report_command_result_(latest_command_success_);
+		#ifdef LD2410_DEBUG_COMMANDS
+		if (ok && debug_uart_ != nullptr) {
+			debug_uart_->print(F(" ("));
+			debug_uart_->print(distance_resolution);
+			debug_uart_->print(F(")"));
 		}
+		#endif
+		return ok;
 	}
 #endif
 #ifdef LD2410_HAS_FACTORY_RESET
@@ -1572,25 +1253,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for factory reset: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 #ifdef LD2410_HAS_RESTART
@@ -1602,25 +1265,7 @@ bool ld2410::parse_command_frame_()
 			debug_uart_->print(F("\nACK for restart: "));
 		}
 		#endif
-		if(latest_command_success_)
-		{
-			radar_uart_last_packet_ = millis();
-			#ifdef LD2410_DEBUG_COMMANDS
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("OK"));
-			}
-			#endif
-			return true;
-		}
-		else
-		{
-			if(debug_uart_ != nullptr)
-			{
-				debug_uart_->print(F("failed"));
-			}
-			return false;
-		}
+		return report_command_result_(latest_command_success_);
 	}
 #endif
 	else
@@ -1667,6 +1312,33 @@ void ld2410::send_simple_command_(uint8_t opcode)
 	const uint8_t cmd[4] = { 0x02, 0x00, opcode, 0x00 };
 	radar_uart_->write(cmd, sizeof(cmd));
 	send_command_postamble_();
+}
+
+// Canonical epilogue for an ACK branch in parse_command_frame_.
+// Was duplicated 25 times in the chain — every branch ended with the
+// same "if success { last_packet, debug OK, return true } else { debug
+// failed, return false }" body. Collapse it here.
+//
+// Asymmetric debug gating is preserved verbatim from the original:
+//   - "OK" is gated by LD2410_DEBUG_COMMANDS  (verbose flag)
+//   - "failed" is NOT gated (always printed if debug_uart_ is set)
+// because failure is operationally informative and worth surfacing
+// even without the verbose flag.
+bool ld2410::report_command_result_(bool success)
+{
+	if (success) {
+		radar_uart_last_packet_ = millis();
+		#ifdef LD2410_DEBUG_COMMANDS
+		if (debug_uart_ != nullptr) {
+			debug_uart_->print(F("OK"));
+		}
+		#endif
+		return true;
+	}
+	if (debug_uart_ != nullptr) {
+		debug_uart_->print(F("failed"));
+	}
+	return false;
 }
 
 bool ld2410::enter_configuration_mode_()

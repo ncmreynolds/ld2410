@@ -532,6 +532,15 @@ class ld2410	{
 		// emits the full envelope (preamble + 4-byte body + postamble),
 		// and returns. Caller is responsible for the wait_for_ack_().
 		void send_simple_command_(uint8_t opcode);
+		// Common epilogue for parse_command_frame_ ACK branches. The
+		// pattern "update last_packet on success + print OK/failed +
+		// return bool" was duplicated across 25 branches; collapsing it
+		// into a helper drops cyclomatic complexity of parse_command_frame_
+		// from 113 to ~80 and saves ~400 B of flash on AVR. The asymmetric
+		// gating is preserved (OK is debug-commands-gated, failed is
+		// unconditional on debug_uart_ being set) — that was the original
+		// behaviour and we don't change it here.
+		bool report_command_result_(bool success);
 		bool enter_configuration_mode_();								//Necessary before sending any command
 		bool leave_configuration_mode_();								//Will not read values without leaving command mode
 #if defined(LD2410_HAS_TRIGGER_THRESHOLD) || defined(LD2410_HAS_HOLD_THRESHOLD)
