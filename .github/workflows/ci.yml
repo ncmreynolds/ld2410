@@ -7,44 +7,82 @@ on:
     branches: [main]
 
 jobs:
+  # General-purpose job: native g++ host tests. Independent from any
+  # board core install — runs in parallel and is the canary for pure
+  # C++ regressions.
   host-tests:
-    name: Host parser tests (g++ × 3 variants)
+    name: host-tests (g++ × 3 variants)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Build & run dual-binary host test suite
         run: bash tests/run.sh
 
-  compile-matrix:
-    name: arduino-cli compile matrix
+  # 9-cell compile matrix: 3 boards × 3 variants. Each cell installs
+  # ONLY its own board core, so a transient 502 from a single core
+  # mirror fails only the affected cell(s) — the others still run and
+  # the failed ones can be re-triggered in isolation. Combined with
+  # strategy.fail-fast=false this keeps a single flaky download from
+  # killing the whole run.
+  compile-cell:
+    name: ${{ matrix.board.label }} / ${{ matrix.variant.label }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        board:
+          - label: esp32
+            core: esp32:esp32
+            fqbn: esp32:esp32:esp32
+            url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+            sketch: examples/basicSensor/basicSensor.ino
+          - label: esp8266
+            core: esp8266:esp8266
+            fqbn: esp8266:esp8266:nodemcuv2
+            url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
+            sketch: examples/basicSensorEsp8266/basicSensorEsp8266.ino
+          - label: rp2040
+            core: rp2040:rp2040
+            fqbn: rp2040:rp2040:rpipico
+            url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+            sketch: examples/basicSensor/basicSensor.ino
+        variant:
+          - label: BASE
+            flag: ""
+          - label: C
+            flag: "-DLD2410_VARIANT_C"
+          - label: S
+            flag: "-DLD2410_VARIANT_S"
     steps:
       - uses: actions/checkout@v4
 
       - name: Install arduino-cli
         run: |
-          # arduino-cli's install.sh refuses to run if BINDIR doesn't
-          # already exist, so create it BEFORE piping into sh.
+          # install.sh refuses to run if BINDIR doesn't already exist
           mkdir -p "$HOME/.local/bin"
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh \
             | BINDIR="$HOME/.local/bin" sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Add board package URLs
+      - name: Install ${{ matrix.board.core }} core
         run: |
           arduino-cli config init --overwrite
-          arduino-cli config add board_manager.additional_urls \
-            https://espressif.github.io/arduino-esp32/package_esp32_index.json \
-            https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json \
-            https://arduino.esp8266.com/stable/package_esp8266com_index.json
+          arduino-cli config add board_manager.additional_urls "${{ matrix.board.url }}"
           arduino-cli core update-index
+          arduino-cli core install "${{ matrix.board.core }}"
 
-      - name: Install board cores
+      - name: Compile (${{ matrix.variant.label }})
         run: |
-          arduino-cli core install esp32:esp32
-          arduino-cli core install esp8266:esp8266
-          arduino-cli core install rp2040:rp2040
-
-      - name: Run compile matrix (3 boards × 3 variants)
-        run: bash tests/compile_matrix.sh
+          flag="${{ matrix.variant.flag }}"
+          if [ -n "$flag" ]; then
+            arduino-cli compile \
+              --fqbn "${{ matrix.board.fqbn }}" \
+              --library . \
+              --build-property "compiler.cpp.extra_flags=$flag" \
+              "${{ matrix.board.sketch }}"
+          else
+            arduino-cli compile \
+              --fqbn "${{ matrix.board.fqbn }}" \
+              --library . \
+              "${{ matrix.board.sketch }}"
+          fi

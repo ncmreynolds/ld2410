@@ -133,6 +133,16 @@ makes it permanent and reproducible:
   9 cells; rp2040 uses the now-extended `examples/basicSensor.ino`
   (a `defined(ARDUINO_ARCH_RP2040)` branch was added in this step).
 - **`.github/workflows/ci.yml`** — GitHub Actions workflow that runs
-  both scripts on every push to `main`/`feat/*`/`fix/*`/`refactor/*`
-  and on every PR targeting `main`. Installs the three board cores
-  via `arduino-cli core install` before the compile matrix.
+  on every push to `main`/`feat/*`/`fix/*`/`refactor/*` and on every
+  PR targeting `main`. Layout:
+  - `host-tests` job — runs `bash tests/run.sh` standalone (no board
+    cores installed). Independent canary for pure-C++ regressions.
+  - `compile-cell` matrix job — `strategy.fail-fast: false` over
+    boards × variants = 9 cells. Each cell installs ONLY its own
+    board core, so a transient 502 from a single core mirror only
+    fails the affected cell(s) and the rest of the matrix still
+    runs. Failed cells can be re-triggered in isolation from the
+    GitHub Actions UI without rerunning the entire workflow.
+  The 9 cells reproduce the same logic as `tests/compile_matrix.sh`
+  used locally; the script remains the single-shot way to run the
+  matrix without GitHub.
