@@ -235,7 +235,7 @@ opcodes only on S:              00 00, 09 00, 10 00, 11 00, 70 00,
 
 | Concept                      | **LD2410 (base)**     | **LD2410C**           | **LD2410S**                          |
 |------------------------------|-----------------------|-----------------------|--------------------------------------|
-| Number of distance gates     | 9 (0 ~ 8)             | 9 (0 ~ 8) at 0.75 m **or** 16 at 0.2 m via `0xAA` | **16** (0 ~ 15) fixed             |
+| Number of distance gates     | 9 (0 ~ 8)             | 9 (0 ~ 8); per-gate width switchable 0.75 m ↔ 0.20 m via `0xAA` (count unchanged) | **16** (0 ~ 15) fixed             |
 | Per-gate metric              | sensitivity (0 ~ 100) | sensitivity (0 ~ 100) | **trigger** + **hold** thresholds (separate)  |
 | All-gates broadcast value    | gate-id `0xFFFF`      | gate-id `0xFFFF`      | one entry per gate (always 16 entries)        |
 | Max moving / static gate     | independent (`0x0000` / `0x0001`)  | independent | "farthest gate" + "nearest gate" (`05` / `0A`) |

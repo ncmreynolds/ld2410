@@ -76,6 +76,12 @@ void setup(void)
     RADAR_SERIAL.begin(LD2410_DEFAULT_BAUD, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN); //UART for monitoring the radar
   #elif defined(__AVR_ATmega32U4__)
     RADAR_SERIAL.begin(LD2410_DEFAULT_BAUD); //UART for monitoring the radar
+  #elif defined(ARDUINO_ARCH_RP2040)
+    // arduino-pico: setRX/setTX must come BEFORE begin(); the pin macros
+    // at the top of this file resolve to GP1 (RX) and GP0 (TX) for UART0.
+    RADAR_SERIAL.setRX(RADAR_RX_PIN);
+    RADAR_SERIAL.setTX(RADAR_TX_PIN);
+    RADAR_SERIAL.begin(LD2410_DEFAULT_BAUD); //UART for monitoring the radar
   #endif
   delay(500);
   MONITOR_SERIAL.print(F("\nConnect LD2410 radar TX to GPIO:"));
