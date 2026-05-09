@@ -46,7 +46,13 @@
 #define LD2410_OP_DISTANCE_RESOLUTION_GET 0xAB  // §2.2.17 query distance resolution
 
 // ---- 0xA4 (Bluetooth on/off) parameter values ----------------------------
-#define LD2410_BLUETOOTH_ON               0x0100
+// HLK PDF §2.2.12 prints the value as "0x0100 turn on bluetooth", but the
+// example send payload right next to it is `A4 00 | 01 00` — i.e. the
+// two value bytes are 01 00 in WIRE order. Interpreted little-endian
+// (matching every other 16-bit parameter on this protocol), that's
+// 0x0001, not 0x0100. The PDF wording mixes wire-byte ordering with a
+// scalar reading; the table example is authoritative.
+#define LD2410_BLUETOOTH_ON               0x0001
 #define LD2410_BLUETOOTH_OFF              0x0000
 
 // ---- 0xAA / 0xAB (distance resolution) values (HLK Table 8) ---------------

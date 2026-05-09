@@ -1066,6 +1066,144 @@ bool ld2410::parse_command_frame_()
 		}
 	}
 #endif
+#ifdef LD2410_HAS_BLUETOOTH
+	// HLK-LD2410C §2.2.12 — Bluetooth on/off ACK is 4-byte intra
+	// (cmd-word + 2-byte status). Same envelope as setBaudRate / restart.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_BLUETOOTH)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for Bluetooth on/off: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+#endif
+#ifdef LD2410_HAS_MAC_ADDRESS
+	// HLK-LD2410C §2.2.13 — MAC address ACK is 10-byte intra: cmd-word +
+	// 2-byte status + 6 bytes MAC in WIRE / network order (big-endian as
+	// printed by the radar — preserved as-is in mac_address[]).
+	// Frame offsets (header is 4B, intra-len is 2B):
+	//   [6][7]    = cmd-word ACK (A5 01)
+	//   [8][9]    = status
+	//   [10..15]  = MAC[0..5]
+	else if(intra_frame_data_length_ == 10 && latest_ack_ == LD2410_OP_GET_MAC)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for MAC address: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			for (uint8_t i = 0; i < 6; i++) {
+				mac_address[i] = radar_data_frame_[10 + i];
+			}
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+#endif
+#ifdef LD2410_HAS_DISTANCE_RESOLUTION
+	// HLK-LD2410C §2.2.16 — set-distance-resolution ACK is the standard
+	// 4-byte success/fail envelope.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_DISTANCE_RESOLUTION_SET)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for set distance resolution: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+	// HLK-LD2410C §2.2.17 — query-distance-resolution ACK is 6-byte intra:
+	// cmd-word + 2-byte status + 2-byte LE index (offsets [10][11]).
+	else if(intra_frame_data_length_ == 6 && latest_ack_ == LD2410_OP_DISTANCE_RESOLUTION_GET)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for query distance resolution: "));
+		}
+		#endif
+		if(latest_command_success_)
+		{
+			distance_resolution = (uint16_t)radar_data_frame_[10]
+			                    | ((uint16_t)radar_data_frame_[11] << 8);
+			radar_uart_last_packet_ = millis();
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("OK ("));
+				debug_uart_->print(distance_resolution);
+				debug_uart_->print(F(")"));
+			}
+			#endif
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("failed"));
+			}
+			return false;
+		}
+	}
+#endif
 #ifdef LD2410_HAS_FACTORY_RESET
 	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_FACTORY_RESET)
 	{
@@ -1399,6 +1537,120 @@ bool ld2410::setBaudRate(uint16_t baud_index)
 		ld2410_write_le16(radar_uart_, baud_index);                          // baud-rate index (LE)
 		send_command_postamble_();
 		bool ok = wait_for_ack_(LD2410_OP_SET_BAUD_RATE, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_BLUETOOTH
+// 0xA4 §2.2.12 (C only) — enable/disable the BLE radio. Intra=4
+// (cmd-word + 2-byte LE state). ACK is the standard 4-byte success/fail
+// envelope handled in parse_command_frame_. Effect is post-restart.
+// See docs/method-coverage.md Table 1 row 0xA4.
+bool ld2410::setBluetooth(bool on)
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_BLUETOOTH);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0004);                              // intra-frame data length (4 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_BLUETOOTH);                 // command word (LE)
+		ld2410_write_le16(radar_uart_, on ? LD2410_BLUETOOTH_ON : LD2410_BLUETOOTH_OFF);
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_BLUETOOTH, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_MAC_ADDRESS
+// 0xA5 §2.2.13 (C only) — read the BLE MAC address. Send: cmd-word +
+// 2-byte selector 0x0001 (intra=4). ACK: intra=10 with cmd-word +
+// 2-byte status + 6-byte MAC in wire order. The MAC is copied into
+// mac_address[] inside parse_command_frame_'s 0xA5 branch.
+// See docs/method-coverage.md Table 1 row 0xA5.
+bool ld2410::requestMACAddress()
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_GET_MAC);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0004);                              // intra-frame data length (4 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_GET_MAC);                   // command word (LE)
+		ld2410_write_le16(radar_uart_, 0x0001);                              // documented selector (HLK §2.2.13)
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_GET_MAC, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_DISTANCE_RESOLUTION
+// 0xAA §2.2.16 (C only) — set the per-gate distance resolution.
+// Intra=4 (cmd-word + 2-byte LE index from LD2410_DISTANCE_RESOLUTION_*).
+// ACK is the standard 4-byte envelope. Effect is post-restart.
+// See docs/method-coverage.md Table 1 row 0xAA.
+bool ld2410::setDistanceResolution(uint16_t resolution_index)
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_DISTANCE_RESOLUTION_SET);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0004);                              // intra-frame data length (4 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_DISTANCE_RESOLUTION_SET);   // command word (LE)
+		ld2410_write_le16(radar_uart_, resolution_index);                    // 0x0000 = 0.75 m, 0x0001 = 0.2 m
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_DISTANCE_RESOLUTION_SET, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+
+// 0xAB §2.2.17 (C only) — query the current distance resolution. Send: cmd-word
+// only (intra=2, no value). ACK: intra=6 with cmd-word + 2-byte status + 2-byte
+// LE index, decoded into distance_resolution by parse_command_frame_'s 0xAB branch.
+// See docs/method-coverage.md Table 1 row 0xAB.
+bool ld2410::requestDistanceResolution()
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_DISTANCE_RESOLUTION_GET);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0002);                              // intra-frame data length (2 bytes — cmd-word only)
+		ld2410_write_le16(radar_uart_, LD2410_OP_DISTANCE_RESOLUTION_GET);   // command word (LE)
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_DISTANCE_RESOLUTION_GET, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;

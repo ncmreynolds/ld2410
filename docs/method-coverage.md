@@ -39,12 +39,12 @@ Legend:
 | `0xA1` | §2.2.9 base/C | Set serial port baud rate | ✅ | ✅ | — | `setBaudRate(uint16_t baud_index)` — index from `LD2410_BAUD_INDEX_*`; takes effect after restart | `LD2410_HAS_BAUD_RATE` |
 | `0xA2` | §2.2.10 base/C | Factory reset | ✅ | ✅ | — | `requestFactoryReset()` | `LD2410_HAS_FACTORY_RESET` |
 | `0xA3` | §2.2.11 base/C | Restart module | ✅ | ✅ | — | `requestRestart()` (with 800 ms reboot blackout for ESP32 autoReadTask) | `LD2410_HAS_RESTART` |
-| `0xA4` | §2.2.12 C | Bluetooth on/off | — | ❌ | — | *missing* (regression vs v0.1.3) | `LD2410_HAS_BLUETOOTH` |
-| `0xA5` | §2.2.13 C | Get MAC address | — | ❌ | — | *missing* (regression vs v0.1.3) | `LD2410_HAS_MAC_ADDRESS` |
+| `0xA4` | §2.2.12 C | Bluetooth on/off | — | ✅ | — | `setBluetooth(bool on)` — non-volatile, takes effect after restart | `LD2410_HAS_BLUETOOTH` |
+| `0xA5` | §2.2.13 C | Get MAC address | — | ✅ | — | `requestMACAddress()` → populates `mac_address[6]` (wire/big-endian order) | `LD2410_HAS_MAC_ADDRESS` |
 | `0xA8` | §2.2.14 C | Obtain Bluetooth permissions | — | ❌ | — | *missing* (never exposed) | `LD2410_HAS_BLUETOOTH` |
 | `0xA9` | §2.2.15 C | Set Bluetooth password | — | ❌ | — | *missing* (never exposed) | `LD2410_HAS_BLUETOOTH` |
-| `0xAA` | §2.2.16 C | Set distance resolution (0.75 / 0.2 m) | — | ❌ | — | *missing* (regression vs v0.1.3) | `LD2410_HAS_DISTANCE_RESOLUTION` |
-| `0xAB` | §2.2.17 C | Query distance resolution | — | ❌ | — | *missing* (regression vs v0.1.3) | `LD2410_HAS_DISTANCE_RESOLUTION` |
+| `0xAA` | §2.2.16 C | Set distance resolution (0.75 / 0.2 m) | — | ✅ | — | `setDistanceResolution(LD2410_DISTANCE_RESOLUTION_*)` — non-volatile, takes effect after restart | `LD2410_HAS_DISTANCE_RESOLUTION` |
+| `0xAB` | §2.2.17 C | Query distance resolution | — | ✅ | — | `requestDistanceResolution()` → populates `distance_resolution` (LE index) | `LD2410_HAS_DISTANCE_RESOLUTION` |
 | `0x09` | §2.2.9 S | Auto-update threshold | — | — | ❌ | *missing* | `LD2410_HAS_AUTO_THRESHOLD` |
 | `0x10` | §2.2.5 S | Write serial number | — | — | ❌ | *missing* | `LD2410_HAS_SERIAL_NUMBER` |
 | `0x11` | §2.2.6 S | Read serial number | — | — | ❌ | *missing* | `LD2410_HAS_SERIAL_NUMBER` |
@@ -80,14 +80,10 @@ Legend:
 ### LD2410C
 | Missing | Opcode | Severity |
 |---|---|---|
-| `setBluetooth()` | `0xA4` | regression vs v0.1.3 |
-| `getMACAddress()` | `0xA5` | regression vs v0.1.3 |
 | `obtainBluetoothPermissions()` | `0xA8` | never exposed |
 | `setBluetoothPassword()` | `0xA9` | never exposed |
-| `setDistanceResolution()` | `0xAA` | regression vs v0.1.3 |
-| `getDistanceResolution()` | `0xAB` | regression vs v0.1.3 |
 
-→ **6 capabilities missing** (4 are regressions vs v0.1.3).
+→ **2 capabilities missing** (both never exposed; all v0.1.3 regressions are now fixed).
 
 ### LD2410S
 Almost everything is missing — only enter/leave configuration currently
@@ -134,7 +130,7 @@ is exposed but uses the wrong opcode (0xA0 instead of 0x00).
 | 10b | Add S auto-threshold-progress (`data type 0x03`) parsing + `autoThresholdProgress()`/`autoThresholdReceived()` accessors | ✅ done (this commit) |
 | 10c | Add S minimal frame (`6E … 62`) parsing — `read_frame_` recognises 3 header types; new `parse_minimal_frame_` private method | ✅ done (this commit) |
 | 11a | Add `setBaudRate()` for base/C (regression fix, upstream issue #39) | ✅ done (this commit) |
-| 11b | Add `setBluetooth/getMACAddress/setDistanceResolution/getDistanceResolution` for C (regression fixes) | pending |
+| 11b | Add `setBluetooth/requestMACAddress/setDistanceResolution/requestDistanceResolution` for C (regression fixes vs v0.1.3) | ✅ done (this commit) |
 | 11c | Add `setBluetoothPassword/obtainBluetoothPermissions` for C | pending (low priority) |
 | 11d | Add 11 S commands (`setOutputMode`, `write/readTriggerThreshold`, `write/readHoldThreshold`, `autoUpdateThreshold`, `write/readSerialNumber`, `write/readGenericParams`) | pending — blocking for S support |
 | 12 | End-to-end verification: tests + arduino-cli compile across all 3 variants × 3 boards | continuous |

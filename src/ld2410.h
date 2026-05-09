@@ -215,6 +215,37 @@ class ld2410	{
 		bool setBaudRate(uint16_t baud_index);
 #endif
 
+#ifdef LD2410_HAS_BLUETOOTH
+		// 0xA4 §2.2.12 (C only) — enable / disable the on-board BLE radio.
+		// Setting is non-volatile and takes effect after the next restart.
+		// Closes regression vs v0.1.3 (upstream issue #39).
+		// See docs/method-coverage.md Table 1 row 0xA4.
+		bool setBluetooth(bool on);
+#endif
+
+#ifdef LD2410_HAS_MAC_ADDRESS
+		// 0xA5 §2.2.13 (C only) — query the BLE MAC address.
+		// On success the 6-byte address is copied into mac_address[]
+		// in the wire (big-endian / "network") order printed by the radar.
+		// Returns false if the radar did not ACK, or replied with status≠0.
+		// See docs/method-coverage.md Table 1 row 0xA5.
+		bool requestMACAddress();
+		uint8_t mac_address[6] = {0,0,0,0,0,0};
+#endif
+
+#ifdef LD2410_HAS_DISTANCE_RESOLUTION
+		// 0xAA / 0xAB §2.2.16-17 (C only) — set / query the per-gate
+		// distance resolution (LD2410_DISTANCE_RESOLUTION_075M = 0.75 m,
+		// LD2410_DISTANCE_RESOLUTION_02M = 0.2 m). Setting is non-volatile
+		// and takes effect after the next restart; downstream code that
+		// converts gate index → metres must reread distance_resolution
+		// after a successful requestDistanceResolution().
+		// See docs/method-coverage.md Table 1 rows 0xAA / 0xAB.
+		bool setDistanceResolution(uint16_t resolution_index);
+		bool requestDistanceResolution();
+		uint16_t distance_resolution = 0xFFFF;     // 0xFFFF = "not yet queried"
+#endif
+
 #ifdef LD2410_HAS_ENGINEERING_MODE
 		// 0x62 §2.2.5 / 0x63 §2.2.6 — enable / close engineering mode.
 		// base/C only. (S standard frame already includes per-gate energies

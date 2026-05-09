@@ -20,6 +20,10 @@ requestEndEngineeringMode	KEYWORD2
 setMaxValues	KEYWORD2
 setGateSensitivityThreshold	KEYWORD2
 setBaudRate	KEYWORD2
+setBluetooth	KEYWORD2
+requestMACAddress	KEYWORD2
+setDistanceResolution	KEYWORD2
+requestDistanceResolution	KEYWORD2
 getFrameData	KEYWORD2
 detectionDistance	KEYWORD2
 movingEnergyAtGate	KEYWORD2
@@ -32,3 +36,5 @@ isAutoReadTaskRunning	KEYWORD2
 firmware_major_version	LITERAL1
 firmware_minor_version	LITERAL1
 firmware_bugfix_version	LITERAL1
+mac_address	LITERAL1
+distance_resolution	LITERAL1

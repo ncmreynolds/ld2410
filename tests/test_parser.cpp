@@ -590,6 +590,99 @@ static void test_resync_after_bogus_length() {
     CHECK_EQ((int)r.movingTargetDistance(), 81);
     std::printf("ok\n");
 }
+
+// ===========================================================================
+// LD2410C-only command tests (Bluetooth, MAC address, distance resolution).
+// Active when the build defines LD2410_HAS_* — i.e. when compiling with
+// -DLD2410_VARIANT_C (gates set by ld2410_c.h). On default base builds
+// these helpers do not exist, so they are excluded.
+// ===========================================================================
+
+#ifdef LD2410_HAS_BLUETOOTH
+// 0xA4 setBluetooth(true) — standard 4-byte success ACK.
+static void test_command_set_bluetooth_on() {
+    std::printf("test_command_set_bluetooth_on ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0xA4, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    CHECK(r.setBluetooth(true));
+    std::printf("ok\n");
+}
+#endif
+
+#ifdef LD2410_HAS_MAC_ADDRESS
+// 0xA5 requestMACAddress — 10-byte intra ACK with 6-byte MAC at [10..15].
+static void test_command_request_mac_address() {
+    std::printf("test_command_request_mac_address ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    // MAC = 8F 27 2E B8 0F 65 (the example from HLK §2.2.13).
+    std::vector<uint8_t> mac_ack = {
+        0xFD, 0xFC, 0xFB, 0xFA,
+        0x0A, 0x00,                                       // intra = 10
+        0xA5, 0x01,                                       // cmd-word ACK
+        0x00, 0x00,                                       // status: success
+        0x8F, 0x27, 0x2E, 0xB8, 0x0F, 0x65,               // MAC bytes
+        0x04, 0x03, 0x02, 0x01
+    };
+    s.inject_response(mac_ack);
+    s.inject_response(make_short_ack(0xFE, 4));
+
+    CHECK(r.requestMACAddress());
+    CHECK_EQ((int)r.mac_address[0], 0x8F);
+    CHECK_EQ((int)r.mac_address[1], 0x27);
+    CHECK_EQ((int)r.mac_address[2], 0x2E);
+    CHECK_EQ((int)r.mac_address[3], 0xB8);
+    CHECK_EQ((int)r.mac_address[4], 0x0F);
+    CHECK_EQ((int)r.mac_address[5], 0x65);
+    std::printf("ok\n");
+}
+#endif
+
+#ifdef LD2410_HAS_DISTANCE_RESOLUTION
+// 0xAA setDistanceResolution(0.2 m) — standard 4-byte success ACK.
+static void test_command_set_distance_resolution() {
+    std::printf("test_command_set_distance_resolution ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0xAA, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    CHECK(r.setDistanceResolution(LD2410_DISTANCE_RESOLUTION_02M));
+    std::printf("ok\n");
+}
+
+// 0xAB requestDistanceResolution — 6-byte intra ACK; index at [10..11] LE.
+// HLK §2.2.17 example returns 01 00 → 0x0001 (= 0.2 m).
+static void test_command_request_distance_resolution() {
+    std::printf("test_command_request_distance_resolution ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    std::vector<uint8_t> get_ack = {
+        0xFD, 0xFC, 0xFB, 0xFA,
+        0x06, 0x00,                  // intra = 6
+        0xAB, 0x01,                  // cmd-word ACK
+        0x00, 0x00,                  // status: success
+        0x01, 0x00,                  // index = 0x0001 (0.2 m)
+        0x04, 0x03, 0x02, 0x01
+    };
+    s.inject_response(get_ack);
+    s.inject_response(make_short_ack(0xFE, 4));
+
+    CHECK(r.requestDistanceResolution());
+    CHECK_EQ((int)r.distance_resolution, (int)LD2410_DISTANCE_RESOLUTION_02M);
+    std::printf("ok\n");
+}
+#endif
+
 #endif // !LD2410_VARIANT_S
 
 
@@ -888,6 +981,16 @@ int main() {
     test_command_no_ack();
     test_command_set_baud_rate();
     test_command_set_baud_rate_failure();
+#ifdef LD2410_HAS_BLUETOOTH
+    test_command_set_bluetooth_on();
+#endif
+#ifdef LD2410_HAS_MAC_ADDRESS
+    test_command_request_mac_address();
+#endif
+#ifdef LD2410_HAS_DISTANCE_RESOLUTION
+    test_command_set_distance_resolution();
+    test_command_request_distance_resolution();
+#endif
     test_lone_F4_not_a_header();
     test_resync_F4_at_wrong_position();
     test_no_early_termination_on_payload_footer();
