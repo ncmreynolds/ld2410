@@ -4,6 +4,9 @@
 #
 # Compiles the test suite THREE times:
 #   - default mode (LD2410_VARIANT_BASE, the historical base/C target)
+#   - -DLD2410_VARIANT_B  (exercises B-only auxiliary-control commands
+#     0xAD/0xAE + engineering-frame trailer extraction, on top of every
+#     C-shared path; gated by LD2410_HAS_AUX_CONTROL defined in ld2410_b.h)
 #   - -DLD2410_VARIANT_C  (exercises Bluetooth / MAC / distance-resolution
 #     command paths, gated by LD2410_HAS_BLUETOOTH/_MAC_ADDRESS/
 #     _DISTANCE_RESOLUTION which are only defined by ld2410_c.h)
@@ -21,6 +24,11 @@ SOURCES="$HERE/test_parser.cpp $ROOT/src/ld2410.cpp"
 echo "=== Building & running base/C test suite ==="
 g++ $CXXFLAGS $SOURCES -o "$HERE/test_parser_basec"
 "$HERE/test_parser_basec"
+
+echo
+echo "=== Building & running LD2410_VARIANT_B test suite ==="
+g++ $CXXFLAGS -DLD2410_VARIANT_B $SOURCES -o "$HERE/test_parser_b"
+"$HERE/test_parser_b"
 
 echo
 echo "=== Building & running LD2410_VARIANT_C test suite ==="

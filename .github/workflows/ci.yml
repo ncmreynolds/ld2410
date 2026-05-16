@@ -11,14 +11,14 @@ jobs:
   # board core install — runs in parallel and is the canary for pure
   # C++ regressions.
   host-tests:
-    name: host-tests (g++ × 3 variants)
+    name: host-tests (g++ × 4 variants)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build & run host test suite (BASE + C + S)
+      - name: Build & run host test suite (BASE + B + C + S)
         run: bash tests/run.sh
 
-  # 9-cell compile matrix: 3 boards × 3 variants. Each cell installs
+  # 16-cell compile matrix: 4 boards × 4 variants. Each cell installs
   # ONLY its own board core, so a transient 502 from a single core
   # mirror fails only the affected cell(s) — the others still run and
   # the failed ones can be re-triggered in isolation. Combined with
@@ -46,9 +46,16 @@ jobs:
             fqbn: rp2040:rp2040:rpipico
             url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
             sketch: examples/basicSensor/basicSensor.ino
+          - label: avr128da32
+            core: DxCore:megaavr
+            fqbn: "DxCore:megaavr:avrda:chip=avr128da32"
+            url: http://drazzy.com/package_drazzy.com_index.json
+            sketch: examples/basicSensor/basicSensor.ino
         variant:
           - label: BASE
             flag: ""
+          - label: B
+            flag: "-DLD2410_VARIANT_B"
           - label: C
             flag: "-DLD2410_VARIANT_C"
           - label: S

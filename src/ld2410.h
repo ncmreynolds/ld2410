@@ -21,6 +21,12 @@
 // ---- Variant selection ----------------------------------------------------
 // Pick exactly one of:
 //   LD2410_VARIANT_BASE   (default — original LD2410, default UART 57600)
+//   LD2410_VARIANT_B      (LD2410B — superset of C: same opcodes + on-board
+//                          photodiode controlled via 0xAD/0xAE; engineering
+//                          frame carries 2 trailer bytes (photosensitivity
+//                          + OUT pin state). Default UART 256000. Physical
+//                          pinout matches BASE (OUT on pin 1), not C.
+//                          UNVERIFIED-ON-HARDWARE — see ld2410_variants/ld2410_b.h)
 //   LD2410_VARIANT_C      (LD2410C — adds Bluetooth/MAC/distance-resolution,
 //                          default UART 256000)
 //   LD2410_VARIANT_S      (LD2410S — separate protocol, default UART 115200,
@@ -37,15 +43,17 @@
 //
 // Defaulting to BASE preserves historical behaviour: this fork has always
 // targeted the LD2410 / LD2410C shared core, and base.h covers it.
-#if (defined(LD2410_VARIANT_BASE) + defined(LD2410_VARIANT_C) + defined(LD2410_VARIANT_S)) > 1
-#error "Define exactly one of LD2410_VARIANT_BASE / LD2410_VARIANT_C / LD2410_VARIANT_S"
+#if (defined(LD2410_VARIANT_BASE) + defined(LD2410_VARIANT_B) + defined(LD2410_VARIANT_C) + defined(LD2410_VARIANT_S)) > 1
+#error "Define exactly one of LD2410_VARIANT_BASE / LD2410_VARIANT_B / LD2410_VARIANT_C / LD2410_VARIANT_S"
 #endif
-#if !defined(LD2410_VARIANT_BASE) && !defined(LD2410_VARIANT_C) && !defined(LD2410_VARIANT_S)
+#if !defined(LD2410_VARIANT_BASE) && !defined(LD2410_VARIANT_B) && !defined(LD2410_VARIANT_C) && !defined(LD2410_VARIANT_S)
 #define LD2410_VARIANT_BASE
 #endif
 
 #if defined(LD2410_VARIANT_S)
 #include "ld2410_variants/ld2410_s.h"
+#elif defined(LD2410_VARIANT_B)
+#include "ld2410_variants/ld2410_b.h"
 #elif defined(LD2410_VARIANT_C)
 #include "ld2410_variants/ld2410_c.h"
 #else
@@ -394,7 +402,7 @@ class ld2410	{
 #endif
 
 #ifdef LD2410_HAS_DISTANCE_RESOLUTION
-		// 0xAA / 0xAB §2.2.16-17 (C only) — set / query the per-gate
+		// 0xAA / 0xAB §2.2.16-17 (B/C) — set / query the per-gate
 		// distance resolution (LD2410_DISTANCE_RESOLUTION_075M = 0.75 m,
 		// LD2410_DISTANCE_RESOLUTION_02M = 0.2 m). Setting is non-volatile
 		// and takes effect after the next restart; downstream code that
@@ -404,6 +412,45 @@ class ld2410	{
 		bool setDistanceResolution(uint16_t resolution_index);
 		bool requestDistanceResolution();
 		uint16_t distance_resolution = 0xFFFF;     // 0xFFFF = "not yet queried"
+#endif
+
+#ifdef LD2410_HAS_AUX_CONTROL
+		// 0xAD §2.2.18 (B only) — configure the on-board photodiode →
+		// OUT-pin gating. `mode` is one of LD2410_AUX_MODE_*:
+		//   OFF             — light sense does not affect OUT;
+		//   TRIGGER_BELOW   — auxiliary condition met when light < threshold;
+		//   TRIGGER_ABOVE   — auxiliary condition met when light > threshold.
+		// `threshold` is 0..255 (factory default 0x80). `out_default_level`
+		// selects between LD2410_AUX_OUT_DEFAULT_LOW (factory: idle LOW /
+		// triggered HIGH) and LD2410_AUX_OUT_DEFAULT_HIGH (inverted).
+		// Setting is non-volatile. See docs/method-coverage.md Table 1 row 0xAD.
+		bool setAuxiliaryControl(uint8_t mode,
+		                         uint8_t threshold = LD2410_AUX_THRESHOLD_DEFAULT,
+		                         uint8_t out_default_level = LD2410_AUX_OUT_DEFAULT_LOW);
+
+		// 0xAE §2.2.19 (B only) — read back the current 4-byte auxiliary
+		// control configuration. On success populates the three fields
+		// below and flips aux_control_received to true.
+		// See docs/method-coverage.md Table 1 row 0xAE.
+		bool requestAuxiliaryControl();
+		uint8_t aux_control_mode              = 0;
+		uint8_t aux_control_threshold         = 0;
+		uint8_t aux_control_out_default_level = 0;
+		bool    aux_control_received          = false;
+#endif
+
+#if defined(LD2410_VARIANT_B)
+		// HLK-LD2410B §2.3.2 Table 15 — the B's engineering-mode data
+		// frame appends two trailer bytes after the per-gate energies,
+		// occupying the same wire slot that base/C document as variable
+		// "M reserved". They are populated by parse_data_frame_ only
+		// when LD2410_VARIANT_B is defined; on the other variants the
+		// bytes either have no defined meaning (base/C) or do not exist
+		// (S uses a different frame format altogether).
+		//   photosensitivity_value: 0..255, on-board photodiode reading;
+		//   out_pin_state:          0 = no one, 1 = someone (mirrors OUT).
+		uint8_t photosensitivity_value = 0;
+		uint8_t out_pin_state          = 0;
 #endif
 
 #ifdef LD2410_HAS_ENGINEERING_MODE

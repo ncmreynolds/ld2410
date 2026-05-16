@@ -41,6 +41,7 @@ except in lockstep with code changes:
 | [`method-coverage.md`](method-coverage.md) | Matrix of every public method × variant × opcode (source of truth for `LD2410_HAS_*` gates). |
 | [`ld2410-variants-comparison.md`](ld2410-variants-comparison.md) | Byte-level side-by-side of the three protocols. |
 | [`HLK-LD2410_protocol.md`](HLK-LD2410_protocol.md) | Original HLK protocol spec for the LD2410 base. |
+| [`HLK-LD2410B_protocol.md`](HLK-LD2410B_protocol.md) | Original HLK protocol spec for the LD2410B (base 5-pin layout + 256000 bps + Bluetooth + light sensor). |
 | [`HLK-LD2410C_protocol.md`](HLK-LD2410C_protocol.md) | Original HLK protocol spec for the LD2410C. |
 | [`HLK-LD2410S_protocol.md`](HLK-LD2410S_protocol.md) | Original HLK protocol spec for the LD2410S. |
 

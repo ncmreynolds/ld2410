@@ -7,6 +7,8 @@
  * On ESP32S2, connect the LD2410 to GPIO pins 8&9
  * On ESP32C3, connect the LD2410 to GPIO pins 4&5
  * On Arduino Leonardo or other ATmega32u4 board connect the LD2410 to GPIO pins TX & RX hardware serial
+ * On AVR128DA32 (SpenceKonde DxCore), connect the LD2410 to USART1 = pins PC0 (TX) & PC1 (RX);
+ *   the monitor uses Serial = USART0 on PORTA (PA0/PA1).
  * 
  * The serial configuration for other boards will vary and you'll need to assign them yourself
  * 
@@ -59,6 +61,18 @@
   #define RADAR_SERIAL Serial1
   #define RADAR_RX_PIN 1
   #define RADAR_TX_PIN 0
+#elif defined(DXCORE) || defined(__AVR_AVR128DA32__)
+  // SpenceKonde DxCore (DxCore:megaavr). AVR128DA32 exposes three
+  // hardware USARTs: Serial = USART0 (PORTA: PA0=TX, PA1=RX),
+  // Serial1 = USART1 (PORTC: PC0=TX, PC1=RX), Serial2 = USART2
+  // (PORTF: PF0=TX, PF1=RX). Use Serial for the monitor and Serial1
+  // for the radar — the same convention as ATmega32U4 / RP2040.
+  // RADAR_RX_PIN / _TX_PIN are HOST-side, so RADAR_RX_PIN is the
+  // host's RX (PC1, wired to the radar's TX).
+  #define MONITOR_SERIAL Serial
+  #define RADAR_SERIAL Serial1
+  #define RADAR_RX_PIN PIN_PC1
+  #define RADAR_TX_PIN PIN_PC0
 #endif
 
 #include <ld2410.h>
@@ -82,6 +96,11 @@ void setup(void)
     RADAR_SERIAL.setRX(RADAR_RX_PIN);
     RADAR_SERIAL.setTX(RADAR_TX_PIN);
     RADAR_SERIAL.begin(LD2410_DEFAULT_BAUD); //UART for monitoring the radar
+  #elif defined(DXCORE) || defined(__AVR_AVR128DA32__)
+    // DxCore: Serial1 is wired to USART1 on PORTC by default; no
+    // per-call pin override needed (DxCore exposes setPins() but the
+    // default mapping matches the macros above).
+    RADAR_SERIAL.begin(LD2410_DEFAULT_BAUD);
   #endif
   delay(500);
   MONITOR_SERIAL.print(F("\nConnect LD2410 radar TX to GPIO:"));

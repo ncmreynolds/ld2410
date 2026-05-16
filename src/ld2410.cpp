@@ -680,6 +680,19 @@ bool ld2410::parse_data_frame_() {
         memcpy(engineering_stationary_energy_, &radar_data_frame_[28], LD2410_GATE_COUNT);
         engineering_data_received_ = true;
     }
+#if defined(LD2410_VARIANT_B)
+    // HLK-LD2410B §2.3.2 Table 15 — the B specifies two trailer bytes
+    // immediately after the per-gate stationary energies, occupying the
+    // same wire slot that base/C document as variable "M reserved".
+    // Required intra_frame_data_length: basic header (1 type + 1 head + 9
+    // basic fields) + 2 max-gates + 9 motion + 9 stationary + 2 trailer
+    // + 2 intra tail/check = 35 bytes. With LD2410_GATE_COUNT == 9, the
+    // trailer offsets are [37][38] in radar_data_frame_.
+    if (data_type == LD2410_DATA_TYPE_ENGINEERING && intra_frame_data_length >= 35) {
+        photosensitivity_value = radar_data_frame_[28 + LD2410_GATE_COUNT];
+        out_pin_state          = radar_data_frame_[29 + LD2410_GATE_COUNT];
+    }
+#endif
 #endif
 
     last_valid_frame_length = radar_data_frame_position_;
@@ -953,10 +966,14 @@ bool ld2410::parse_command_frame_()
 		if (latest_command_success_) {
 			firmware_major_version = radar_data_frame_[13];
 			firmware_minor_version = radar_data_frame_[12];
-			firmware_bugfix_version = radar_data_frame_[14];
-			firmware_bugfix_version += radar_data_frame_[15]<<8;
-			firmware_bugfix_version += radar_data_frame_[16]<<16;
-			firmware_bugfix_version += radar_data_frame_[17]<<24;
+			// 4-byte LE bugfix version. Use memcpy (same idiom as the basic-
+			// frame distance reads above) instead of byte-shift accumulation:
+			// on 16-bit-int platforms (AVR-Dx via DxCore, ATmega) the previous
+			// `radar_data_frame_[N]<<24` was UB (shift count >= int width) and
+			// silently produced 0, truncating the two high bytes. memcpy is
+			// width-agnostic, alignment-safe, and emits a single 32-bit load
+			// on LE 32-bit targets after -O2.
+			memcpy(&firmware_bugfix_version, &radar_data_frame_[14], sizeof(firmware_bugfix_version));
 		}
 		return report_command_result_(latest_command_success_);
 	}
@@ -1214,6 +1231,52 @@ bool ld2410::parse_command_frame_()
 		if (ok && debug_uart_ != nullptr) {
 			debug_uart_->print(F(" ("));
 			debug_uart_->print(distance_resolution);
+			debug_uart_->print(F(")"));
+		}
+		#endif
+		return ok;
+	}
+#endif
+#ifdef LD2410_HAS_AUX_CONTROL
+	// HLK-LD2410B §2.2.18 — set-aux-control ACK is the standard 4-byte
+	// intra: cmd-word + 2-byte status.
+	else if(intra_frame_data_length_ == 4 && latest_ack_ == LD2410_OP_AUX_CONTROL_SET)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for set auxiliary control: "));
+		}
+		#endif
+		return report_command_result_(latest_command_success_);
+	}
+	// HLK-LD2410B §2.2.19 — query-aux-control ACK is 8-byte intra:
+	// cmd-word + 2-byte status + 4-byte configuration value (mode,
+	// threshold, OUT default level, reserved). Configuration value
+	// occupies offsets [10..13] in radar_data_frame_.
+	else if(intra_frame_data_length_ == 8 && latest_ack_ == LD2410_OP_AUX_CONTROL_GET)
+	{
+		#ifdef LD2410_DEBUG_COMMANDS
+		if(debug_uart_ != nullptr)
+		{
+			debug_uart_->print(F("\nACK for query auxiliary control: "));
+		}
+		#endif
+		if (latest_command_success_) {
+			aux_control_mode              = radar_data_frame_[10];
+			aux_control_threshold         = radar_data_frame_[11];
+			aux_control_out_default_level = radar_data_frame_[12];
+			aux_control_received          = true;
+		}
+		const bool ok = report_command_result_(latest_command_success_);
+		#ifdef LD2410_DEBUG_COMMANDS
+		if (ok && debug_uart_ != nullptr) {
+			debug_uart_->print(F(" (mode="));
+			debug_uart_->print(aux_control_mode);
+			debug_uart_->print(F(", thr="));
+			debug_uart_->print(aux_control_threshold);
+			debug_uart_->print(F(", out_dflt="));
+			debug_uart_->print(aux_control_out_default_level);
 			debug_uart_->print(F(")"));
 		}
 		#endif
@@ -2004,6 +2067,62 @@ bool ld2410::requestDistanceResolution()
 		delay(50);
 		send_simple_command_(LD2410_OP_DISTANCE_RESOLUTION_GET);
 		bool ok = wait_for_ack_(LD2410_OP_DISTANCE_RESOLUTION_GET, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+#endif
+
+#ifdef LD2410_HAS_AUX_CONTROL
+// 0xAD §2.2.18 (B only) — configure the on-board photodiode → OUT-pin
+// gating. Send: cmd-word + 4-byte value (mode, threshold, OUT default
+// level, 0x00 reserved); intra=6 bytes. ACK is the standard 4-byte
+// success/fail envelope, parsed in parse_command_frame_'s 0xAD branch.
+// See docs/method-coverage.md Table 1 row 0xAD.
+bool ld2410::setAuxiliaryControl(uint8_t mode, uint8_t threshold, uint8_t out_default_level)
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		begin_command_(LD2410_OP_AUX_CONTROL_SET);
+		send_command_preamble_();
+		ld2410_write_le16(radar_uart_, 0x0006);                              // intra-frame data length (6 bytes)
+		ld2410_write_le16(radar_uart_, LD2410_OP_AUX_CONTROL_SET);           // command word (LE)
+		radar_uart_->write(mode);                                            // byte 0: mode (0=off, 1=below, 2=above)
+		radar_uart_->write(threshold);                                       // byte 1: threshold 0..255
+		radar_uart_->write(out_default_level);                               // byte 2: OUT default level (0=low, 1=high)
+		radar_uart_->write((uint8_t)0x00);                                   // byte 3: reserved (PDF example always 0x00)
+		send_command_postamble_();
+		bool ok = wait_for_ack_(LD2410_OP_AUX_CONTROL_SET, radar_uart_command_timeout_);
+		delay(50);
+		leave_configuration_mode_();
+		return ok;
+	}
+	delay(50);
+	leave_configuration_mode_();
+	return false;
+}
+
+// 0xAE §2.2.19 (B only) — query the current auxiliary control configuration.
+// Send: cmd-word only (intra=2). ACK is 8-byte intra: cmd-word + 2-byte
+// status + 4-byte config (mode, threshold, OUT default level, reserved),
+// decoded into aux_control_* fields by parse_command_frame_'s 0xAE branch.
+// See docs/method-coverage.md Table 1 row 0xAE.
+bool ld2410::requestAuxiliaryControl()
+{
+	CommandTransaction tx(*this);
+	if (!tx.ok()) return false;
+	if(enter_configuration_mode_())
+	{
+		delay(50);
+		send_simple_command_(LD2410_OP_AUX_CONTROL_GET);
+		bool ok = wait_for_ack_(LD2410_OP_AUX_CONTROL_GET, radar_uart_command_timeout_);
 		delay(50);
 		leave_configuration_mode_();
 		return ok;

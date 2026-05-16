@@ -782,6 +782,163 @@ static void test_command_request_distance_resolution() {
 }
 #endif
 
+// ===========================================================================
+// LD2410B-specific tests — engineering-frame trailer + 0xAD/0xAE auxiliary
+// control commands. Only compiled when -DLD2410_VARIANT_B is set, which is
+// the only variant that defines LD2410_HAS_AUX_CONTROL.
+//
+// The B variant's protocol is a strict superset of the C variant's:
+// every shared-core command/parser path is already exercised by the
+// test_command_* and test_engineering_frame tests above (which run on
+// every non-S build). These tests only add the B-exclusive surface.
+// ===========================================================================
+#ifdef LD2410_HAS_AUX_CONTROL
+
+// Same frame layout as test_engineering_frame, but exercises the B-only
+// trailer extraction (HLK-LD2410B §2.3.2 Table 15): the two bytes at
+// offsets [37][38] (labelled "retain (M=2)" on base/C) carry photosensitivity
+// value + OUT pin state on the B. With intra=35 and trailer bytes 0x60/0x01,
+// the parser must populate the two new fields without disturbing the basic
+// or per-gate fields.
+static void test_b_engineering_frame_trailer() {
+    std::printf("test_b_engineering_frame_trailer ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x23, 0x00,                                // intra length = 35
+        0x01, 0xAA,                                // engineering, head
+        0x03,                                      // target status: both
+        0x1E, 0x00,                                // moving dist = 30
+        0x3C,                                      // moving energy = 60
+        0x00, 0x00,                                // stationary dist = 0
+        0x39,                                      // stationary energy = 57
+        0x00, 0x00,                                // detection dist = 0
+        0x08, 0x08,                                // max moving / stationary N
+        0x3C, 0x22, 0x05, 0x03, 0x03, 0x04, 0x03, 0x06, 0x05,  // motion gate 0..8
+        0x00, 0x00, 0x39, 0x10, 0x13, 0x06, 0x06, 0x08, 0x04,  // stationary gate 0..8
+        0x60, 0x01,                                // B trailer: photosensitivity=0x60, OUT=0x01
+        0x55, 0x00,                                // tail + cal
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+
+    // Regression: shared-core fields still parse identically to base/C.
+    CHECK_EQ((int)r.movingTargetDistance(), 30);
+    CHECK_EQ((int)r.stationaryTargetEnergy(), 57);
+    CHECK(r.engineeringRetrieved());
+
+    // B-specific: trailer bytes captured into public fields.
+    CHECK_EQ((int)r.photosensitivity_value, 0x60);
+    CHECK_EQ((int)r.out_pin_state,          0x01);
+
+    std::printf("ok\n");
+}
+
+// Same engineering layout but intra=33 (no trailer present — like a base/C
+// frame would emit). The parser must NOT touch the photosensitivity_value /
+// out_pin_state fields: they should keep their default-initialised values.
+// This guards against an out-of-bounds read on shorter engineering frames.
+static void test_b_engineering_frame_no_trailer_when_short() {
+    std::printf("test_b_engineering_frame_no_trailer_when_short ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject({
+        0xF4, 0xF3, 0xF2, 0xF1,
+        0x21, 0x00,                                // intra length = 33 (no trailer)
+        0x01, 0xAA,                                // engineering, head
+        0x03,
+        0x1E, 0x00, 0x3C,
+        0x00, 0x00, 0x39,
+        0x00, 0x00,
+        0x08, 0x08,
+        0x3C, 0x22, 0x05, 0x03, 0x03, 0x04, 0x03, 0x06, 0x05,
+        0x00, 0x00, 0x39, 0x10, 0x13, 0x06, 0x06, 0x08, 0x04,
+        0x55, 0x00,                                // tail directly after stationary energies
+        0xF8, 0xF7, 0xF6, 0xF5
+    });
+    drain(r, s);
+
+    CHECK(r.engineeringRetrieved());
+    // Trailer NOT populated — fields stay at their default-initialised values (0).
+    CHECK_EQ((int)r.photosensitivity_value, 0x00);
+    CHECK_EQ((int)r.out_pin_state,          0x00);
+
+    std::printf("ok\n");
+}
+
+// 0xAD setAuxiliaryControl — intra=6 payload (cmd-word + 4-byte value).
+// Standard 4-byte success ACK. Verifies that the method drives the full
+// enter-cfg → 0xAD → leave-cfg flow and that the success path returns true.
+static void test_b_command_set_aux_control() {
+    std::printf("test_b_command_set_aux_control ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    s.inject_response(make_short_ack(0xAD, 4));
+    s.inject_response(make_short_ack(0xFE, 4));
+    CHECK(r.setAuxiliaryControl(LD2410_AUX_MODE_TRIGGER_BELOW,
+                                /*threshold=*/0x60,
+                                /*out_default_level=*/LD2410_AUX_OUT_DEFAULT_LOW));
+    std::printf("ok\n");
+}
+
+// 0xAD setAuxiliaryControl — failure ACK (status=0x01) must return false.
+// Guards against silently returning success on a NACK from the radar.
+static void test_b_command_set_aux_control_failure() {
+    std::printf("test_b_command_set_aux_control_failure ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    std::vector<uint8_t> nack = {
+        0xFD, 0xFC, 0xFB, 0xFA,
+        0x04, 0x00,
+        0xAD, 0x01,
+        0x01, 0x00,                  // status: failure
+        0x04, 0x03, 0x02, 0x01
+    };
+    s.inject_response(nack);
+    s.inject_response(make_short_ack(0xFE, 4));
+    CHECK(!r.setAuxiliaryControl(LD2410_AUX_MODE_OFF));
+    std::printf("ok\n");
+}
+
+// 0xAE requestAuxiliaryControl — 8-byte intra ACK: cmd-word + 2 status
+// + 4-byte config (mode, threshold, OUT default, reserved) at offsets
+// [10..13]. The example mirrors HLK-LD2410B §2.2.19: mode=0x01,
+// threshold=0x60, OUT default level=0x01 (high-active), reserved=0x00.
+static void test_b_command_request_aux_control() {
+    std::printf("test_b_command_request_aux_control ... ");
+    ld2410 r;
+    MockSerial s;
+    r.begin(s, /*waitForRadar=*/false);
+    s.inject_response(make_short_ack(0xFF, 8));
+    std::vector<uint8_t> get_ack = {
+        0xFD, 0xFC, 0xFB, 0xFA,
+        0x08, 0x00,                  // intra = 8
+        0xAE, 0x01,                  // cmd-word ACK
+        0x00, 0x00,                  // status: success
+        0x01, 0x60, 0x01, 0x00,      // mode, threshold, out_default, reserved
+        0x04, 0x03, 0x02, 0x01
+    };
+    s.inject_response(get_ack);
+    s.inject_response(make_short_ack(0xFE, 4));
+
+    CHECK(r.requestAuxiliaryControl());
+    CHECK_EQ((int)r.aux_control_mode,              (int)LD2410_AUX_MODE_TRIGGER_BELOW);
+    CHECK_EQ((int)r.aux_control_threshold,         0x60);
+    CHECK_EQ((int)r.aux_control_out_default_level, (int)LD2410_AUX_OUT_DEFAULT_HIGH);
+    CHECK(r.aux_control_received);
+    std::printf("ok\n");
+}
+
+#endif // LD2410_HAS_AUX_CONTROL
+
+
 #endif // !LD2410_VARIANT_S
 
 
@@ -1360,6 +1517,13 @@ int main() {
 #ifdef LD2410_HAS_DISTANCE_RESOLUTION
     test_command_set_distance_resolution();
     test_command_request_distance_resolution();
+#endif
+#ifdef LD2410_HAS_AUX_CONTROL
+    test_b_engineering_frame_trailer();
+    test_b_engineering_frame_no_trailer_when_short();
+    test_b_command_set_aux_control();
+    test_b_command_set_aux_control_failure();
+    test_b_command_request_aux_control();
 #endif
     test_lone_F4_not_a_header();
     test_resync_F4_at_wrong_position();
