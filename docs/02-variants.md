@@ -92,18 +92,56 @@ updated in lockstep with the code.
 
 ## Selecting the variant at build time
 
-The library uses three mutually-exclusive macros to pick the variant:
+The library uses four mutually-exclusive macros to pick the variant.
+There are two equivalent ways to set them; both produce identical
+builds.
+
+### Recommended: include the variant entry header
+
+| Sensor | Include |
+|---|---|
+| LD2410 (base) | `#include <ld2410.h>` |
+| LD2410**B** | `#include <ld2410b.h>` |
+| LD2410**C** | `#include <ld2410c.h>` |
+| LD2410**S** | `#include <ld2410s.h>` |
+
+```cpp
+#include <ld2410c.h>
+```
+
+Each variant entry header is a 5-line shim that defines the
+corresponding macro (if not already defined) and then includes
+`<ld2410.h>`. This route is the only one that works **on every
+build system including the Arduino IDE GUI**, which cannot pass
+per-sketch `-D` build flags.
+
+> Use the same entry header in every translation unit of your
+> sketch (every `.ino`/`.cpp`). Mixing `<ld2410.h>` in one file with
+> `<ld2410c.h>` in another silently produces two different `class
+> ld2410` layouts → undefined behaviour.
+
+### Alternative: define the macro before `<ld2410.h>`
+
+Equivalent — useful for PlatformIO / arduino-cli where you can push
+the macro via a build flag:
 
 ```cpp
 #define LD2410_VARIANT_BASE   // original LD2410 — this is the default if nothing is defined
-#define LD2410_VARIANT_C      // LD2410C — also the closest match for an LD2410B board today
+#define LD2410_VARIANT_B      // LD2410B
+#define LD2410_VARIANT_C      // LD2410C
 #define LD2410_VARIANT_S      // LD2410S
-// #define LD2410_VARIANT_B   // LD2410B (PLANNED — not yet implemented, see method-coverage.md §3 / LD2410B)
 ```
 
-Define exactly one **before** `#include <ld2410.h>`. With Arduino-IDE
-you can also set it in the board recipe via `extra_flags`. With
-PlatformIO use `build_flags = -DLD2410_VARIANT_C`.
+Define exactly one **before** `#include <ld2410.h>`. With PlatformIO
+use `build_flags = -DLD2410_VARIANT_C`. With arduino-cli use
+`--build-property "build.extra_flags=-DLD2410_VARIANT_C"`. The
+Arduino IDE GUI has no per-sketch equivalent — use the entry-header
+route above instead.
+
+The two routes compose safely: setting `-DLD2410_VARIANT_C` and then
+including `<ld2410c.h>` is a no-op (the entry header is idempotent).
+
+### What the macro controls
 
 The variant macro toggles a set of capability flags
 (`LD2410_HAS_BLUETOOTH`, `LD2410_HAS_AUTO_THRESHOLD`, …) which gate the

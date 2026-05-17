@@ -13,12 +13,16 @@
  * Uncomment only after you understand the implication.
  *
  * Compatible with: LD2410C only. The BT opcodes do not exist on
- * the original LD2410 nor on LD2410S. Build with -DLD2410_VARIANT_C
- * (or rely on the auto-detect in src/ld2410.h if you are using a
- * board recipe that defines it).
+ * the original LD2410 nor on LD2410S. This sketch uses the
+ * <ld2410c.h> entry header to pin the variant — see the include
+ * directive below. For PlatformIO / arduino-cli builds you can
+ * equivalently pass -DLD2410_VARIANT_C as a build flag and use
+ * <ld2410.h>; both routes are supported.
  */
 
-#define LD2410_VARIANT_C
+// (LD2410C variant is selected by including <ld2410c.h> below, instead
+// of the variant-neutral <ld2410.h>. This works on every build system
+// including the Arduino IDE GUI, which cannot pass per-sketch -D flags.)
 
 #if defined(ESP32)
   #ifdef ESP_IDF_VERSION_MAJOR
@@ -50,7 +54,7 @@
   #define RADAR_TX_PIN 0
 #endif
 
-#include <ld2410.h>
+#include <ld2410c.h>     // entry header pins the variant for this TU
 
 ld2410 radar;
 

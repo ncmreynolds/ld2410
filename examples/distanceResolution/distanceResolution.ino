@@ -19,7 +19,9 @@
  * Compatible with: LD2410C only (opcode does not exist on base nor S).
  */
 
-#define LD2410_VARIANT_C
+// (LD2410C variant is selected by including <ld2410c.h> below, instead
+// of the variant-neutral <ld2410.h>. This works on every build system
+// including the Arduino IDE GUI, which cannot pass per-sketch -D flags.)
 
 #if defined(ESP32)
   #ifdef ESP_IDF_VERSION_MAJOR
@@ -51,7 +53,7 @@
   #define RADAR_TX_PIN 0
 #endif
 
-#include <ld2410.h>
+#include <ld2410c.h>     // entry header pins the variant for this TU
 
 ld2410 radar;
 

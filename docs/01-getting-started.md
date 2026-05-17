@@ -110,25 +110,64 @@ restart.
 
 ## What variant am I building for?
 
-By default the library compiles for the original LD2410. To target one
-of the variants, define the appropriate macro before `#include <ld2410.h>`:
+By default the library compiles for the original LD2410. There are two
+ways to target a different variant; both produce the exact same build.
+
+### Recommended: use the variant entry header (works everywhere)
+
+Include one of the variant-specific headers instead of `<ld2410.h>`.
+That's it — no `#define`, no build flag:
+
+| Sensor | Include this |
+|---|---|
+| LD2410 (base) | `#include <ld2410.h>` |
+| LD2410**B** | `#include <ld2410b.h>` |
+| LD2410**C** | `#include <ld2410c.h>` |
+| LD2410**S** | `#include <ld2410s.h>` |
 
 ```cpp
-#define LD2410_VARIANT_C    // or LD2410_VARIANT_S, or LD2410_VARIANT_BASE (default)
+#include <ld2410c.h>
+ld2410 radar;
+```
+
+This is the only route that works **identically on the Arduino IDE
+GUI, arduino-cli, and PlatformIO**. The Arduino IDE GUI does not
+support per-sketch `-D` build flags, so the entry-header approach is
+the one to recommend to non-PlatformIO users.
+
+> **Important — multi-file projects.** Use the same entry header in
+> *every* translation unit (every `.ino`, `.cpp` in the sketch folder
+> that touches the library). Including `<ld2410.h>` in one file and
+> `<ld2410c.h>` in another silently produces two different `class
+> ld2410` layouts → undefined behaviour. One header, used
+> consistently, fixes this.
+
+### Alternative: define the variant macro before `<ld2410.h>`
+
+Equivalent — same final build. Use this if you prefer to drive the
+selection from a build flag (PlatformIO `build_flags`, arduino-cli
+`--build-property "build.extra_flags=..."`), or if you have an existing
+sketch using this pattern:
+
+```cpp
+#define LD2410_VARIANT_C    // or LD2410_VARIANT_B / _S, default is BASE
 #include <ld2410.h>
 ```
 
-You can also pass it as a build flag (Arduino-IDE: `extra_flags`,
-PlatformIO: `build_flags`):
+Or as a build flag:
 
 ```
 -DLD2410_VARIANT_C
 ```
 
-Calling a method that doesn't exist on your variant produces a clean
-compile error pointing at the missing `LD2410_HAS_*` flag — no silent
-runtime failures. See [`02-variants.md`](02-variants.md) for the
-capability matrix.
+The two routes compose: defining `LD2410_VARIANT_C` and then including
+`<ld2410c.h>` is a no-op (the entry header is idempotent).
+
+### What happens if I call a method that doesn't exist on my variant?
+
+Clean compile error pointing at the missing `LD2410_HAS_*` flag — no
+silent runtime failures. See [`02-variants.md`](02-variants.md) for
+the capability matrix.
 
 ## What next?
 
