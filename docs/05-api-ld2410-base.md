@@ -1,7 +1,7 @@
 # 05 — LD2410 (base) API — extensions over Core
 
-Methods exposed on the original LD2410 **and** on LD2410C. (The
-LD2410S has its own configuration model — see
+Methods exposed on the original LD2410, LD2410B **and** LD2410C.
+(The LD2410S has its own configuration model — see
 [`07-api-ld2410s.md`](07-api-ld2410s.md).)
 
 These are the configuration commands: max distance / sensitivity /
@@ -11,10 +11,11 @@ the same envelope (`02 00 OP 00`) and the same configuration-window
 discipline — the library wraps each call in `enter_configuration_mode_`
 + `leave_configuration_mode_` for you.
 
-For the methods that work on **all three** variants (begin/read/
+For the methods that work on **all four** variants (begin/read/
 getters/snapshots) see [`04-api-core.md`](04-api-core.md). For the
-LD2410C-only commands (Bluetooth, MAC, baud rate, distance resolution)
-see [`06-api-ld2410c.md`](06-api-ld2410c.md).
+LD2410B/C extensions (Bluetooth, MAC, baud rate, distance resolution
+— shared between B and C — plus B-only auxiliary light-sense
+control) see [`06-api-ld2410c.md`](06-api-ld2410c.md).
 
 ---
 

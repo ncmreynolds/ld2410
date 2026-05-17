@@ -1,7 +1,7 @@
 # LD2410
 
-Arduino library for the Hi-Link **LD2410**, **LD2410C** and **LD2410S**
-24 GHz mmWave presence radars over UART.
+Arduino library for the Hi-Link **LD2410**, **LD2410B**, **LD2410C**
+and **LD2410S** 24 GHz mmWave presence radars over UART.
 
 > 📚 **Full documentation lives in [`docs/`](docs/)** — start with
 > [`docs/README.md`](docs/README.md) for the index, or jump straight to
@@ -17,13 +17,27 @@ Arduino library for the Hi-Link **LD2410**, **LD2410C** and **LD2410S**
 | Variant | Status | Default baud | Gates | Distinctive features |
 |---|---|---|---|---|
 | **LD2410** (base) | ✅ Supported | 57600 | 9 × 0.75 m | Original — minimal command set |
+| **LD2410B** | ✅ Supported, **UNVERIFIED on hardware** | 256000 | 9 × 0.75 m or 9 × 0.20 m | Superset of C: same opcodes + on-board photodiode (`setAuxiliaryControl`) and engineering-frame light-sense/OUT-pin trailer |
 | **LD2410C** | ✅ Supported, HW-validated | 256000 | 9 × 0.75 m or 9 × 0.20 m | Bluetooth, MAC, runtime baud, switchable distance resolution |
 | **LD2410S** | ⚠ Supported, **UNVERIFIED on hardware** | 115200 | 16 (width not specified by HLK V1.00 — use `detectionDistance()` for absolute distance) | 3.3 V, auto-threshold tuning, generic-parameter set, minimal output frame |
 
-Pick the target at compile time by defining one of `LD2410_VARIANT_BASE`
-(default), `LD2410_VARIANT_C`, or `LD2410_VARIANT_S` before
-`#include <ld2410.h>`. Methods that don't exist on your variant produce
-a clean compile error pointing at the missing `LD2410_HAS_*` flag.
+Pick the target at compile time. The simplest route — works on every
+build system including the Arduino IDE GUI — is to include the variant
+entry header instead of `<ld2410.h>`:
+
+```cpp
+#include <ld2410c.h>   // or <ld2410b.h> / <ld2410s.h> / <ld2410.h> for base
+```
+
+For PlatformIO / arduino-cli you can equivalently pass the macro as a
+build flag (`build_flags = -DLD2410_VARIANT_C` /
+`--build-property "build.extra_flags=-DLD2410_VARIANT_C"`) and keep
+including `<ld2410.h>`. Both routes produce identical binaries; see
+[`docs/02-variants.md`](docs/02-variants.md#selecting-the-variant-at-build-time)
+for the full comparison.
+
+Methods that don't exist on your variant produce a clean compile error
+pointing at the missing `LD2410_HAS_*` flag — no silent runtime fallthrough.
 
 Capability matrix and per-method coverage:
 [`docs/02-variants.md`](docs/02-variants.md) +
@@ -32,8 +46,7 @@ Capability matrix and per-method coverage:
 ## Quick start
 
 ```cpp
-#define LD2410_VARIANT_C        // or _BASE / _S
-#include <ld2410.h>
+#include <ld2410c.h>            // pin variant via entry header
 
 ld2410 radar;
 
@@ -78,9 +91,20 @@ void loop() {
 
 ## Tests + CI
 
-- **Host suite** (g++ × 3 variants): 57 tests covering byte-level parser correctness.
-- **Compile matrix** (CI): 3 boards × 3 variants = 9 cells, plus host job. `bash tests/compile_matrix.sh` to run locally.
-- **Hardware**: full-API sweep at [`tests/hw/ld2410c_full_test`](tests/hw/ld2410c_full_test/) (28/28 PASS on bench LD2410C as of 2026-05-09); interactive 4-mode switcher at [`tests/hw/ld2410c_modes_switch`](tests/hw/ld2410c_modes_switch/).
+- **Host suite** (g++ × 4 variants): 84 tests covering byte-level
+  parser correctness (16 base + 27 B + 22 C + 19 S). Run with
+  `bash tests/run.sh`.
+- **Compile matrix** (CI): 4 boards × 4 variants = 16 cells, plus
+  host job. Boards: `esp32`, `esp8266`, `rp2040`, `avr128da32`
+  (SpenceKonde DxCore — only 8-bit MCU in the matrix, guards against
+  implicit `int=32` assumptions). Run locally with
+  `bash tests/compile_matrix.sh`.
+- **Hardware**: full-API sweep at
+  [`tests/hw/ld2410c_full_test`](tests/hw/ld2410c_full_test/) — **28/28
+  PASS** on bench LD2410C (validated on 2026-05-17 after the
+  header-only refactor, against both the legacy macro pattern and
+  the new `<ld2410c.h>` entry-header pattern). Interactive 4-mode
+  switcher at [`tests/hw/ld2410c_modes_switch`](tests/hw/ld2410c_modes_switch/).
 
 ## History
 

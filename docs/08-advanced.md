@@ -65,9 +65,13 @@ compile time via these macros:
 | `LD2410_DEBUG_COMMANDS` | Per-ACK opcode + intra length + OK/failed | Low |
 | `LD2410_DEBUG_DATA`     | (legacy alias of `LD2410_DEBUG_PARSE`) | High |
 
-Enable by defining the macro before `#include <ld2410.h>` (or as a
-`-D` build flag). The library still requires you to call
-`radar.debug(stream)` to attach a `Stream` for the output.
+Enable by either defining the macro before `#include <ld2410.h>` (or
+the variant entry header such as `<ld2410c.h>`), or by passing a `-D`
+build flag at compile time. Because the library is header-only, the
+macro is visible to every translation unit that consumes the header
+— there's no library `.cpp` to recompile separately. The library
+still requires you to call `radar.debug(stream)` to attach a
+`Stream` for the output.
 
 ```cpp
 // Build with -DLD2410_DEBUG_COMMANDS
@@ -98,14 +102,20 @@ introduce small UART overhead).
 The variant macros control which `LD2410_HAS_*` capability flags are
 enabled:
 
-| Macro | Default | Enables |
-|---|---|---|
-| `LD2410_VARIANT_BASE` | yes (when no other macro defined) | base + common subset |
-| `LD2410_VARIANT_C`    | no | base + bluetooth + MAC + baud + distance resolution |
-| `LD2410_VARIANT_S`    | no | S-only commands (generic params, thresholds, output mode, …) |
+| Macro | Set automatically by | Default | Enables |
+|---|---|---|---|
+| `LD2410_VARIANT_BASE` | `<ld2410.h>` when no other is set | yes | base + common subset |
+| `LD2410_VARIANT_B`    | `<ld2410b.h>` (or `-DLD2410_VARIANT_B`) | no | base + bluetooth + MAC + baud + distance resolution + B-only aux-control |
+| `LD2410_VARIANT_C`    | `<ld2410c.h>` (or `-DLD2410_VARIANT_C`) | no | base + bluetooth + MAC + baud + distance resolution |
+| `LD2410_VARIANT_S`    | `<ld2410s.h>` (or `-DLD2410_VARIANT_S`) | no | S-only commands (generic params, thresholds, output mode, …) |
 
-Define exactly one. Defining two simultaneously is undefined behaviour
-(in practice the later #define wins, but don't rely on it).
+Define exactly one (or include exactly one entry header — they're
+idempotent under `#ifndef` guards, so mixing entry header +
+matching `-D` is safe). Setting two different ones simultaneously
+hits the mutual-exclusion guard in `src/ld2410.h:46-48` and produces
+a `#error` at compile time. See
+[`02-variants.md`](02-variants.md#selecting-the-variant-at-build-time)
+for the full comparison.
 
 ---
 

@@ -12,7 +12,7 @@ and cross-links to its peers; you don't need to read them in order.
 | File | Purpose |
 |---|---|
 | [`01-getting-started.md`](01-getting-started.md) | Wiring, hello-world sketch, first read in <50 lines. |
-| [`02-variants.md`](02-variants.md) | Differences between LD2410 / LD2410C / LD2410S — pick the right one. |
+| [`02-variants.md`](02-variants.md) | Differences between LD2410 / LD2410B / LD2410C / LD2410S — pick the right one + variant selection at build time. |
 | [`03-runtime-models.md`](03-runtime-models.md) | When to use synchronous `read()` vs the FreeRTOS `autoReadTask()`. |
 
 ## API reference (per variant)
@@ -20,10 +20,17 @@ and cross-links to its peers; you don't need to read them in order.
 | File | Methods covered | Variants |
 |---|---|---|
 | [`04-api-core.md`](04-api-core.md) | `begin`, `read`, presence/distance/energy getters, engineering frame access | all |
-| [`05-api-ld2410-base.md`](05-api-ld2410-base.md) | Methods available on the original LD2410 | BASE + C |
-| [`06-api-ld2410c.md`](06-api-ld2410c.md) | C-only extensions: baud rate, Bluetooth, MAC, distance resolution | LD2410C |
+| [`05-api-ld2410-base.md`](05-api-ld2410-base.md) | Methods available on the original LD2410 | BASE + B + C |
+| [`06-api-ld2410c.md`](06-api-ld2410c.md) | C-extensions: baud rate, Bluetooth, MAC, distance resolution — inherited by B | LD2410B + LD2410C |
 | [`07-api-ld2410s.md`](07-api-ld2410s.md) | S-only extensions: generic params, thresholds, minimal frame | LD2410S |
 | [`08-advanced.md`](08-advanced.md) | Atomic snapshots, raw frame access, debug streams, build flags | all |
+
+> No dedicated `06b-api-ld2410b.md` page yet — the LD2410B's
+> shared command set is fully covered by `06-api-ld2410c.md`. The
+> two B-only methods (`setAuxiliaryControl`,
+> `requestAuxiliaryControl`) and the two B-only public fields
+> (`photosensitivity_value`, `out_pin_state`) are documented in
+> [`02-variants.md`](02-variants.md) until a dedicated page lands.
 
 ## Operations
 
@@ -48,8 +55,9 @@ except in lockstep with code changes:
 ## Examples
 
 All sketches under [`../examples/`](../examples/) compile against the
-default ESP32 / ESP8266 / RP2040 cores in CI. Each API page links to the
-example sketch that exercises the relevant functions.
+default ESP32 / ESP8266 / RP2040 / AVR128DA32 (DxCore) cores in CI.
+Each API page links to the example sketch that exercises the
+relevant functions.
 
 | Sketch | Demonstrates |
 |---|---|

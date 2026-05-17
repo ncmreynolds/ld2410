@@ -1,8 +1,9 @@
 # 04 — Core API (all variants)
 
-Methods on `class ld2410` that work identically on **all three**
-variants (LD2410 base, LD2410C, LD2410S). If you only need presence,
-distance and per-gate energy, every method you'll call lives here.
+Methods on `class ld2410` that work identically on **all four**
+variants (LD2410 base, LD2410B, LD2410C, LD2410S). If you only need
+presence, distance and per-gate energy, every method you'll call
+lives here.
 
 For variant-specific extensions see
 [`05-api-ld2410-base.md`](05-api-ld2410-base.md),

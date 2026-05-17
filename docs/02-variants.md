@@ -54,36 +54,28 @@ calling it produces a clean compile-time error pointing at the
 
 | Capability | base | B | C | S | API page |
 |---|:-:|:-:|:-:|:-:|---|
-| Connection + sync read | ✅ | ✅\* | ✅ | ✅ | [04 core](04-api-core.md) |
-| FreeRTOS background task (ESP32) | ✅ | ✅\* | ✅ | ✅ | [04 core](04-api-core.md) |
-| Presence + distance + energy getters | ✅ | ✅\* | ✅ | ✅ | [04 core](04-api-core.md) |
-| Engineering mode (per-gate energy) | ✅ | ✅\* | ✅ | ✅ | [04 core](04-api-core.md) |
-| Atomic snapshots (basic + per-gate) | ✅ | ✅\* | ✅ | ✅ | [08 advanced](08-advanced.md) |
-| Set max distance + idle delay | ✅ | ✅\* | ✅ | ❌ | [05 base](05-api-ld2410-base.md) |
-| Set per-gate sensitivity | ✅ | ✅\* | ✅ | ❌ | [05 base](05-api-ld2410-base.md) |
-| Read current configuration | ✅ | ✅\* | ✅ | ❌ | [05 base](05-api-ld2410-base.md) |
-| Read firmware version | ✅ | ✅\* | ✅ | ✅ | [05 base](05-api-ld2410-base.md) |
-| Restart / factory reset | ✅ | ✅\* | ✅ | ❌ | [05 base](05-api-ld2410-base.md) |
-| Change baud rate | ✅ | ✅\* | ✅ | ❌ | [06 C](06-api-ld2410c.md) |
-| Bluetooth on/off | ❌ | ✅\* | ✅ | ❌ | [06 C](06-api-ld2410c.md) |
-| Read MAC address | ❌ | ✅\* | ✅ | ❌ | [06 C](06-api-ld2410c.md) |
-| Bluetooth password / permissions | ❌ | ✅\* | ✅ | ❌ | [06 C](06-api-ld2410c.md) |
-| Distance resolution 0.75 ↔ 0.20 m | ❌ | ✅\* | ✅ | ❌ | [06 C](06-api-ld2410c.md) |
-| Photodiode / light-sense auxiliary control (`0xAD`/`0xAE`) | ❌ | ⏳ B-only, **not yet implemented** | ❌ | ❌ | — (planned, see [method-coverage.md](method-coverage.md#ld2410b)) |
-| Engineering-frame light-sense + OUT pin state trailer (2 B, same slot as base/C "M reserved") | ❌ | ⏳ B-only, **not yet exposed** | ❌ | ❌ | — (planned, see [method-coverage.md](method-coverage.md#ld2410b)) |
+| Connection + sync read | ✅ | ✅ | ✅ | ✅ | [04 core](04-api-core.md) |
+| FreeRTOS background task (ESP32) | ✅ | ✅ | ✅ | ✅ | [04 core](04-api-core.md) |
+| Presence + distance + energy getters | ✅ | ✅ | ✅ | ✅ | [04 core](04-api-core.md) |
+| Engineering mode (per-gate energy) | ✅ | ✅ | ✅ | ✅ | [04 core](04-api-core.md) |
+| Atomic snapshots (basic + per-gate) | ✅ | ✅ | ✅ | ✅ | [08 advanced](08-advanced.md) |
+| Set max distance + idle delay | ✅ | ✅ | ✅ | ❌ | [05 base](05-api-ld2410-base.md) |
+| Set per-gate sensitivity | ✅ | ✅ | ✅ | ❌ | [05 base](05-api-ld2410-base.md) |
+| Read current configuration | ✅ | ✅ | ✅ | ❌ | [05 base](05-api-ld2410-base.md) |
+| Read firmware version | ✅ | ✅ | ✅ | ✅ | [05 base](05-api-ld2410-base.md) |
+| Restart / factory reset | ✅ | ✅ | ✅ | ❌ | [05 base](05-api-ld2410-base.md) |
+| Change baud rate | ✅ | ✅ | ✅ | ❌ | [06 C](06-api-ld2410c.md) |
+| Bluetooth on/off | ❌ | ✅ | ✅ | ❌ | [06 C](06-api-ld2410c.md) |
+| Read MAC address | ❌ | ✅ | ✅ | ❌ | [06 C](06-api-ld2410c.md) |
+| Bluetooth password / permissions | ❌ | ✅ | ✅ | ❌ | [06 C](06-api-ld2410c.md) |
+| Distance resolution 0.75 ↔ 0.20 m | ❌ | ✅ | ✅ | ❌ | [06 C](06-api-ld2410c.md) |
+| Photodiode / light-sense auxiliary control (`0xAD`/`0xAE`) | ❌ | ✅ B-only (`setAuxiliaryControl`, `requestAuxiliaryControl`) | ❌ | ❌ | [method-coverage.md](method-coverage.md#ld2410b) |
+| Engineering-frame light-sense + OUT pin state trailer (2 B, same slot as base/C "M reserved") | ❌ | ✅ B-only (public fields `photosensitivity_value`, `out_pin_state`) | ❌ | ❌ | [method-coverage.md](method-coverage.md#ld2410b) |
 | Auto-threshold tuning | ❌ | ❌ | ❌ | ✅ | [07 S](07-api-ld2410s.md) |
 | Generic-parameter set (6 fields in one call) | ❌ | ❌ | ❌ | ✅ | [07 S](07-api-ld2410s.md) |
 | Per-gate trigger / hold thresholds | ❌ | ❌ | ❌ | ✅ | [07 S](07-api-ld2410s.md) |
 | Read/write serial number | ❌ | ❌ | ❌ | ✅ | [07 S](07-api-ld2410s.md) |
 | Switch to minimal output frame | ❌ | ❌ | ❌ | ✅ | [07 S](07-api-ld2410s.md) |
-
-\* The library does not yet expose `LD2410_VARIANT_B`. The shared
-capabilities marked with `✅*` work today by building for the C
-variant (`LD2410_VARIANT_C`) — the B's command set is a strict
-superset of the C's for these rows, so the C build drives a B board
-correctly. The two B-only rows above (light-sense auxiliary control
-and engineering-frame trailer) require the additions listed in
-[`method-coverage.md`](method-coverage.md#ld2410b).
 
 For the canonical opcode-by-opcode breakdown see
 [`method-coverage.md`](method-coverage.md). That file is the
@@ -150,36 +142,43 @@ linker / compiler error — no silent fall-through.
 
 ## Status of LD2410B support
 
-⚠️ The library **does not yet expose the LD2410B as a separate build
-variant**. Because the B's command set is a strict superset of the C's
-(same opcodes plus the `0xAD`/`0xAE` light-sense pair), you can drive a
-B today by building with `LD2410_VARIANT_C` — every existing C method
-will work — but you will **not** have access to the light-sense
-auxiliary control commands and the parser will silently discard the
-two trailer bytes (photosensitivity + OUT pin state) that the B
-specifies inside each engineering-mode frame. The frame total length
-is identical to the C's (those 2 bytes occupy the slot the C
-documents as variable "M reserved"), so the parser absorbs them
-without misalignment — it just does not expose them via public fields.
+✅ First-class compile-time variant since the LD2410B addition.
+Selected via `#include <ld2410b.h>` or `-DLD2410_VARIANT_B`. The
+shared command surface is identical to LD2410C's, plus two B-only
+methods (`setAuxiliaryControl()` / `requestAuxiliaryControl()`)
+behind `LD2410_HAS_AUX_CONTROL`, and two B-only public fields
+(`photosensitivity_value`, `out_pin_state`) populated from the
+2-byte trailer the B emits inside each engineering-mode frame at
+the same wire slot the base/C parser documents as "M reserved".
 
-First-class support requires the additions listed in
-[`method-coverage.md`](method-coverage.md#ld2410b): a new
-`src/ld2410_variants/ld2410_b.h` header, the `LD2410_VARIANT_B`
-selection macro, an `LD2410_HAS_AUX_CONTROL` feature flag, two new
-methods (`setAuxiliaryControl()` / `requestAuxiliaryControl()`), four
-new public fields, and a B-only branch in `parse_data_frame_()` for
-the trailing 2 bytes of the engineering frame.
+> ⚠️ **UNVERIFIED on hardware.** The B-only code path was
+> developed against the V1.06 protocol PDF
+> ([HLK-LD2410B_protocol.md](HLK-LD2410B_protocol.md)) and reviewed
+> for correctness, but the maintainer's bench has only an LD2410C
+> sample. Host tests (27 B-specific cases) and the 16-cell compile
+> matrix exercise the code; bench validation is pending an
+> LD2410B sample. If you have one and want to help, please open an
+> issue with a serial-monitor capture from
+> `tests/hw/ld2410c_full_test` rebuilt with `<ld2410b.h>`.
+
+**Backward-compat option.** A user with an LD2410B board who does
+not need the two B-only methods or the trailer fields can still
+build with `<ld2410c.h>` instead — every shared command works
+identically because B is a wire-level superset of C. The parser
+will silently absorb (without exposing) the 2 trailer bytes of
+the engineering frame.
 
 ## Status of LD2410S support
 
 ⚠️ The S variant code path was developed against the V1.00 protocol PDF
 and reviewed for correctness, but **has not been validated against
 physical hardware** because the maintainer's bench does not currently
-have an LD2410S sample. The host test suite covers the byte-level
-parsing logic, the CI compile matrix builds for all three variants on
-ESP32 / ESP8266 / RP2040, but the per-gate frame layout assumption
-(64-byte block split as 16 motion + 16 stationary, mirroring base/C
-convention) is informed but not measured.
+have an LD2410S sample. The host test suite (19 S-specific cases)
+covers the byte-level parsing logic, and the 16-cell CI compile
+matrix builds the S variant on every supported board
+(ESP32 / ESP8266 / RP2040 / AVR128DA32), but the per-gate frame
+layout assumption (64-byte block split as 16 motion + 16 stationary,
+mirroring base/C convention) is informed but not measured.
 
 If you have an LD2410S and find a discrepancy, please open an issue
 with a captured frame dump.

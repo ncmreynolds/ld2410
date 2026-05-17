@@ -2,7 +2,8 @@
 # Build and run the host-side parser unit tests.
 # Usage: bash tests/run.sh   (from the repo root, or anywhere)
 #
-# Compiles the test suite THREE times:
+# Compiles the test suite FOUR times, one per variant — 84 tests total
+# (16 base + 27 B + 22 C + 19 S):
 #   - default mode (LD2410_VARIANT_BASE, the historical base/C target)
 #   - -DLD2410_VARIANT_B  (exercises B-only auxiliary-control commands
 #     0xAD/0xAE + engineering-frame trailer extraction, on top of every

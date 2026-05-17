@@ -333,21 +333,23 @@ Wire-byte example (HLK §2.2.18, set: "gate when light value < 0x60, OUT default
 
 2. **Engineering-mode toggles (`0x62` / `0x63`)** are gated behind `LD2410_HAS_ENGINEERING_MODE`, defined for base/C only. On S the per-gate energies arrive in the standard frame automatically; calling the toggles would be a compile error.
 
-3. **Frame parser**: the length-driven state machine reads `intra_len + 10` bytes regardless of variant. Per-gate decoding uses `LD2410_GATE_COUNT` (9 on base/C, 16 on S) and per-variant offsets — base/C `[19..27]` motion + `[28..36]` stationary, S `[12..27]` motion + `[12+GATE_COUNT..]` stationary. The S layout is **UNVERIFIED on hardware** because the V1.00 PDF specifies the 64-byte block size but not its per-gate breakdown.
+3. **Frame parser**: the length-driven state machine reads `intra_len + 10` bytes regardless of variant. Per-gate decoding uses `LD2410_GATE_COUNT` (9 on base/B/C, 16 on S) and per-variant offsets — base/B/C `[19..27]` motion + `[28..36]` stationary, S `[12..27]` motion + `[12+GATE_COUNT..]` stationary. The S layout is **UNVERIFIED on hardware** because the V1.00 PDF specifies the 64-byte block size but not its per-gate breakdown.
 
 4. **Stationary distance width**: the C variant uses **2 bytes** while the base PDF says 1 byte. The library implements 2 bytes — agrees with C and with most observed base firmwares.
 
-5. **Default baud** resolves at compile time via `LD2410_DEFAULT_BAUD` (57600 base / 256000 C / 115200 S). All `examples/*` sketches use this constant — no hard-coded value to mis-edit.
+5. **Default baud** resolves at compile time via `LD2410_DEFAULT_BAUD` (57600 base / 256000 B / 256000 C / 115200 S). All `examples/*` sketches use this constant — no hard-coded value to mis-edit.
 
-6. **`requestRestart()`** wraps the radar reboot blackout with `vTaskSuspend` on ESP32 (so `autoReadTask` is paused for the ~800 ms boot window). The opcode (`0xA3`) is gated behind `LD2410_HAS_RESTART`, defined for base/C only — calling it on S would be a compile error.
+6. **`requestRestart()`** wraps the radar reboot blackout with `vTaskSuspend` on ESP32 (so `autoReadTask` is paused for the ~800 ms boot window). The opcode (`0xA3`) is gated behind `LD2410_HAS_RESTART`, defined for base/B/C only — calling it on S would be a compile error.
 
-7. **Bluetooth + distance resolution helpers** (the regression noted in upstream issue #39) are gated behind `LD2410_HAS_BLUETOOTH` / `LD2410_HAS_DISTANCE_RESOLUTION`, both currently C-only. Building for `LD2410_VARIANT_C` exposes them; on base / S they are hidden and any usage produces a clean compile error pointing at the missing flag.
+7. **Bluetooth + distance resolution helpers** (originally tracked in upstream issue #39) are gated behind `LD2410_HAS_BLUETOOTH` / `LD2410_HAS_DISTANCE_RESOLUTION`, available on B and C (B inherits them from the C tier). Building for `LD2410_VARIANT_B` or `LD2410_VARIANT_C` exposes them; on base / S they are hidden and any usage produces a clean compile error pointing at the missing flag.
 
-8. **LD2410B support — partial via the C build, no first-class variant yet.** The library does not define `LD2410_VARIANT_B` / `LD2410_HAS_AUX_CONTROL`, and no variant header exists at `src/ld2410_variants/ld2410_b.h`. A user who needs to drive a B board today should build with `LD2410_VARIANT_C`: the entire shared command set works because B uses identical opcodes for everything from `0x60`..`0xAB`. What is missing in that fallback:
-   - the `0xAD` / `0xAE` light-sense auxiliary control commands (no `setAuxiliaryControl()` / `requestAuxiliaryControl()` methods exist);
-   - the two trailing bytes of the B's engineering-mode frame (photosensitivity + OUT pin state). These occupy the SAME wire slot that base/C document as variable "M reserved", so the length-driven parser already absorbs them correctly — they are just silently dropped instead of exposed via public fields.
+8. **LD2410B support — first-class variant.** Since commit `0770562` the library defines `LD2410_VARIANT_B` and `LD2410_HAS_AUX_CONTROL`, ships `src/ld2410_variants/ld2410_b.h`, and exposes:
+   - the `0xAD` / `0xAE` light-sense auxiliary control commands via `setAuxiliaryControl()` / `requestAuxiliaryControl()` and the four `aux_control_*` public fields;
+   - the two trailing bytes of the B's engineering-mode frame as public fields `photosensitivity_value` + `out_pin_state`, captured by a B-only branch in `parse_data_frame_()`.
 
-   The full first-class variant additions are tracked in [`method-coverage.md`](method-coverage.md#ld2410b) Table 3.
+   Status: **UNVERIFIED on real LD2410B hardware** (no sample on bench); fully validated on host tests + 16-cell compile matrix. See [`method-coverage.md`](method-coverage.md#ld2410b) Table 3.
+
+   For users who don't need the B-only auxiliary control or the trailer fields, building with `LD2410_VARIANT_C` against an LD2410B board still works for every shared method — B is a strict wire-level superset of C for opcodes `0x60`..`0xAB`.
 
 ---
 

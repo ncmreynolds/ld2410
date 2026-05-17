@@ -184,18 +184,35 @@ if (radar.engineeringRetrieved()) Serial.println("got per-gate data");
 
 ---
 
-## "Compile error: 'LD2410_OP_X' was not declared"
+## "Compile error: 'LD2410_OP_X' was not declared" / "'class ld2410' has no member named 'setBluetooth'"
 
 You're calling a method on a variant that doesn't expose that
-opcode. Example: `setBluetooth()` on the default `LD2410_VARIANT_BASE`
-build will fail because `LD2410_HAS_BLUETOOTH` is not defined.
+opcode. Example: `setBluetooth()` on the default
+`LD2410_VARIANT_BASE` build will fail because `LD2410_HAS_BLUETOOTH`
+is not defined.
 
-Solution: pick the right variant macro before `#include`:
+Solution — pick the variant via the entry header (simplest, works
+on every build system including the Arduino IDE GUI):
+
+```cpp
+#include <ld2410c.h>           // (or <ld2410b.h>, <ld2410s.h>)
+```
+
+Equivalent on PlatformIO / arduino-cli only — pass `-DLD2410_VARIANT_C`
+as a build flag, or define before include:
 
 ```cpp
 #define LD2410_VARIANT_C        // for setBluetooth, setBaudRate, etc.
 #include <ld2410.h>
 ```
+
+> ⚠️ The Arduino IDE GUI has **no** per-sketch `-D` build-flag
+> mechanism, so `#define` before `#include` in your `.ino` is **not
+> enough** on its own with a non-header-only library — that's why the
+> entry-header route is the recommended one. The ld2410 library is
+> header-only by design (since the variant-abstraction refactor) so
+> all three routes now work, but the entry header is the most
+> foolproof.
 
 See [`02-variants.md`](02-variants.md) for the capability matrix
 and [`method-coverage.md`](method-coverage.md) for the per-opcode
