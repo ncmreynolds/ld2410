@@ -34,6 +34,7 @@
 # Tests build artifacts
 tests/test_parser
 tests/test_parser_basec
+tests/test_parser_b
 tests/test_parser_c
 tests/test_parser_s
 

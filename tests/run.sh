@@ -19,7 +19,11 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 
 CXXFLAGS="-std=c++17 -Wall -Wextra -I$HERE -I$ROOT/src"
-SOURCES="$HERE/test_parser.cpp $ROOT/src/ld2410.cpp"
+# Library is header-only as of the variant-abstraction refactor: the
+# implementation lives in src/ld2410_impl.h, included from src/ld2410.h
+# with every method marked `inline`. The only TU to compile is the test
+# driver, which pulls in the impl via the include chain.
+SOURCES="$HERE/test_parser.cpp"
 
 echo "=== Building & running base/C test suite ==="
 g++ $CXXFLAGS $SOURCES -o "$HERE/test_parser_basec"

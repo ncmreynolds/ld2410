@@ -10,16 +10,15 @@
  *	Released under LGPL-2.1 see https://github.com/ncmreynolds/ld2410/LICENSE for full license
  *
  */
-#ifndef ld2410_cpp
-#define ld2410_cpp
+#pragma once
 #include "ld2410.h"
 #include "ld2410_frame.h"
 #include <string.h>
-ld2410::ld2410()	//Constructor function
+inline ld2410::ld2410()	//Constructor function
 {
 }
 
-ld2410::~ld2410()	//Destructor function
+inline ld2410::~ld2410()	//Destructor function
 {
 #if defined(ESP32)
 	if (cmd_mutex_ != nullptr) {
@@ -37,7 +36,7 @@ ld2410::~ld2410()	//Destructor function
 // division on the variants where it is not free. Increment is always
 // by 1 between checks so the simple ++/== form is sufficient (no need
 // for "if (head >= SIZE) head -= SIZE").
-void ld2410::add_to_buffer(uint8_t byte) {
+inline void ld2410::add_to_buffer(uint8_t byte) {
     circular_buffer[buffer_head] = byte;
     if (++buffer_head == LD2410_BUFFER_SIZE) buffer_head = 0;
 
@@ -47,7 +46,7 @@ void ld2410::add_to_buffer(uint8_t byte) {
     }
 }
 
-bool ld2410::read_from_buffer(uint8_t &byte) {
+inline bool ld2410::read_from_buffer(uint8_t &byte) {
     if (buffer_head == buffer_tail) {
         return false;
     }
@@ -56,7 +55,7 @@ bool ld2410::read_from_buffer(uint8_t &byte) {
     return true;
 }
 
-bool ld2410::begin(Stream &radarStream, bool waitForRadar) {
+inline bool ld2410::begin(Stream &radarStream, bool waitForRadar) {
     radar_uart_ = &radarStream;
 #if defined(ESP32)
     if (cmd_mutex_ == nullptr) {
@@ -106,7 +105,7 @@ bool ld2410::begin(Stream &radarStream, bool waitForRadar) {
     return false;
 }
 
-void ld2410::debug(Stream &terminalStream)
+inline void ld2410::debug(Stream &terminalStream)
 {
 	debug_uart_ = &terminalStream;		//Set the stream used for the terminal
 	#if defined(ESP8266)
@@ -117,7 +116,7 @@ void ld2410::debug(Stream &terminalStream)
 	#endif
 }
 
-bool ld2410::isConnected()
+inline bool ld2410::isConnected()
 {
 	if(millis() - radar_uart_last_packet_ < radar_uart_timeout)	//Use the last reading
 	{
@@ -130,7 +129,7 @@ bool ld2410::isConnected()
 	return false;
 }
 
-bool ld2410::read() {
+inline bool ld2410::read() {
     bool new_data = false;
     // Leggi tutti i dati disponibili dal buffer UART
     while (radar_uart_->available()) {
@@ -147,7 +146,7 @@ bool ld2410::read() {
 
 
 #if defined(ESP32)
-void ld2410::taskFunction(void* param) {
+inline void ld2410::taskFunction(void* param) {
     ld2410* sensor = static_cast<ld2410*>(param);
     for (;;) {
         // Legge i dati dalla UART e li aggiunge al buffer circolare
@@ -170,7 +169,7 @@ void ld2410::taskFunction(void* param) {
 // Avvia il task FreeRTOS che legge in continuo dalla UART del radar.
 // Ritorna true se il task è stato creato con successo. Se un task era già
 // attivo viene ignorata la nuova richiesta e si ritorna true.
-bool ld2410::autoReadTask(uint32_t stack, UBaseType_t priority, BaseType_t core) {
+inline bool ld2410::autoReadTask(uint32_t stack, UBaseType_t priority, BaseType_t core) {
     if (taskHandle_ != nullptr) {
         return true;
     }
@@ -191,7 +190,7 @@ bool ld2410::autoReadTask(uint32_t stack, UBaseType_t priority, BaseType_t core)
 }
 
 // Ferma il task se in esecuzione.
-void ld2410::stopAutoReadTask() {
+inline void ld2410::stopAutoReadTask() {
     if (taskHandle_ != nullptr) {
         vTaskDelete(taskHandle_);
         taskHandle_ = nullptr;
@@ -202,7 +201,7 @@ void ld2410::stopAutoReadTask() {
 // Reports whether autoReadTask() is currently running. Always false on
 // platforms without the FreeRTOS task path, so consumer code can branch on
 // runtime mode without compile-time #ifs.
-bool ld2410::isAutoReadTaskRunning() {
+inline bool ld2410::isAutoReadTaskRunning() {
 #if defined(ESP32)
     return taskHandle_ != nullptr;
 #else
@@ -215,7 +214,7 @@ bool ld2410::isAutoReadTaskRunning() {
 // not called — single-thread assumption). Mirrors the always-false
 // stub pattern of isAutoReadTaskRunning() so the .h declaration is
 // universal and consumer code can call request*/set* without #if guards.
-bool ld2410::lock_command_(uint32_t timeout_ms) {
+inline bool ld2410::lock_command_(uint32_t timeout_ms) {
 #if defined(ESP32)
 	if (cmd_mutex_ == nullptr) {
 		return true;
@@ -229,7 +228,7 @@ bool ld2410::lock_command_(uint32_t timeout_ms) {
 
 // Release the per-instance command mutex (ESP32). No-op on other
 // platforms and on ESP32 if the mutex was never created.
-void ld2410::unlock_command_() {
+inline void ld2410::unlock_command_() {
 #if defined(ESP32)
 	if (cmd_mutex_ == nullptr) return;
 	xSemaphoreGive(cmd_mutex_);
@@ -237,12 +236,12 @@ void ld2410::unlock_command_() {
 }
 
 
-bool ld2410::presenceDetected()
+inline bool ld2410::presenceDetected()
 {
 	return target_type_ != 0;
 }
 
-bool ld2410::stationaryTargetDetected()
+inline bool ld2410::stationaryTargetDetected()
 {
 	if((target_type_ & 0x02) && stationary_target_distance_ > 0 && stationary_target_energy_ > 0)
 	{
@@ -251,7 +250,7 @@ bool ld2410::stationaryTargetDetected()
 	return false;
 }
 
-uint16_t ld2410::stationaryTargetDistance()
+inline uint16_t ld2410::stationaryTargetDistance()
 {
 	//if(stationary_target_energy_ > 0)
 	{
@@ -260,7 +259,7 @@ uint16_t ld2410::stationaryTargetDistance()
 	//return 0;
 }
 
-uint8_t ld2410::stationaryTargetEnergy()
+inline uint8_t ld2410::stationaryTargetEnergy()
 {
 	//if(stationary_target_distance_ > 0)
 	{
@@ -269,7 +268,7 @@ uint8_t ld2410::stationaryTargetEnergy()
 	//return 0;
 }
 
-bool ld2410::movingTargetDetected()
+inline bool ld2410::movingTargetDetected()
 {
 	if((target_type_ & 0x01) && moving_target_distance_ > 0 && moving_target_energy_ > 0)
 	{
@@ -278,7 +277,7 @@ bool ld2410::movingTargetDetected()
 	return false;
 }
 
-uint16_t ld2410::movingTargetDistance()
+inline uint16_t ld2410::movingTargetDistance()
 {
 	//if(moving_target_energy_ > 0)
 	{
@@ -287,32 +286,32 @@ uint16_t ld2410::movingTargetDistance()
 	//return 0;
 }
 
-uint8_t ld2410::movingTargetEnergy() {
+inline uint8_t ld2410::movingTargetEnergy() {
     if (moving_target_energy_ > 100) {
         return 100;  // Limita a 100 se il valore è superiore
     }
     return moving_target_energy_;  // Restituisci il valore se è già compreso tra 0 e 100
 }
 
-uint16_t ld2410::detectionDistance() {
+inline uint16_t ld2410::detectionDistance() {
     return detection_distance_;
 }
 
-uint8_t ld2410::movingEnergyAtGate(uint8_t gate) {
+inline uint8_t ld2410::movingEnergyAtGate(uint8_t gate) {
     if (gate >= LD2410_GATE_COUNT) {
         return 0;
     }
     return engineering_motion_energy_[gate];
 }
 
-uint8_t ld2410::stationaryEnergyAtGate(uint8_t gate) {
+inline uint8_t ld2410::stationaryEnergyAtGate(uint8_t gate) {
     if (gate >= LD2410_GATE_COUNT) {
         return 0;
     }
     return engineering_stationary_energy_[gate];
 }
 
-bool ld2410::engineeringRetrieved() {
+inline bool ld2410::engineeringRetrieved() {
     return engineering_data_received_;
 }
 
@@ -321,7 +320,7 @@ bool ld2410::engineeringRetrieved() {
 // bytes belong to ONE frame — guaranteed not to interleave with the
 // concurrent writes done by parse_data_frame_() running inside
 // autoReadTask. On other platforms the lock degenerates to a plain memcpy.
-void ld2410::snapshotEngineeringMotionEnergies(uint8_t out[LD2410_GATE_COUNT]) const {
+inline void ld2410::snapshotEngineeringMotionEnergies(uint8_t out[LD2410_GATE_COUNT]) const {
 #if defined(ESP32)
     portENTER_CRITICAL(&data_mux_);
 #endif
@@ -331,7 +330,7 @@ void ld2410::snapshotEngineeringMotionEnergies(uint8_t out[LD2410_GATE_COUNT]) c
 #endif
 }
 
-void ld2410::snapshotEngineeringStationaryEnergies(uint8_t out[LD2410_GATE_COUNT]) const {
+inline void ld2410::snapshotEngineeringStationaryEnergies(uint8_t out[LD2410_GATE_COUNT]) const {
 #if defined(ESP32)
     portENTER_CRITICAL(&data_mux_);
 #endif
@@ -341,7 +340,7 @@ void ld2410::snapshotEngineeringStationaryEnergies(uint8_t out[LD2410_GATE_COUNT
 #endif
 }
 
-void ld2410::snapshotTargetState(LD2410TargetState& out) const {
+inline void ld2410::snapshotTargetState(LD2410TargetState& out) const {
 #if defined(ESP32)
     portENTER_CRITICAL(&data_mux_);
 #endif
@@ -357,8 +356,8 @@ void ld2410::snapshotTargetState(LD2410TargetState& out) const {
 }
 
 #ifdef LD2410_HAS_AUTO_THRESHOLD
-uint16_t ld2410::autoThresholdProgress() { return auto_threshold_progress_; }
-bool     ld2410::autoThresholdReceived() { return auto_threshold_received_; }
+inline uint16_t ld2410::autoThresholdProgress() { return auto_threshold_progress_; }
+inline bool     ld2410::autoThresholdReceived() { return auto_threshold_received_; }
 #endif
 
 
@@ -366,18 +365,18 @@ bool     ld2410::autoThresholdReceived() { return auto_threshold_received_; }
 // read_frame_() already validates these byte-by-byte during accumulation, so
 // this is a defensive post-hoc check (e.g. against a hypothetical buffer
 // corruption between accumulation and frame finalisation).
-bool ld2410::check_frame_start_() {
+inline bool ld2410::check_frame_start_() {
     const uint8_t *head = ack_frame_ ? LD2410_CMD_FRAME_HEAD : LD2410_DATA_FRAME_HEAD;
     return memcmp(radar_data_frame_, head, 4) == 0;
 }
 
 // Validate the 4-byte trailer magic at the end of the assembled frame.
-bool ld2410::check_frame_end_() {
+inline bool ld2410::check_frame_end_() {
     const uint8_t *tail = ack_frame_ ? LD2410_CMD_FRAME_TAIL : LD2410_DATA_FRAME_TAIL;
     return memcmp(&radar_data_frame_[radar_data_frame_position_ - 4], tail, 4) == 0;
 }
 
-void ld2410::print_frame_()
+inline void ld2410::print_frame_()
 {
 	if(debug_uart_ != nullptr)
 	{
@@ -419,7 +418,7 @@ void ld2410::print_frame_()
 // many bytes, then validates the footer and parses. On any mid-frame
 // inconsistency it resyncs, and if the offending byte is itself a candidate
 // header start it is reused as the new position 0 so we don't lose a header.
-bool ld2410::read_frame_() {
+inline bool ld2410::read_frame_() {
     uint8_t byte_read;
     while (read_from_buffer(byte_read)) {
         const uint8_t pos = radar_data_frame_position_;
@@ -550,7 +549,7 @@ bool ld2410::read_frame_() {
 // NOT cleared here — the user keeps whatever was last reported via a
 // standard frame. base/C-only fields are zeroed for consistency with the
 // standard-frame S decode path (see parse_data_frame_).
-bool ld2410::parse_minimal_frame_() {
+inline bool ld2410::parse_minimal_frame_() {
 #if defined(ESP32)
     portENTER_CRITICAL(&data_mux_);
 #endif
@@ -569,7 +568,7 @@ bool ld2410::parse_minimal_frame_() {
 }
 #endif
 
-bool ld2410::parse_data_frame_() {
+inline bool ld2410::parse_data_frame_() {
     uint16_t intra_frame_data_length = radar_data_frame_[4] | (radar_data_frame_[5] << 8);
 
     // Frame total = header(4) + length(2) + intra-frame + footer(4) = intra + 10
@@ -726,7 +725,7 @@ bool ld2410::parse_data_frame_() {
 //   cmd_ack_seq_ == cmd_seq_ AND latest_ack_ == expected_op
 // returning latest_command_success_ on match, false on timeout.
 // ---------------------------------------------------------------------------
-void ld2410::begin_command_(uint8_t expected_op)
+inline void ld2410::begin_command_(uint8_t expected_op)
 {
 	bool task_running = false;
 #if defined(ESP32)
@@ -753,7 +752,7 @@ void ld2410::begin_command_(uint8_t expected_op)
 	}
 }
 
-bool ld2410::wait_for_ack_(uint8_t expected_op, uint32_t timeout_ms)
+inline bool ld2410::wait_for_ack_(uint8_t expected_op, uint32_t timeout_ms)
 {
 	uint32_t start = millis();
 	bool task_running = false;
@@ -795,7 +794,7 @@ bool ld2410::wait_for_ack_(uint8_t expected_op, uint32_t timeout_ms)
 	return false;
 }
 
-bool ld2410::parse_command_frame_()
+inline bool ld2410::parse_command_frame_()
 {
 	uint16_t intra_frame_data_length_ = radar_data_frame_[4] + (radar_data_frame_[5] << 8);
 	#ifdef LD2410_DEBUG_COMMANDS
@@ -1327,12 +1326,12 @@ bool ld2410::parse_command_frame_()
 
 
 
-void ld2410::send_command_preamble_()
+inline void ld2410::send_command_preamble_()
 {
 	ld2410_write_cmd_frame_head(radar_uart_);
 }
 
-void ld2410::send_command_postamble_()
+inline void ld2410::send_command_postamble_()
 {
 	ld2410_write_cmd_frame_tail(radar_uart_);
 }
@@ -1344,7 +1343,7 @@ void ld2410::send_command_postamble_()
 // per command and removes ~8 lines of identical boilerplate from each
 // of 9 callers (-200 B flash on AVR; on ESP32/ESP8266 the win is mainly
 // code clarity).
-void ld2410::send_simple_command_(uint8_t opcode)
+inline void ld2410::send_simple_command_(uint8_t opcode)
 {
 	begin_command_(opcode);
 	send_command_preamble_();
@@ -1363,7 +1362,7 @@ void ld2410::send_simple_command_(uint8_t opcode)
 //   - "failed" is NOT gated (always printed if debug_uart_ is set)
 // because failure is operationally informative and worth surfacing
 // even without the verbose flag.
-bool ld2410::report_command_result_(bool success)
+inline bool ld2410::report_command_result_(bool success)
 {
 	if (success) {
 		radar_uart_last_packet_ = millis();
@@ -1380,7 +1379,7 @@ bool ld2410::report_command_result_(bool success)
 	return false;
 }
 
-bool ld2410::enter_configuration_mode_()
+inline bool ld2410::enter_configuration_mode_()
 {
 	begin_command_(LD2410_OP_ENABLE_CFG);
 	send_command_preamble_();
@@ -1394,14 +1393,14 @@ bool ld2410::enter_configuration_mode_()
 	return wait_for_ack_(LD2410_OP_ENABLE_CFG, radar_uart_command_timeout_);
 }
 
-bool ld2410::leave_configuration_mode_()
+inline bool ld2410::leave_configuration_mode_()
 {
 	send_simple_command_(LD2410_OP_END_CFG);
 	return wait_for_ack_(LD2410_OP_END_CFG, radar_uart_command_timeout_);
 }
 
 #ifdef LD2410_HAS_ENGINEERING_MODE
-bool ld2410::requestStartEngineeringMode()
+inline bool ld2410::requestStartEngineeringMode()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1426,7 +1425,7 @@ bool ld2410::requestStartEngineeringMode()
 #endif
 
 #ifdef LD2410_HAS_ENGINEERING_MODE
-bool ld2410::requestEndEngineeringMode()
+inline bool ld2410::requestEndEngineeringMode()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1446,7 +1445,7 @@ bool ld2410::requestEndEngineeringMode()
 #endif
 
 #ifdef LD2410_HAS_READ_PARAMS
-bool ld2410::requestCurrentConfiguration()
+inline bool ld2410::requestCurrentConfiguration()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1465,7 +1464,7 @@ bool ld2410::requestCurrentConfiguration()
 }
 #endif
 
-bool ld2410::requestFirmwareVersion()
+inline bool ld2410::requestFirmwareVersion()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1486,7 +1485,7 @@ bool ld2410::requestFirmwareVersion()
 
 
 #ifdef LD2410_HAS_RESTART
-bool ld2410::requestRestart()
+inline bool ld2410::requestRestart()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1539,7 +1538,7 @@ bool ld2410::requestRestart()
 #endif
 
 #ifdef LD2410_HAS_FACTORY_RESET
-bool ld2410::requestFactoryReset()
+inline bool ld2410::requestFactoryReset()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1567,7 +1566,7 @@ bool ld2410::requestFactoryReset()
 // responsible for reopening the host UART at the matching rate.
 // See docs/method-coverage.md Table 1 row 0xA1 (regression vs v0.1.3,
 // upstream issue #39).
-bool ld2410::setBaudRate(uint16_t baud_index)
+inline bool ld2410::setBaudRate(uint16_t baud_index)
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1596,7 +1595,7 @@ bool ld2410::setBaudRate(uint16_t baud_index)
 // (cmd-word + 2-byte LE state). ACK is the standard 4-byte success/fail
 // envelope handled in parse_command_frame_. Effect is post-restart.
 // See docs/method-coverage.md Table 1 row 0xA4.
-bool ld2410::setBluetooth(bool on)
+inline bool ld2410::setBluetooth(bool on)
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1626,7 +1625,7 @@ bool ld2410::setBluetooth(bool on)
 // intra=12. ACK is the standard 4-byte success/fail envelope.
 // UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
 // See docs/method-coverage.md Table 1 row 0x10.
-bool ld2410::writeSerialNumber(const uint8_t sn[8])
+inline bool ld2410::writeSerialNumber(const uint8_t sn[8])
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1656,7 +1655,7 @@ bool ld2410::writeSerialNumber(const uint8_t sn[8])
 // 0x11 branch into serial_number[8].
 // UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
 // See docs/method-coverage.md Table 1 row 0x11.
-bool ld2410::requestSerialNumber()
+inline bool ld2410::requestSerialNumber()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1685,7 +1684,7 @@ bool ld2410::requestSerialNumber()
 // method returns false but the sweep may still be running.
 // UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
 // See docs/method-coverage.md Table 1 row 0x09.
-bool ld2410::autoUpdateThreshold(uint16_t trigger_factor,
+inline bool ld2410::autoUpdateThreshold(uint16_t trigger_factor,
                                  uint16_t retention_factor,
                                  uint16_t scanning_time_s)
 {
@@ -1720,7 +1719,7 @@ bool ld2410::autoUpdateThreshold(uint16_t trigger_factor,
 // differs. Each gate's value is widened from uint8_t (the documented
 // range) to uint32_t for the wire.
 // UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
-bool ld2410::write_per_gate_thresholds_(uint8_t opcode, const uint8_t thresholds[16])
+inline bool ld2410::write_per_gate_thresholds_(uint8_t opcode, const uint8_t thresholds[16])
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1751,7 +1750,7 @@ bool ld2410::write_per_gate_thresholds_(uint8_t opcode, const uint8_t thresholds
 // intra (= 0x22). ACK is decoded in parse_command_frame_'s 0x73/0x77
 // branches into trigger_thresholds[] / hold_thresholds[] respectively.
 // UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
-bool ld2410::request_per_gate_thresholds_(uint8_t opcode)
+inline bool ld2410::request_per_gate_thresholds_(uint8_t opcode)
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1780,7 +1779,7 @@ bool ld2410::request_per_gate_thresholds_(uint8_t opcode)
 #ifdef LD2410_HAS_TRIGGER_THRESHOLD
 // 0x72 §2.2.10 (S only) — write per-gate motion (trigger) thresholds.
 // See docs/method-coverage.md Table 1 row 0x72.
-bool ld2410::writeTriggerThresholds(const uint8_t thresholds[16])
+inline bool ld2410::writeTriggerThresholds(const uint8_t thresholds[16])
 {
 	return write_per_gate_thresholds_(LD2410_OP_WRITE_TRIGGER_THRESH, thresholds);
 }
@@ -1788,7 +1787,7 @@ bool ld2410::writeTriggerThresholds(const uint8_t thresholds[16])
 // 0x73 §2.2.11 (S only) — read per-gate motion (trigger) thresholds.
 // On success the 16 values land in trigger_thresholds[].
 // See docs/method-coverage.md Table 1 row 0x73.
-bool ld2410::requestTriggerThresholds()
+inline bool ld2410::requestTriggerThresholds()
 {
 	return request_per_gate_thresholds_(LD2410_OP_READ_TRIGGER_THRESH);
 }
@@ -1797,7 +1796,7 @@ bool ld2410::requestTriggerThresholds()
 #ifdef LD2410_HAS_HOLD_THRESHOLD
 // 0x76 §2.2.12 (S only) — write per-gate stationary (hold) thresholds.
 // See docs/method-coverage.md Table 1 row 0x76.
-bool ld2410::writeHoldThresholds(const uint8_t thresholds[16])
+inline bool ld2410::writeHoldThresholds(const uint8_t thresholds[16])
 {
 	return write_per_gate_thresholds_(LD2410_OP_WRITE_HOLD_THRESH, thresholds);
 }
@@ -1805,7 +1804,7 @@ bool ld2410::writeHoldThresholds(const uint8_t thresholds[16])
 // 0x77 §2.2.13 (S only) — read per-gate stationary (hold) thresholds.
 // On success the 16 values land in hold_thresholds[].
 // See docs/method-coverage.md Table 1 row 0x77.
-bool ld2410::requestHoldThresholds()
+inline bool ld2410::requestHoldThresholds()
 {
 	return request_per_gate_thresholds_(LD2410_OP_READ_HOLD_THRESH);
 }
@@ -1817,7 +1816,7 @@ bool ld2410::requestHoldThresholds()
 // (= 0x26). ACK is the standard 4-byte success/fail envelope.
 // UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
 // See docs/method-coverage.md Table 1 row 0x70.
-bool ld2410::writeGenericParameters(uint8_t detect_farthest_gate_in,
+inline bool ld2410::writeGenericParameters(uint8_t detect_farthest_gate_in,
                                     uint8_t detect_nearest_gate_in,
                                     uint16_t unmanned_delay_s_in,
                                     uint8_t status_report_freq_in,
@@ -1864,7 +1863,7 @@ bool ld2410::writeGenericParameters(uint8_t detect_farthest_gate_in,
 // authoritative. ACK is decoded by parse_command_frame_'s 0x71 branch.
 // UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
 // See docs/method-coverage.md Table 1 row 0x71.
-bool ld2410::requestGenericParameters()
+inline bool ld2410::requestGenericParameters()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1910,7 +1909,7 @@ bool ld2410::requestGenericParameters()
 //
 // UNVERIFIED ON HARDWARE — see ld2410_s.h banner.
 // See docs/method-coverage.md Table 1 row 0x7A.
-bool ld2410::setOutputMode(bool standard)
+inline bool ld2410::setOutputMode(bool standard)
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1945,7 +1944,7 @@ bool ld2410::setOutputMode(bool standard)
 // Implemented for protocol completeness; the BLE-side flow is out of
 // scope for the UART driver.
 // See docs/method-coverage.md Table 1 row 0xA8.
-bool ld2410::obtainBluetoothPermissions(const uint8_t password[LD2410_BLUETOOTH_PASSWORD_LENGTH])
+inline bool ld2410::obtainBluetoothPermissions(const uint8_t password[LD2410_BLUETOOTH_PASSWORD_LENGTH])
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -1972,7 +1971,7 @@ bool ld2410::obtainBluetoothPermissions(const uint8_t password[LD2410_BLUETOOTH_
 // + 6 password bytes in wire order (intra=8). ACK is the standard 4-byte
 // success/fail envelope, delivered on UART.
 // See docs/method-coverage.md Table 1 row 0xA9.
-bool ld2410::setBluetoothPassword(const uint8_t password[LD2410_BLUETOOTH_PASSWORD_LENGTH])
+inline bool ld2410::setBluetoothPassword(const uint8_t password[LD2410_BLUETOOTH_PASSWORD_LENGTH])
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -2002,7 +2001,7 @@ bool ld2410::setBluetoothPassword(const uint8_t password[LD2410_BLUETOOTH_PASSWO
 // 2-byte status + 6-byte MAC in wire order. The MAC is copied into
 // mac_address[] inside parse_command_frame_'s 0xA5 branch.
 // See docs/method-coverage.md Table 1 row 0xA5.
-bool ld2410::requestMACAddress()
+inline bool ld2410::requestMACAddress()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -2031,7 +2030,7 @@ bool ld2410::requestMACAddress()
 // Intra=4 (cmd-word + 2-byte LE index from LD2410_DISTANCE_RESOLUTION_*).
 // ACK is the standard 4-byte envelope. Effect is post-restart.
 // See docs/method-coverage.md Table 1 row 0xAA.
-bool ld2410::setDistanceResolution(uint16_t resolution_index)
+inline bool ld2410::setDistanceResolution(uint16_t resolution_index)
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -2058,7 +2057,7 @@ bool ld2410::setDistanceResolution(uint16_t resolution_index)
 // only (intra=2, no value). ACK: intra=6 with cmd-word + 2-byte status + 2-byte
 // LE index, decoded into distance_resolution by parse_command_frame_'s 0xAB branch.
 // See docs/method-coverage.md Table 1 row 0xAB.
-bool ld2410::requestDistanceResolution()
+inline bool ld2410::requestDistanceResolution()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -2083,7 +2082,7 @@ bool ld2410::requestDistanceResolution()
 // level, 0x00 reserved); intra=6 bytes. ACK is the standard 4-byte
 // success/fail envelope, parsed in parse_command_frame_'s 0xAD branch.
 // See docs/method-coverage.md Table 1 row 0xAD.
-bool ld2410::setAuxiliaryControl(uint8_t mode, uint8_t threshold, uint8_t out_default_level)
+inline bool ld2410::setAuxiliaryControl(uint8_t mode, uint8_t threshold, uint8_t out_default_level)
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -2114,7 +2113,7 @@ bool ld2410::setAuxiliaryControl(uint8_t mode, uint8_t threshold, uint8_t out_de
 // status + 4-byte config (mode, threshold, OUT default level, reserved),
 // decoded into aux_control_* fields by parse_command_frame_'s 0xAE branch.
 // See docs/method-coverage.md Table 1 row 0xAE.
-bool ld2410::requestAuxiliaryControl()
+inline bool ld2410::requestAuxiliaryControl()
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -2134,7 +2133,7 @@ bool ld2410::requestAuxiliaryControl()
 #endif
 
 #ifdef LD2410_HAS_MAX_VALUES
-bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer)
+inline bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer)
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -2164,7 +2163,7 @@ bool ld2410::setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactiv
 #endif
 
 #ifdef LD2410_HAS_GATE_SENSITIVITY
-bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary)
+inline bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary)
 {
 	CommandTransaction tx(*this);
 	if (!tx.ok()) return false;
@@ -2193,7 +2192,7 @@ bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t s
 }
 #endif
 
-FrameData ld2410::getFrameData() const {
+inline FrameData ld2410::getFrameData() const {
     // Usa last_valid_frame_length come lunghezza iniziale
     uint16_t frame_length = last_valid_frame_length;
 
@@ -2230,4 +2229,3 @@ FrameData ld2410::getFrameData() const {
     // Se tutti i controlli sono passati, restituisci i dati validi
     return {radar_data_frame_, frame_length};
 }
-#endif

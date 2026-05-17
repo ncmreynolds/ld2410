@@ -602,4 +602,12 @@ class ld2410	{
 		static void taskFunction(void* param);
 #endif
 };
+
+// Method definitions are inlined in this companion header so the variant
+// macro (LD2410_VARIANT_C, etc.) defined in the user sketch reaches every
+// translation unit that compiles ld2410 code. Required for Arduino IDE
+// builds, where per-sketch -D flags cannot be propagated to a separately
+// compiled library .cpp.
+#include "ld2410_impl.h"
+
 #endif
