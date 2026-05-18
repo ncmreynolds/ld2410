@@ -41,7 +41,7 @@ void setup() {
   Serial.begin(115200);
   // radar.debug(Serial);  // Uncomment for verbose library debug output
 
-  radarSerial.begin(256000);
+  radarSerial.begin(LD2410_DEFAULT_BAUD);
   delay(500);
 
   Serial.print(F("\nConnect LD2410 radar TX to GPIO:"));
